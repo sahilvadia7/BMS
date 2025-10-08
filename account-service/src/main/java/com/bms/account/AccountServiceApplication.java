@@ -10,4 +10,8 @@ public class AccountServiceApplication {
 		SpringApplication.run(AccountServiceApplication.class, args);
 	}
 
+
+
+
+
 }
