@@ -1,0 +1,107 @@
+# ==========================================
+# Global BMS Project Git Ignore
+# ==========================================
+
+# ------------------------------
+# IntelliJ / IDE Specific Files
+# ------------------------------
+.idea/
+*.iml
+*.iws
+out/
+*.ipr
+
+# VS Code
+.vscode/
+
+# MacOS / Windows Junk Files
+.DS_Store
+Thumbs.db
+
+# ------------------------------
+# Maven & Build Related
+# ------------------------------
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Logs
+*.log
+logs/
+*.tmp
+
+# ------------------------------
+# Environment / Config Files
+# ------------------------------
+.env
+*.env.local
+application-local.yml
+application-dev.yml
+application-prod.yml
+application-test.yml
+
+# ------------------------------
+# OS or Editor Swap / Backup Files
+# ------------------------------
+*~
+*.swp
+*.swo
+*.bak
+
+# ------------------------------
+# Docker / Compose Artifacts
+# ------------------------------
+docker-compose.override.yml
+.docker/
+*.pid
+
+# ------------------------------
+# Test & Coverage Artifacts
+# ------------------------------
+test-output/
+coverage/
+*.lcov
+*.exec
+
+# ------------------------------
+# Node / Frontend (if any UI)
+# ------------------------------
+node_modules/
+dist/
+build/
+
+# ------------------------------
+# Ignore Git in Each Microservice
+# ------------------------------
+*/target/
+*/logs/
+*/.idea/
+*/.vscode/
+*/.classpath
+*/.project
+*/.settings/
+
+# ------------------------------
+# Specific Services temporary files
+# ------------------------------
+auth-service/temp/
+customer-service/temp/
+branch-service/temp/
+account-service/temp/
+transaction-service/temp/
+loan-service/temp/
+card-service/temp/
+notification-service/temp/
+report-service/temp/
+
+# ------------------------------
+# Ignore Local Database or Dump Files
+# ------------------------------
+*.db
+*.sql
+dump/
