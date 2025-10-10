@@ -1,0 +1,16 @@
+spring:
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+rabbitmq:
+  exchange:
+    account: account_exchange
+  routingKey:
+    accountCreated: account.created
+    balanceUpdated: account.balance.updated
+  queue:
+    accountCreated: account_created_queue
+    balanceUpdated: balance_updated_queue
