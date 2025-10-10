@@ -84,7 +84,7 @@
 			<version>2.2.0</version>
 		</dependency>
 
-	</dependencies>
+    </dependencies>
 
 	<!-- Spring Cloud BOM -->
 	<dependencyManagement>

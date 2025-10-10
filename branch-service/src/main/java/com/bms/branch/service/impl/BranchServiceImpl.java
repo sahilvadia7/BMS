@@ -34,64 +34,151 @@ public class BranchServiceImpl implements BranchService {
                 .contactNumber(branchRequestDto.contactNumber())
                 .status(branchRequestDto.status())
                 .openingDate(branchRequestDto.openingDate())
-                .address(branchRequestDto.address() != null ?
-                        new Address(branchRequestDto.address().street(),
-                                branchRequestDto.address().city(),
-                                branchRequestDto.address().state(),
-                                branchRequestDto.address().country(),
-                                branchRequestDto.address().zipCode()) : null)
+                .address(branchRequestDto.address() != null
+                        ? new Address(
+                        branchRequestDto.address().street(),
+                        branchRequestDto.address().city(),
+                        branchRequestDto.address().state(),
+                        branchRequestDto.address().country(),
+                        branchRequestDto.address().zipCode())
+                        : null)
                 .createdAt(LocalDate.now())
                 .updatedAt(LocalDate.now())
                 .isActive(true)
                 .build();
 
-        branchRepository.save(branch);
+        Branch savedBranch = branchRepository.save(branch);
 
-        return BranchResponseDto.builder()
-                .branchCode(branchRequestDto.branchCode())
-                .build();
+        return convertToResponseDto(savedBranch);
     }
 
     @Override
     public BranchResponseDto updateBranch(Long branchId, BranchRequestDto branchRequestDto) {
-        return null;
+        Branch branch = branchRepository.findById(branchId)
+                .orElseThrow(() -> new RuntimeException("Branch not found with id: " + branchId));
+
+        branch.setBranchName(branchRequestDto.branchName());
+        branch.setIfscCode(branchRequestDto.ifscCode());
+        branch.setEmail(branchRequestDto.email());
+        branch.setContactNumber(branchRequestDto.contactNumber());
+        branch.setStatus(branchRequestDto.status());
+        branch.setOpeningDate(branchRequestDto.openingDate());
+        branch.setUpdatedAt(LocalDate.now());
+        branch.setAddress(branchRequestDto.address() != null
+                ? new Address(
+                branchRequestDto.address().street(),
+                branchRequestDto.address().city(),
+                branchRequestDto.address().state(),
+                branchRequestDto.address().country(),
+                branchRequestDto.address().zipCode())
+                : null);
+
+        Branch updatedBranch = branchRepository.save(branch);
+        return convertToResponseDto(updatedBranch);
     }
 
     @Override
     public void deleteBranch(Long branchId) {
-
+        if (!branchRepository.existsById(branchId)) {
+            throw new RuntimeException("Branch not found with id: " + branchId);
+        }
+        branchRepository.deleteById(branchId);
     }
 
     @Override
     public BranchResponseDto getBranchById(Long branchId) {
-        return null;
+        Branch branch = branchRepository.findById(branchId)
+                .orElseThrow(() -> new RuntimeException("Branch not found with id: " + branchId));
+        return convertToResponseDto(branch);
     }
 
     @Override
     public List<BranchResponseDto> getAllBranches(boolean onlyActive) {
-        return List.of();
+        List<Branch> branches = onlyActive
+                ? branchRepository.findAll().stream().filter(Branch::isActive).collect(Collectors.toList())
+                : branchRepository.findAll();
+
+        return branches.stream()
+                .map(this::convertToResponseDto)
+                .collect(Collectors.toList());
     }
 
     @Override
     public BranchResponseDto addEmployeeToBranch(Long branchId, Long employeeId) {
-        return null;
+        Branch branch = branchRepository.findById(branchId)
+                .orElseThrow(() -> new RuntimeException("Branch not found with id: " + branchId));
+
+        BranchEmployeeMapping mapping = BranchEmployeeMapping.builder()
+                .branch(branch)
+                .employeeId(employeeId)
+                .assignedDate(LocalDate.now())
+                .build();
+
+        mappingRepository.save(mapping);
+        branch.getEmployees().add(mapping);
+
+        return convertToResponseDto(branch);
     }
 
     @Override
     public BranchResponseDto removeEmployeeFromBranch(Long branchId, Long employeeId) {
-        return null;
+        Branch branch = branchRepository.findById(branchId)
+                .orElseThrow(() -> new RuntimeException("Branch not found with id: " + branchId));
+
+        mappingRepository.deleteByBranchIdAndEmployeeId(branchId, employeeId);
+
+        branch.setEmployees(
+                branch.getEmployees().stream()
+                        .filter(e -> !e.getEmployeeId().equals(employeeId))
+                        .collect(Collectors.toSet())
+        );
+
+        return convertToResponseDto(branch);
     }
 
     @Override
     public List<Long> getBranchEmployees(Long branchId) {
-        return List.of();
+        return mappingRepository.findByBranchId(branchId)
+                .stream()
+                .map(BranchEmployeeMapping::getEmployeeId)
+                .collect(Collectors.toList());
     }
 
     @Override
     public boolean existsById(Long branchId) {
-        return false;
+        return branchRepository.existsById(branchId);
     }
 
+    private BranchResponseDto convertToResponseDto(Branch branch) {
+        AddressResponseDto addressDto = null;
+        if (branch.getAddress() != null) {
+            addressDto = new AddressResponseDto(
+                    branch.getAddress().getStreet(),
+                    branch.getAddress().getCity(),
+                    branch.getAddress().getState(),
+                    branch.getAddress().getCountry(),
+                    branch.getAddress().getPostalCode()
+            );
+        }
 
+        List<EmployeeDto> employees = branch.getEmployees().stream()
+                .map(e -> new EmployeeDto(e.getEmployeeId(),null,e.getAssignedDate(),null))
+                .collect(Collectors.toList());
+
+        return new BranchResponseDto(
+                branch.getId(),
+                branch.getBranchCode(),
+                branch.getBranchName(),
+                branch.getIfscCode(),
+                branch.getEmail(),
+                branch.getContactNumber(),
+                branch.getStatus(),
+                branch.getOpeningDate(),
+                addressDto,
+                employees,
+                branch.getCreatedAt(),
+                branch.getUpdatedAt(),
+                branch.isActive()
+        );
+    }
 }
-
