@@ -1,45 +1,38 @@
-package com.bms.account.entities;
+package com.bms.customer.entities;
 
-import com.bms.account.enums.AccountStatus;
-import com.bms.account.enums.AccountType;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "accounts")
+@Table(name = "customers")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Account {
+public class Customer {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
-    private String accountNumber;
-
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private AccountType accountType;  // SAVINGS, CURRENT
+    private Long userId; // FK to User (centralized DB)
 
     @Column(nullable = false)
-    private BigDecimal balance;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private AccountStatus status;  // ACTIVE, CLOSED, FROZEN
+    private String name;
 
     @Column(nullable = false)
-    private Long customerId;  // FK -> Customer (centralized DB)
+    private String address;
 
     @Column(nullable = false)
-    private Long branchId;    // FK -> Branch (centralized DB)
+    private LocalDate dob;
+
+    @Column(nullable = false)
+    private Long kycId; // FK to KYC entity/table
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -48,8 +41,8 @@ public class Account {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = createdAt;
-        if (status == null) {
-            status = AccountStatus.ACTIVE;
+        if (kycId == null) {
+            kycId = 0L; // default value if you want
         }
     }
 
