@@ -1,4 +1,4 @@
-package com.bms.account.config;
+package com.bms.customer.config;
 
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
@@ -9,11 +9,11 @@ import org.springframework.context.annotation.Configuration;
 public class SwaggerConfig {
 
     @Bean
-    public OpenAPI accountOpenAPI() {
+    public OpenAPI customerServiceAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("Bank Management System - Account Microservice API")
-                        .description("REST APIs for managing bank accounts")
-                        .version("v1.0"));
+                        .title("Customer Service API")
+                        .description("API documentation for Customer microservice in Banking System")
+                        .version("1.0.0"));
     }
 }

@@ -12,8 +12,9 @@ public record AccountRequestDTO(
         @NotNull(message = "Balance is required")
         BigDecimal balance,
 
-//        String currency, // Optional, can be null
-
         @NotNull(message = "Customer ID is required")
-        Long customerId
+        Long customerId,
+
+        @NotNull(message = "Branch ID is required")
+        Long branchId
 ) { }
