@@ -1,5 +1,6 @@
 package com.bms.auth.service.impl;
 
+import com.bms.auth.dto.UserEvent;
 import com.bms.auth.dto.request.ChangePwdDTO;
 import com.bms.auth.dto.request.LoginRequest;
 import com.bms.auth.dto.request.RegisterRequest;
@@ -12,6 +13,7 @@ import com.bms.auth.enums.Gender;
 import com.bms.auth.enums.Roles;
 import com.bms.auth.exception.customException.InvalidCredentialsException;
 import com.bms.auth.exception.customException.ResourceNotFoundException;
+import com.bms.auth.producer.UserEventProducer;
 import com.bms.auth.repository.UserRepository;
 import com.bms.auth.service.UserService;
 import jakarta.persistence.EntityNotFoundException;
@@ -25,10 +27,12 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final UserEventProducer userEventProducer;
 
-    public UserServiceImpl(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder) {
+    public UserServiceImpl(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder, UserEventProducer userEventProducer) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.userEventProducer = userEventProducer;
     }
 
 
@@ -58,6 +62,9 @@ public class UserServiceImpl implements UserService {
         RegisterResponse registerResponse = new RegisterResponse();
         registerResponse.setUserId(savedUser.getUserId());
         registerResponse.setMessage("User registered successfully! ");
+
+        userEventProducer.sendUserRegisteredEvent(new UserEvent(user.getUserId(), user.getFirstName()+" "+user.getLastName(), user.getEmail(), LocalDateTime.now()));
+
         // Return response DTO
         return registerResponse;
     }
@@ -71,6 +78,8 @@ public class UserServiceImpl implements UserService {
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new InvalidCredentialsException("Invalid email or password");
         }
+
+        userEventProducer.sendUserLoginEvent(new UserEvent(user.getUserId(), user.getFirstName()+" "+user.getLastName(), user.getEmail(), LocalDateTime.now()));
 
         return LoginResponse.builder()
 //                .token(token)
