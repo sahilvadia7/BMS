@@ -52,7 +52,11 @@ public class LoanServiceImpl implements LoanService {
             throw new RuntimeException("User not found or inactive");
         }
 
-//        AccountResponseDTO account = accountClient.getAccountById(dto.)
+        AccountResponseDTO account = accountClient.getAccountByNumber(dto.getAccountNumber());
+
+        if (account == null || account.getStatus().equalsIgnoreCase("CLOSED")){
+            throw new RuntimeException("Account not found or inactive");
+        }
 
         LoanApplication loan = loanMapper.toEntity(dto, user.getUserId());
         LoanApplication saved = loanRepo.save(loan);
