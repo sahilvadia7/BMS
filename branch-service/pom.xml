@@ -84,6 +84,13 @@
 			<version>2.2.0</version>
 		</dependency>
 
+        <dependency>
+            <groupId>com.bms</groupId>
+            <artifactId>auth-service</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+            <scope>compile</scope>
+        </dependency>
+
     </dependencies>
 
 	<!-- Spring Cloud BOM -->

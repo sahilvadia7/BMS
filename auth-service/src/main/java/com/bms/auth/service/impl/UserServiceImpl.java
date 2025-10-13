@@ -9,6 +9,7 @@ import com.bms.auth.dto.response.LoginResponse;
 import com.bms.auth.dto.response.RegisterResponse;
 import com.bms.auth.dto.response.UserResponse;
 import com.bms.auth.entity.User;
+import com.bms.auth.enums.Gender;
 import com.bms.auth.enums.Roles;
 import com.bms.auth.exception.customException.InvalidCredentialsException;
 import com.bms.auth.exception.customException.ResourceNotFoundException;
@@ -19,7 +20,7 @@ import jakarta.persistence.EntityNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Service
 public class UserServiceImpl implements UserService {
@@ -38,12 +39,12 @@ public class UserServiceImpl implements UserService {
     @Override
     public RegisterResponse registerUser(RegisterRequest request) {
 
-        // Check if email already exists
+        Optional<Gender> optionalGender = request.getGender();
+
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new RuntimeException("Email already exists");
         }
 
-        // Map DTO → Entity
         User user = new User();
         user.setFirstName(request.getFirstName());
 
@@ -52,7 +53,7 @@ public class UserServiceImpl implements UserService {
         user.setPhoneNo(request.getPhoneNo());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRoles(Roles.Customer);
-        user.setGender(request.getGender());
+        optionalGender.ifPresent(user::setGender);
         user.setActive(true);
 
         // Save user

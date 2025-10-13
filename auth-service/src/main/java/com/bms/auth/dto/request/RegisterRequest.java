@@ -4,6 +4,8 @@ import com.bms.auth.enums.Gender;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 
+import java.util.Optional;
+
 @Data
 public class RegisterRequest {
 
@@ -27,6 +29,5 @@ public class RegisterRequest {
     @Size(min = 8, message = "Password must be at least 8 characters")
     private String password;
 
-    @NotNull(message = "Gender is required")
-    private Gender gender;
+    private Optional<Gender> gender;
 }

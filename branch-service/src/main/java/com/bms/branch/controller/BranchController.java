@@ -1,7 +1,9 @@
 package com.bms.branch.controller;
 
 import com.bms.branch.dto.request.BranchRequestDto;
+import com.bms.branch.dto.request.RegisterRequest;
 import com.bms.branch.dto.response.BranchResponseDto;
+import com.bms.branch.dto.response.EmployeeDto;
 import com.bms.branch.service.BranchService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -104,6 +106,15 @@ public class BranchController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/{branchId}/employees")
+    public ResponseEntity<BranchResponseDto> createAndAssignEmployee(
+            @PathVariable Long branchId,
+            @RequestBody RegisterRequest registerRequest) {
+
+        BranchResponseDto updatedBranch = branchService.createAndAssignEmployee(branchId, registerRequest);
+        return ResponseEntity.ok(updatedBranch);
+    }
+
     @Operation(
             summary = "Add employee to a branch",
             description = "Assigns an employee to a branch by their IDs",
@@ -138,7 +149,6 @@ public class BranchController {
         return ResponseEntity.ok(response);
     }
 
-    // ✅ Get Employees of a Branch
     @Operation(
             summary = "Get employees of a branch",
             description = "Returns all employee IDs assigned to a given branch",
@@ -155,7 +165,6 @@ public class BranchController {
         return ResponseEntity.ok(employees);
     }
 
-    // ✅ Check if Branch Exists
     @Operation(
             summary = "Check if branch exists",
             description = "Verifies if a branch exists by its ID",
@@ -169,4 +178,28 @@ public class BranchController {
         boolean exists = branchService.existsById(branchId);
         return ResponseEntity.ok(exists);
     }
+
+    @GetMapping("/code/{branchCode}")
+    public ResponseEntity<BranchResponseDto> getBranchByCode(@PathVariable String branchCode) {
+        BranchResponseDto response = branchService.getBranchByCode(branchCode);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/ifsc/{ifscCode}")
+    public ResponseEntity<BranchResponseDto> getBranchByIfsc(@PathVariable String ifscCode) {
+        BranchResponseDto response = branchService.getBranchByIfsc(ifscCode);
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{branchId}/toggle-status")
+    public ResponseEntity<String> toggleBranchStatus(@PathVariable Long branchId) {
+        branchService.toggleBranchStatus(branchId);
+        return ResponseEntity.ok("Branch status toggled successfully");
+    }
+    @GetMapping("/{branchId}/employees/details")
+    public ResponseEntity<List<EmployeeDto>> getBranchEmployeeDetails(@PathVariable Long branchId) {
+        List<EmployeeDto> employees = branchService.getBranchEmployeeDetails(branchId);
+        return ResponseEntity.ok(employees);
+    }
+
 }
