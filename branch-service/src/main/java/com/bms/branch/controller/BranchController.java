@@ -88,7 +88,6 @@ public class BranchController {
         return ResponseEntity.ok(response);
     }
 
-    // ✅ Get All Branches
     @Operation(
             summary = "Get all branches",
             description = "Retrieves all branches, optionally filtering only active ones",
@@ -122,7 +121,6 @@ public class BranchController {
         return ResponseEntity.ok(response);
     }
 
-    // ✅ Remove Employee from Branch
     @Operation(
             summary = "Remove employee from branch",
             description = "Removes an assigned employee from a branch",
