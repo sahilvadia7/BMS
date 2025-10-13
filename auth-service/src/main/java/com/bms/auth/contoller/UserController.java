@@ -24,7 +24,6 @@ public class UserController {
         this.otpService = otpService;
     }
 
-
     @PostMapping("/register")
     public ResponseEntity<RegisterResponse> createUser(@Valid @RequestBody RegisterRequest userDto) {
         RegisterResponse response = userService.registerUser(userDto);
@@ -42,8 +41,6 @@ public class UserController {
         userService.logout(request.userId());
         return ResponseEntity.ok("User logged out successfully!");
     }
-
-
 
     // GET user profile by ID
     @GetMapping("/{userId}")

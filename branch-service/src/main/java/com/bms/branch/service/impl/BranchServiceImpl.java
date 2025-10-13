@@ -1,21 +1,29 @@
 package com.bms.branch.service.impl;
 
+import com.bms.auth.exception.customException.ResourceNotFoundException;
 import com.bms.branch.dto.request.BranchRequestDto;
+import com.bms.branch.dto.request.RegisterRequest;
 import com.bms.branch.dto.response.AddressResponseDto;
 import com.bms.branch.dto.response.BranchResponseDto;
 import com.bms.branch.dto.response.EmployeeDto;
+import com.bms.branch.feign.EmployeeClient;
 import com.bms.branch.model.*;
 import com.bms.branch.repository.BranchEmployeeMappingRepository;
 import com.bms.branch.repository.BranchRepository;
 import com.bms.branch.service.BranchService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static java.rmi.server.LogStream.log;
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -23,6 +31,7 @@ public class BranchServiceImpl implements BranchService {
 
     private final BranchRepository branchRepository;
     private final BranchEmployeeMappingRepository mappingRepository;
+    private final EmployeeClient employeeClient;
 
     @Override
     public BranchResponseDto createBranch(BranchRequestDto branchRequestDto) {
@@ -104,6 +113,16 @@ public class BranchServiceImpl implements BranchService {
     }
 
     @Override
+    public BranchResponseDto createAndAssignEmployee(Long branchId, RegisterRequest registerRequest) {
+        try {
+            Long newEmployeeId = employeeClient.createUser(registerRequest).getUserId();
+            return addEmployeeToBranch(branchId, newEmployeeId);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create employee in auth-service: " + e.getMessage());
+        }
+    }
+
+    @Override
     public BranchResponseDto addEmployeeToBranch(Long branchId, Long employeeId) {
         Branch branch = branchRepository.findById(branchId)
                 .orElseThrow(() -> new RuntimeException("Branch not found with id: " + branchId));
@@ -149,6 +168,39 @@ public class BranchServiceImpl implements BranchService {
         return branchRepository.existsById(branchId);
     }
 
+    @Override
+    public BranchResponseDto getBranchByCode(String branchCode) {
+        return branchRepository.findByBranchCode(branchCode)
+                .orElseThrow(() -> new ResourceNotFoundException("Branch not found with code: " + branchCode));
+    }
+
+    @Override
+    public BranchResponseDto getBranchByIfsc(String ifscCode) {
+        return branchRepository.findByIfscCode(ifscCode)
+                .orElseThrow(() -> new ResourceNotFoundException("Branch not found with IFSC: " + ifscCode));
+    }
+
+    @Override
+    public String toggleBranchStatus(Long branchId) {
+        Branch branch = branchRepository.findById(branchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Branch not found with ID: " + branchId));
+
+        branch.setStatus(!branch.getStatus());
+        branchRepository.save(branch);
+        return "Branch status toggled successfully";
+    }
+
+    @Override
+    public List<EmployeeDto> getBranchEmployeeDetails(Long branchId) {
+        Branch branch = branchRepository.findById(branchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Branch not found with ID: " + branchId));
+
+        List<Long> employeeIds = mappingRepository.findEmployeeIdsByBranchId(branchId);
+
+        return employeeIds.stream()
+                .map(employeeClient::getEmployeeById)
+                .collect(Collectors.toList());
+    }
     private BranchResponseDto convertToResponseDto(Branch branch) {
         AddressResponseDto addressDto = null;
         if (branch.getAddress() != null) {
