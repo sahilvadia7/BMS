@@ -64,7 +64,7 @@ public class UserServiceImpl implements UserService {
         registerResponse.setUserId(savedUser.getUserId());
         registerResponse.setMessage("User registered successfully! ");
 
-        userEventProducer.sendUserRegisteredEvent(new UserEvent(user.getUserId(), user.getFirstName()+" "+user.getLastName(), user.getEmail(), LocalDateTime.now()));
+//        userEventProducer.sendUserRegisteredEvent(new UserEvent(user.getUserId(), user.getFirstName()+" "+user.getLastName(), user.getEmail(), LocalDateTime.now()));
 
         // Return response DTO
         return registerResponse;
@@ -80,7 +80,7 @@ public class UserServiceImpl implements UserService {
             throw new InvalidCredentialsException("Invalid email or password");
         }
 
-        userEventProducer.sendUserLoginEvent(new UserEvent(user.getUserId(), user.getFirstName()+" "+user.getLastName(), user.getEmail(), LocalDateTime.now()));
+//        userEventProducer.sendUserLoginEvent(new UserEvent(user.getUserId(), user.getFirstName()+" "+user.getLastName(), user.getEmail(), LocalDateTime.now()));
 
         return LoginResponse.builder()
 //                .token(token)
