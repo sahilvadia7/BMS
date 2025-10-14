@@ -32,16 +32,16 @@ public class OtpServiceImpl implements OtpService {
 
     @Override
     public void generateOtp(String mobileNo) {
-        // ✅ Generate 6-digit OTP
+        // Generate 6-digit OTP
         String otp = String.format("%06d", random.nextInt(999999));
 
         otpStorage.put(mobileNo, otp);
         expiryStorage.put(mobileNo, System.currentTimeMillis() + OTP_EXPIRY_MS);
 
-        // ✅ Initialize Twilio
+        // Initialize Twilio
         init(accountSid, authToken);
 
-        // ✅ Send SMS
+        // Send SMS
         try {
             Message.creator(
                     new PhoneNumber("+91" + mobileNo),  // Destination (India example)
@@ -49,9 +49,9 @@ public class OtpServiceImpl implements OtpService {
                     "Your OTP for login is: " + otp + " (valid for 1 minute)"
             ).create();
 
-            System.out.println("✅ OTP sent successfully to " + mobileNo);
+            System.out.println("OTP sent successfully to " + mobileNo);
         } catch (Exception e) {
-            System.err.println("❌ Failed to send OTP: " + e.getMessage());
+            System.err.println("Failed to send OTP: " + e.getMessage());
         }
     }
 

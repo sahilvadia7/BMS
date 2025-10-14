@@ -18,9 +18,9 @@ public class EmailService {
             message.setSubject(subject);
             message.setText(body);
             mailSender.send(message);
-            System.out.println("✅ Email sent to: " + to);
+            System.out.println("Email sent to: " + to);
         } catch (Exception e) {
-            System.err.println("❌ Failed to send email to " + to + ": " + e.getMessage());
+            System.err.println("Failed to send email to " + to + ": " + e.getMessage());
         }
     }
 }

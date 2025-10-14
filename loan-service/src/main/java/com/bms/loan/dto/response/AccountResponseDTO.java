@@ -14,7 +14,7 @@ import java.math.BigDecimal;
 @Builder
 public class AccountResponseDTO {
     private Long id;
-    private String accountNumber;     // system-generated
+    private String accountNumber;
     private String accountType;
     private BigDecimal balance;
     private String status;
