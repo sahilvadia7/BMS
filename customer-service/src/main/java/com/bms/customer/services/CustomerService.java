@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface CustomerService {
 
-    CustomerResponseDTO createCustomer(CustomerRequestDTO requestDTO);
+    CustomerResponseDTO createCustomer(Long id,CustomerRequestDTO requestDTO);
 
     CustomerResponseDTO getCustomerById(Long id);
 
@@ -16,4 +16,6 @@ public interface CustomerService {
     CustomerResponseDTO updateCustomer(Long id, CustomerRequestDTO requestDTO);
 
     void deleteCustomer(Long id);
+
+    boolean existsById(Long id);
 }

@@ -22,9 +22,9 @@ public class CustomerController {
     private final CustomerService customerService;
 
     @Operation(summary = "Create a new customer")
-    @PostMapping
-    public ResponseEntity<CustomerResponseDTO> createCustomer(@Valid @RequestBody CustomerRequestDTO requestDTO) {
-        return new ResponseEntity<>(customerService.createCustomer(requestDTO), HttpStatus.CREATED);
+    @PostMapping("/{id}")
+    public ResponseEntity<CustomerResponseDTO> createCustomer(@Valid @PathVariable Long id, @RequestBody CustomerRequestDTO requestDTO) {
+        return new ResponseEntity<>(customerService.createCustomer(id,requestDTO), HttpStatus.CREATED);
     }
 
     @Operation(summary = "Get customer by ID")
@@ -53,4 +53,12 @@ public class CustomerController {
         customerService.deleteCustomer(id);
         return ResponseEntity.noContent().build();
     }
+
+    @Operation(summary = "Check if customer exists by ID")
+    @GetMapping("/{id}/exists")
+    public ResponseEntity<Boolean> customerExists(@PathVariable Long id) {
+        boolean exists = customerService.existsById(id);
+        return ResponseEntity.ok(exists);
+    }
+
 }

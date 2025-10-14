@@ -3,9 +3,11 @@ package com.bms.account.services.impl;
 //import com.bms.account.config.RabbitMQConfig;
 import com.bms.account.dtos.AccountRequestDTO;
 import com.bms.account.dtos.AccountResponseDTO;
+import com.bms.account.dtos.CustomerResponseDTO;
 import com.bms.account.entities.Account;
 import com.bms.account.enums.AccountStatus;
 import com.bms.account.exception.ResourceNotFoundException;
+import com.bms.account.feign.CustomerClient;
 import com.bms.account.repositories.AccountRepository;
 import com.bms.account.services.AccountService;
 import jakarta.transaction.Transactional;
@@ -24,6 +26,7 @@ import java.util.UUID;
 public class AccountServiceImpl implements AccountService {
 
     private final AccountRepository accountRepository;
+    private final CustomerClient customerClient;
 //    private final RabbitTemplate rabbitTemplate;
 
     private AccountResponseDTO mapToResponse(Account account) {
@@ -41,28 +44,35 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Override
-    public AccountResponseDTO createAccount(AccountRequestDTO requestDTO) {
-        Account account = new Account();
-        account.setAccountNumber(UUID.randomUUID().toString()); // auto-generate
-        account.setAccountType(requestDTO.accountType());
-        account.setBalance(requestDTO.balance());
-        account.setCustomerId(requestDTO.customerId());
-        account.setBranchId(requestDTO.branchId());
-        account.setStatus(AccountStatus.PENDING);
-        account.setCreatedAt(LocalDateTime.now());
-        account.setUpdatedAt(LocalDateTime.now());
+    public AccountResponseDTO createAccount(Long id, AccountRequestDTO requestDTO) {
+
+
+        Boolean b = customerClient.customerExists(id);
+
+        if (!b ) {
+            throw new RuntimeException("Customer with ID " + id + " does not exist.");
+        }
+
+
+        Account account = Account.builder()
+                .accountNumber("ACC-" + UUID.randomUUID().toString())
+                .accountType(requestDTO.accountType())
+                .balance(requestDTO.balance() != null ? requestDTO.balance() : BigDecimal.ZERO)
+                .customerId(id)
+                .branchId(requestDTO.branchId())
+                .status(AccountStatus.PENDING)
+                .build();
+
 
         Account saved = accountRepository.save(account);
 
-        // Publish account created event
-//        rabbitTemplate.convertAndSend(
-//                "account_exchange",
-//                "account.created",
-//                mapToResponse(saved)
-//        );
+        // Optional: publish event
+//    rabbitTemplate.convertAndSend("account_exchange", "account.created", mapToResponse(saved));
 
         return mapToResponse(saved);
     }
+
+
 
     @Override
     public AccountResponseDTO getAccountById(Long id) {
@@ -85,7 +95,7 @@ public class AccountServiceImpl implements AccountService {
 
         account.setAccountType(requestDTO.accountType());
         account.setBalance(requestDTO.balance());
-        account.setCustomerId(requestDTO.customerId());
+//        account.setCustomerId(requestDTO.customerId());
         account.setBranchId(requestDTO.branchId());
         account.setUpdatedAt(LocalDateTime.now());
 

@@ -6,6 +6,7 @@ import com.bms.customer.entities.Customer;
 import com.bms.customer.entities.Kyc;
 import com.bms.customer.enums.KycStatus;
 
+import com.bms.customer.feign.AuthClient;
 import com.bms.customer.repositories.CustomerRepository;
 import com.bms.customer.repositories.KycRepository;
 import com.bms.customer.services.CustomerService;
@@ -23,23 +24,28 @@ public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepository customerRepository;
     private final KycRepository kycRepository;
+    private final AuthClient authClient;
 
     private CustomerResponseDTO mapToResponse(Customer customer) {
         return new CustomerResponseDTO(
-                customer.getId(),
-                customer.getUserId(),
+//                customer.getId(),
+//                customer.getUserId(),
                 customer.getName(),
                 customer.getAddress(),
                 customer.getDob(),
-                customer.getKycId(),
+//                customer.getKycId(),
                 customer.getCreatedAt(),
                 customer.getUpdatedAt()
         );
     }
 
     @Override
-    public CustomerResponseDTO createCustomer(CustomerRequestDTO requestDTO) {
-
+    public CustomerResponseDTO createCustomer(Long id, CustomerRequestDTO requestDTO) {
+        try {
+            authClient.getUser(id);
+        } catch (feign.FeignException.NotFound e) {
+            throw new RuntimeException("User with ID " + id + " does not exist in Auth service.");
+        }
 
         Kyc kyc;
         Optional<Kyc> existingKyc = kycRepository.findById(requestDTO.kycId());
@@ -58,7 +64,7 @@ public class CustomerServiceImpl implements CustomerService {
         }
 
         Customer customer = Customer.builder()
-                .userId(requestDTO.userId())
+                .userId(id)
                 .name(requestDTO.name())
                 .address(requestDTO.address())
                 .dob(requestDTO.dob())
@@ -107,4 +113,10 @@ public class CustomerServiceImpl implements CustomerService {
         if (!customerRepository.existsById(id)) throw new RuntimeException("Customer not found");
         customerRepository.deleteById(id);
     }
+
+    @Override
+    public boolean existsById(Long id) {
+        return customerRepository.existsById(id);
+    }
+
 }
