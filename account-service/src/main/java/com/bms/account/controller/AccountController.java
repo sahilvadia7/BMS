@@ -9,14 +9,17 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/accounts")
 @RequiredArgsConstructor
 @Tag(name = "Account APIs", description = "CRUD operations for bank accounts")
+@Validated
 public class AccountController {
 
     private final AccountService accountService;
@@ -59,6 +62,22 @@ public class AccountController {
     @GetMapping("/number/{accountNumber}")
     public ResponseEntity<AccountResponseDTO> getAccountByNumber(@PathVariable String accountNumber) {
         return ResponseEntity.ok(accountService.getAccountByNumber(accountNumber));
+    }
+
+    @GetMapping("/{accountId}/balance")
+    public ResponseEntity<BigDecimal> getBalance(@PathVariable Long accountId) {
+        BigDecimal balance = accountService.getBalance(accountId);
+        return ResponseEntity.ok(balance);
+    }
+
+    @PostMapping("/{accountId}/balance")
+    public ResponseEntity<Void> updateBalance(
+            @PathVariable Long accountId,
+            @RequestParam("amount") BigDecimal amount,
+            @RequestParam("transactionType") String transactionType) {
+
+        accountService.updateBalance(accountId, amount, transactionType);
+        return ResponseEntity.ok().build();
     }
 
 }

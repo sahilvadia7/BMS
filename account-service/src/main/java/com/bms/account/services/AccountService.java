@@ -3,6 +3,7 @@ package com.bms.account.services;
 import com.bms.account.dtos.AccountRequestDTO;
 import com.bms.account.dtos.AccountResponseDTO;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 public interface AccountService {
@@ -18,4 +19,8 @@ public interface AccountService {
     void deleteAccount(Long id);
 
     AccountResponseDTO getAccountByNumber(String accountNumber);
+
+    BigDecimal getBalance(Long accountId);
+
+    void updateBalance(Long accountId, BigDecimal amount, String transactionType);
 }
