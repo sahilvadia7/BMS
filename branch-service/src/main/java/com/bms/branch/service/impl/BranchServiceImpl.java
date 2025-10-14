@@ -170,14 +170,22 @@ public class BranchServiceImpl implements BranchService {
 
     @Override
     public BranchResponseDto getBranchByCode(String branchCode) {
+        if (branchCode == null || branchCode.isBlank()) {
+            throw new IllegalArgumentException("IFSC code must not be null or empty");
+        }
         return branchRepository.findByBranchCode(branchCode)
+                .map(this::convertToResponseDto)
                 .orElseThrow(() -> new ResourceNotFoundException("Branch not found with code: " + branchCode));
     }
 
     @Override
     public BranchResponseDto getBranchByIfsc(String ifscCode) {
+        if (ifscCode == null || ifscCode.isBlank()) {
+            throw new IllegalArgumentException("IFSC code must not be null or empty");
+        }
         return branchRepository.findByIfscCode(ifscCode)
-                .orElseThrow(() -> new ResourceNotFoundException("Branch not found with IFSC: " + ifscCode));
+                .map(this::convertToResponseDto)
+                .orElseThrow(() -> new ResourceNotFoundException("Branch not found with IFSC code: " + ifscCode));
     }
 
     @Override
