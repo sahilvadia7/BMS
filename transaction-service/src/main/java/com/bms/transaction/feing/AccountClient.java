@@ -10,8 +10,9 @@ import java.math.BigDecimal;
 
 @FeignClient(name = "account-service", path = "/api/v1/accounts")
 public interface AccountClient {
-    @GetMapping("/{accountId}/exists")
-    boolean existsById(@PathVariable("accountId") Long accountId);
+
+    @GetMapping("/{accountId}")
+    boolean getAccountById(@PathVariable("accountId") Long accountId);
 
     @GetMapping("/{accountId}/balance")
     BigDecimal getAccountBalance(@PathVariable("accountId") Long accountId);

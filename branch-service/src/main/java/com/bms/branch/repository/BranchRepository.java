@@ -9,6 +9,6 @@ import java.util.Optional;
 
 public interface BranchRepository extends JpaRepository<Branch, Long> {
     List<Branch> findByIsActiveTrue();
-    Optional<BranchResponseDto> findByBranchCode(String branchCode);
-    Optional<BranchResponseDto> findByIfscCode(String ifscCode);
+    Optional<Branch> findByBranchCode(String branchCode);
+    Optional<Branch> findByIfscCode(String ifscCode);
 }

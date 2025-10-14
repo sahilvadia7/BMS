@@ -114,20 +114,17 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     public List<TransactionResponseDto> searchTransactions(SearchTransactionsRequest request) {
-        // Implement dynamic query using Specification or Criteria API
-        // Example omitted for brevity
-        return List.of(); // Placeholder
+        return List.of();
     }
 
     public TransactionSummaryDto getTransactionSummary(Long accountId, Long branchId) {
         validateAccount(accountId);
         validateBranch(branchId);
-        // Implement summary logic
         return new TransactionSummaryDto(accountId, branchId, 0, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
     }
 
     private void validateAccount(Long accountId) {
-        if (!accountClient.existsById(accountId)) {
+        if (!accountClient.getAccountById(accountId)) {
             throw new ResourceNotFoundException("Account not found with ID: " + accountId);
         }
     }

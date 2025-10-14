@@ -105,65 +105,65 @@ public class BranchController {
         List<BranchResponseDto> response = branchService.getAllBranches(onlyActive);
         return ResponseEntity.ok(response);
     }
-
-    @PostMapping("/{branchId}/employees")
-    public ResponseEntity<BranchResponseDto> createAndAssignEmployee(
-            @PathVariable Long branchId,
-            @RequestBody RegisterRequest registerRequest) {
-
-        BranchResponseDto updatedBranch = branchService.createAndAssignEmployee(branchId, registerRequest);
-        return ResponseEntity.ok(updatedBranch);
-    }
-
-    @Operation(
-            summary = "Add employee to a branch",
-            description = "Assigns an employee to a branch by their IDs",
-            responses = {
-                    @ApiResponse(responseCode = "200", description = "Employee added successfully",
-                            content = @Content(schema = @Schema(implementation = BranchResponseDto.class))),
-                    @ApiResponse(responseCode = "404", description = "Branch not found or employee invalid")
-            }
-    )
-    @PostMapping("/{branchId}/employees/{employeeId}")
-    public ResponseEntity<BranchResponseDto> addEmployeeToBranch(
-            @Parameter(description = "Branch ID") @PathVariable Long branchId,
-            @Parameter(description = "Employee ID") @PathVariable Long employeeId) {
-        BranchResponseDto response = branchService.addEmployeeToBranch(branchId, employeeId);
-        return ResponseEntity.ok(response);
-    }
-
-    @Operation(
-            summary = "Remove employee from branch",
-            description = "Removes an assigned employee from a branch",
-            responses = {
-                    @ApiResponse(responseCode = "200", description = "Employee removed successfully",
-                            content = @Content(schema = @Schema(implementation = BranchResponseDto.class))),
-                    @ApiResponse(responseCode = "404", description = "Branch or employee not found")
-            }
-    )
-    @DeleteMapping("/{branchId}/employees/{employeeId}")
-    public ResponseEntity<BranchResponseDto> removeEmployeeFromBranch(
-            @Parameter(description = "Branch ID") @PathVariable Long branchId,
-            @Parameter(description = "Employee ID") @PathVariable Long employeeId) {
-        BranchResponseDto response = branchService.removeEmployeeFromBranch(branchId, employeeId);
-        return ResponseEntity.ok(response);
-    }
-
-    @Operation(
-            summary = "Get employees of a branch",
-            description = "Returns all employee IDs assigned to a given branch",
-            responses = {
-                    @ApiResponse(responseCode = "200", description = "List of employee IDs",
-                            content = @Content(schema = @Schema(implementation = Long.class))),
-                    @ApiResponse(responseCode = "404", description = "Branch not found")
-            }
-    )
-    @GetMapping("/{branchId}/employees")
-    public ResponseEntity<List<Long>> getBranchEmployees(
-            @Parameter(description = "Branch ID") @PathVariable Long branchId) {
-        List<Long> employees = branchService.getBranchEmployees(branchId);
-        return ResponseEntity.ok(employees);
-    }
+//
+//    @PostMapping("/{branchId}/employees")
+//    public ResponseEntity<BranchResponseDto> createAndAssignEmployee(
+//            @PathVariable Long branchId,
+//            @RequestBody RegisterRequest registerRequest) {
+//
+//        BranchResponseDto updatedBranch = branchService.createAndAssignEmployee(branchId, registerRequest);
+//        return ResponseEntity.ok(updatedBranch);
+//    }
+//
+//    @Operation(
+//            summary = "Add employee to a branch",
+//            description = "Assigns an employee to a branch by their IDs",
+//            responses = {
+//                    @ApiResponse(responseCode = "200", description = "Employee added successfully",
+//                            content = @Content(schema = @Schema(implementation = BranchResponseDto.class))),
+//                    @ApiResponse(responseCode = "404", description = "Branch not found or employee invalid")
+//            }
+//    )
+//    @PostMapping("/{branchId}/employees/{employeeId}")
+//    public ResponseEntity<BranchResponseDto> addEmployeeToBranch(
+//            @Parameter(description = "Branch ID") @PathVariable Long branchId,
+//            @Parameter(description = "Employee ID") @PathVariable Long employeeId) {
+//        BranchResponseDto response = branchService.addEmployeeToBranch(branchId, employeeId);
+//        return ResponseEntity.ok(response);
+//    }
+//
+//    @Operation(
+//            summary = "Remove employee from branch",
+//            description = "Removes an assigned employee from a branch",
+//            responses = {
+//                    @ApiResponse(responseCode = "200", description = "Employee removed successfully",
+//                            content = @Content(schema = @Schema(implementation = BranchResponseDto.class))),
+//                    @ApiResponse(responseCode = "404", description = "Branch or employee not found")
+//            }
+//    )
+//    @DeleteMapping("/{branchId}/employees/{employeeId}")
+//    public ResponseEntity<BranchResponseDto> removeEmployeeFromBranch(
+//            @Parameter(description = "Branch ID") @PathVariable Long branchId,
+//            @Parameter(description = "Employee ID") @PathVariable Long employeeId) {
+//        BranchResponseDto response = branchService.removeEmployeeFromBranch(branchId, employeeId);
+//        return ResponseEntity.ok(response);
+//    }
+//
+//    @Operation(
+//            summary = "Get employees of a branch",
+//            description = "Returns all employee IDs assigned to a given branch",
+//            responses = {
+//                    @ApiResponse(responseCode = "200", description = "List of employee IDs",
+//                            content = @Content(schema = @Schema(implementation = Long.class))),
+//                    @ApiResponse(responseCode = "404", description = "Branch not found")
+//            }
+//    )
+//    @GetMapping("/{branchId}/employees")
+//    public ResponseEntity<List<Long>> getBranchEmployees(
+//            @Parameter(description = "Branch ID") @PathVariable Long branchId) {
+//        List<Long> employees = branchService.getBranchEmployees(branchId);
+//        return ResponseEntity.ok(employees);
+//    }
 
     @Operation(
             summary = "Check if branch exists",
@@ -196,10 +196,10 @@ public class BranchController {
         branchService.toggleBranchStatus(branchId);
         return ResponseEntity.ok("Branch status toggled successfully");
     }
-    @GetMapping("/{branchId}/employees/details")
-    public ResponseEntity<List<EmployeeDto>> getBranchEmployeeDetails(@PathVariable Long branchId) {
-        List<EmployeeDto> employees = branchService.getBranchEmployeeDetails(branchId);
-        return ResponseEntity.ok(employees);
-    }
+//    @GetMapping("/{branchId}/employees/details")
+//    public ResponseEntity<List<EmployeeDto>> getBranchEmployeeDetails(@PathVariable Long branchId) {
+//        List<EmployeeDto> employees = branchService.getBranchEmployeeDetails(branchId);
+//        return ResponseEntity.ok(employees);
+//    }
 
 }
