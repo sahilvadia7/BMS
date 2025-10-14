@@ -13,12 +13,12 @@ public class UserEventProducer {
 
     public void sendUserRegisteredEvent(UserEvent event) {
         kafkaTemplate.send("user-registered", event);
-        System.out.println("✅ User registered event sent: " + event);
+        System.out.println("User registered event sent: " + event);
     }
 
     public void sendUserLoginEvent(UserEvent event) {
         kafkaTemplate.send("user-login", event);
-        System.out.println("✅ User login event sent: " + event);
+        System.out.println("User login event sent: " + event);
     }
 
 }

@@ -34,7 +34,7 @@ public class Repayment {
 
     private LocalDateTime paymentDate = LocalDateTime.now();
 
-    private String paymentMode; // UPI, Netbanking, ECS
+    private String paymentMode;
 
     private String txnRef; // transaction reference
 }
