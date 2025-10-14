@@ -12,8 +12,8 @@ public record AccountRequestDTO(
         @NotNull(message = "Balance is required")
         BigDecimal balance,
 
-        @NotNull(message = "Customer ID is required")
-        Long customerId,
+//        @NotNull(message = "Customer ID is required")
+//        Long customerId,
 
         @NotNull(message = "Branch ID is required")
         Long branchId
