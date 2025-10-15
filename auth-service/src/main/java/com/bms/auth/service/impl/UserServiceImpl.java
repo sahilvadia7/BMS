@@ -70,6 +70,32 @@ public class UserServiceImpl implements UserService {
         return registerResponse;
     }
 
+
+    // new flow for register
+//    @Override
+//    public RegisterResponse registerUser(RegisterRequest request) {
+//
+//        Optional<Gender> optionalGender = request.getGender();
+//
+//        if (userRepository.existsByEmail(request.getEmail())) {
+//            throw new RuntimeException("Email already exists");
+//        }
+//
+//        User user = new User();
+//        user.setFirstName(request.getFirstName());
+//
+//        user.setLastName(request.getLastName());
+//        user.setEmail(request.getEmail());
+//        user.setPhoneNo(request.getPhoneNo());
+//        user.setPassword(passwordEncoder.encode(request.getPassword()));
+//        user.setRoles(Roles.Customer);
+//        optionalGender.ifPresent(user::setGender);
+//        user.setActive(true);
+//
+//        User savedUser = userRepository.save(user);
+//    }
+
+
     @Override
     public LoginResponse loginUser(LoginRequest request) {
 
@@ -109,7 +135,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void changePassword(ChangePwdDTO dto) {
-        // Find user by email or phone (depends on your login method)
+        // Find user by phone (depends on your login method)
         User user = userRepository.findByPhoneNo(dto.getPhoneNo());
 
         if (user != null) {
