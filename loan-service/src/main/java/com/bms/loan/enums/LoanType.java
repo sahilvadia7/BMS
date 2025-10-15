@@ -1,6 +1,6 @@
 package com.bms.loan.enums;
 
-public enum LoanProductCode {
+public enum LoanType {
     HOME,
     PERSONAL,
     CAR,

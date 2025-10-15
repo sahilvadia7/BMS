@@ -1,6 +1,6 @@
 package com.bms.loan.entity;
 
-import com.bms.loan.enums.LoanProductCode;
+import com.bms.loan.enums.LoanType;
 import com.bms.loan.enums.LoanStatus;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
@@ -33,7 +33,7 @@ public class LoanApplication {
 
     @Enumerated(EnumType.STRING)
     @NotNull
-    private LoanProductCode productCode; // HOME, PERSONAL, CAR
+    private LoanType productCode; // HOME, PERSONAL, CAR
 
     @Positive
     private BigDecimal principal;

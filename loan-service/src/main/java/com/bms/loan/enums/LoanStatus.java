@@ -3,9 +3,9 @@ package com.bms.loan.enums;
 public enum LoanStatus {
     APPLIED,
     UNDER_REVIEW,
+    DOCUMENTS_SUBMITTED,
     APPROVED,
     REJECTED,
     DISBURSED,
     CLOSED,
-    DEFAULTED
 }
