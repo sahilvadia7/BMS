@@ -1,6 +1,6 @@
 package com.bms.loan.dto.request;
 
-import com.bms.loan.enums.LoanProductCode;
+import com.bms.loan.enums.LoanType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -22,7 +22,7 @@ public class LoanApplicationDto {
     private String accountNumber;
 
     @NotNull
-    private LoanProductCode productCode;
+    private LoanType productCode;
 
     @Positive
     private BigDecimal principal;
