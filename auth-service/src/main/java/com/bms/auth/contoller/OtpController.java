@@ -15,17 +15,17 @@ public class OtpController {
 
     private final OtpService otpService;
 
-    @PostMapping("/send")
-    public ResponseEntity<String> sendOtp(@RequestParam String mobileNo) {
-        otpService.generateOtp(mobileNo);
-        return ResponseEntity.ok("OTP sent successfully to " + mobileNo);
-    }
-
-    @PostMapping("/verify")
-    public ResponseEntity<String> verifyOtp(@RequestParam String mobileNo, @RequestParam String otp) {
-        boolean valid = otpService.verifyOtp(mobileNo, otp);
-        return valid ? ResponseEntity.ok("OTP verified successfully!") :
-                ResponseEntity.status(400).body("Invalid or expired OTP");
-    }
+//    @PostMapping("/send")
+//    public ResponseEntity<String> sendOtp(@RequestParam String mobileNo) {
+//        otpService.generateOtp(mobileNo);
+//        return ResponseEntity.ok("OTP sent successfully to " + mobileNo);
+//    }
+//
+//    @PostMapping("/verify")
+//    public ResponseEntity<String> verifyOtp(@RequestParam String mobileNo, @RequestParam String otp) {
+//        boolean valid = otpService.verifyOtp(mobileNo, otp);
+//        return valid ? ResponseEntity.ok("OTP verified successfully!") :
+//                ResponseEntity.status(400).body("Invalid or expired OTP");
+//    }
 
 }
