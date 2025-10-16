@@ -22,8 +22,8 @@ public class Repayment {
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "loan_application_id")
-    private LoanApplication loanApplication;
+    @JoinColumn(name = "loan_id")
+    private Loans loans;
 
     @ManyToOne
     @JoinColumn(name = "repayment_schedule_id")
