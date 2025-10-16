@@ -5,10 +5,12 @@ import com.bms.account.dtos.AccountRequestDTO;
 import com.bms.account.dtos.AccountResponseDTO;
 import com.bms.account.dtos.CustomerResponseDTO;
 import com.bms.account.entities.Account;
-import com.bms.account.enums.AccountStatus;
+import com.bms.account.constant.AccountStatus;
+import com.bms.account.entities.AccountType;
 import com.bms.account.exception.ResourceNotFoundException;
 import com.bms.account.feign.CustomerClient;
 import com.bms.account.repositories.AccountRepository;
+import com.bms.account.repositories.AccountTypeRepository;
 import com.bms.account.services.AccountService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -26,64 +28,63 @@ import java.util.UUID;
 public class AccountServiceImpl implements AccountService {
 
     private final AccountRepository accountRepository;
+    private final AccountTypeRepository accountTypeRepository;
     private final CustomerClient customerClient;
-//    private final RabbitTemplate rabbitTemplate;
 
+    // Helper: Map Account -> AccountResponseDTO
     private AccountResponseDTO mapToResponse(Account account) {
-        return new AccountResponseDTO(
-                account.getId(),
-                account.getAccountNumber(),
-                account.getAccountType(),
-                account.getBalance(),
-                account.getStatus(),
-                account.getCustomerId(),
-                account.getBranchId(),
-                account.getCreatedAt(),
-                account.getUpdatedAt()
-        );
+        return AccountResponseDTO.builder()
+                .id(account.getId())
+                .accountNumber(account.getAccountNumber())
+                .cifNumber(account.getCifNumber())
+                .accountTypeId(account.getAccountType().getId())
+                .balance(account.getBalance())
+                .status(account.getStatus())
+                .customerId(account.getCustomerId())
+                .branchId(account.getBranchId())
+                .createdAt(account.getCreatedAt())
+                .updatedAt(account.getUpdatedAt())
+                .build();
     }
 
     @Override
-    public AccountResponseDTO createAccount(Long id, AccountRequestDTO requestDTO) {
+    public AccountResponseDTO createAccount(AccountRequestDTO requestDTO) {
 
+        // 1️⃣ Call the Customer service to create/get customer
+        CustomerResponseDTO customerResponse = customerClient.createCustomer(requestDTO.getCustomer());
 
-        Boolean b = customerClient.customerExists(id);
+        // 2️⃣ Fetch the account type from DB
+//        AccountType accountType = accountTypeRepository.findById(requestDTO.getAccountTypeId())
+//                .orElseThrow(() -> new ResourceNotFoundException(
+//                        "AccountType not found with ID: " + requestDTO.getAccountTypeId()
+//                ));
 
-        if (!b ) {
-            throw new RuntimeException("Customer with ID " + id + " does not exist.");
-        }
-
-
+        // 3️⃣ Build Account entity using customer info
         Account account = Account.builder()
-                .accountNumber("ACC-" + UUID.randomUUID().toString())
+                .cifNumber(customerResponse.getCifNumber())
+                .customerId(customerResponse.getCustomerId())
+                .branchId(requestDTO.getBranchId())
                 .accountType(requestDTO.accountType())
-                .balance(requestDTO.balance() != null ? requestDTO.balance() : BigDecimal.ZERO)
-                .customerId(id)
-                .branchId(requestDTO.branchId())
-                .status(AccountStatus.PENDING)
+                .balance(requestDTO.getBalance() != null ? requestDTO.getBalance() : BigDecimal.ZERO)
+//                .status(requestDTO.getStatus() != null ? requestDTO.getStatus() : AccountStatus.PENDING)
                 .build();
 
-
-        Account saved = accountRepository.save(account);
-
-        // Optional: publish event
-//    rabbitTemplate.convertAndSend("account_exchange", "account.created", mapToResponse(saved));
-
-        return mapToResponse(saved);
+        // 4️⃣ Save and return response
+        return mapToResponse(accountRepository.save(account));
     }
-
 
 
     @Override
     public AccountResponseDTO getAccountById(Long id) {
-        return accountRepository.findById(id)
-                .map(this::mapToResponse)
-                .orElseThrow(() -> new RuntimeException("Account not found"));
+        Account account = accountRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found with ID: " + id));
+        return mapToResponse(account);
     }
 
     @Override
     public List<AccountResponseDTO> getAllAccounts() {
-        return accountRepository.findAll().stream()
+        return accountRepository.findAll()
+                .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -91,57 +92,55 @@ public class AccountServiceImpl implements AccountService {
     @Override
     public AccountResponseDTO updateAccount(Long id, AccountRequestDTO requestDTO) {
         Account account = accountRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Account not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found with ID: " + id));
 
-        account.setAccountType(requestDTO.accountType());
-        account.setBalance(requestDTO.balance());
-//        account.setCustomerId(requestDTO.customerId());
-        account.setBranchId(requestDTO.branchId());
-        account.setUpdatedAt(LocalDateTime.now());
-
-        Account updated = accountRepository.save(account);
-
-        // Publish balance updated event
-//        rabbitTemplate.convertAndSend(
-//                "account_exchange",
-//                "account.balance.updated",
-//                mapToResponse(updated)
-//        );
-
-        return mapToResponse(updated);
+        if (requestDTO.getBalance() != null) account.setBalance(requestDTO.getBalance());
+        if (requestDTO.getStatus() != null) account.setStatus(requestDTO.getStatus());
+        if (requestDTO.getAccountTypeId() != null) {
+            AccountType accountType = accountTypeRepository.findById(requestDTO.getAccountTypeId())
+                    .orElseThrow(() -> new ResourceNotFoundException("AccountType not found with ID: " + requestDTO.getAccountTypeId()));
+            account.setAccountType(accountType);
+        }
+        return mapToResponse(accountRepository.save(account));
     }
 
     @Override
     public void deleteAccount(Long id) {
-        if(!accountRepository.existsById(id)) throw new RuntimeException("Account not found");
-        accountRepository.deleteById(id);
+        Account account = accountRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found with ID: " + id));
+        accountRepository.delete(account);
     }
 
     @Override
     public AccountResponseDTO getAccountByNumber(String accountNumber) {
-        return accountRepository.findByAccountNumber(accountNumber)
-                .map(this::mapToResponse)
-                .orElseThrow(() -> new RuntimeException("Account not found with accountNumber: " + accountNumber));
+        Account account = accountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found with number: " + accountNumber));
+        return mapToResponse(account);
     }
 
-    @Transactional
+    @Override
     public BigDecimal getBalance(Long accountId) {
-        Account acc = accountRepository.findById(accountId)
-                .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
-        return acc.getBalance();
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found with ID: " + accountId));
+        return account.getBalance();
     }
 
-    @Transactional
+    @Override
     public void updateBalance(Long accountId, BigDecimal amount, String transactionType) {
-        Account acc = accountRepository.findByIdForUpdate(accountId)
-                .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found with ID: " + accountId));
 
-        BigDecimal newBalance = acc.getBalance().add(amount); // caller passes negative for withdrawals OR you interpret type
-        if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalStateException("Insufficient funds");
+        if ("DEPOSIT".equalsIgnoreCase(transactionType)) {
+            account.setBalance(account.getBalance().add(amount));
+        } else if ("WITHDRAW".equalsIgnoreCase(transactionType)) {
+            if (account.getBalance().compareTo(amount) < 0) {
+                throw new IllegalArgumentException("Insufficient balance");
+            }
+            account.setBalance(account.getBalance().subtract(amount));
+        } else {
+            throw new IllegalArgumentException("Invalid transaction type: " + transactionType);
         }
-        acc.setBalance(newBalance);
-        accountRepository.save(acc);
-    }
 
+        accountRepository.save(account);
+    }
 }
