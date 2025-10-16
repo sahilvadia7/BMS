@@ -68,7 +68,8 @@ public class CustomerServiceImpl implements CustomerService {
     public CustomerResponseDTO login(LoginRequest loginRequest) {
         Customer customer = customerRepository.findByEmail(loginRequest.getLoginId())
                 .orElseGet(() -> customerRepository.findByPhoneNo(loginRequest.getLoginId())
-                        .orElseThrow(() -> new RuntimeException("User not found")));
+                        .orElseGet(() -> customerRepository.findByCifNumber(loginRequest.getLoginId())
+                                .orElseThrow(() -> new RuntimeException("User not found or invalid login ID."))));
 
         if (!passwordEncoder.matches(loginRequest.getPassword(), customer.getPassword())) {
             throw new RuntimeException("Invalid credentials");
@@ -83,7 +84,6 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     public Map<String, String> logout(LogoutRequest logoutRequest) {
-        // Token invalidation logic here
         return Map.of("message", "Logout successful for " + logoutRequest.getCifNumber());
     }
 
