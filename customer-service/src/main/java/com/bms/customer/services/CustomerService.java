@@ -18,4 +18,6 @@ public interface CustomerService {
     void deleteCustomer(Long id);
 
     boolean existsById(Long id);
+
+    CustomerResponseDTO getCustomerByUserId(Long userId);
 }

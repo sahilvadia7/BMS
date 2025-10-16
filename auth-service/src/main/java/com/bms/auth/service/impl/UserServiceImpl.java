@@ -110,6 +110,7 @@ public class UserServiceImpl implements UserService {
 
         return LoginResponse.builder()
 //                .token(token)
+                .id(user.getUserId())
                 .email(user.getEmail())
                 .role(Roles.valueOf(user.getRoles().name()))
                 .status(user.isActive())

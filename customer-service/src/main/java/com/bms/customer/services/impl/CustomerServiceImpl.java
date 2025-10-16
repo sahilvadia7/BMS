@@ -6,6 +6,7 @@ import com.bms.customer.entities.Customer;
 import com.bms.customer.entities.Kyc;
 import com.bms.customer.enums.KycStatus;
 
+import com.bms.customer.exception.ResourceNotFoundException;
 import com.bms.customer.feign.AuthClient;
 import com.bms.customer.repositories.CustomerRepository;
 import com.bms.customer.repositories.KycRepository;
@@ -117,6 +118,13 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     public boolean existsById(Long id) {
         return customerRepository.existsById(id);
+    }
+
+    @Override
+    public CustomerResponseDTO getCustomerByUserId(Long userId) {
+        Customer customer = customerRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Customer not found for userId: " + userId));
+        return mapToResponse(customer);
     }
 
 }
