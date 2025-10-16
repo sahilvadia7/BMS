@@ -24,7 +24,7 @@ public class Loans {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long loanId;
 
-    private Long userId;
+    private Long customerId;
 
     @Enumerated(EnumType.STRING)
     private LoanType loanType; // CAR, HOME, EDUCATION, PERSONAL, BUSINESS
@@ -51,12 +51,25 @@ public class Loans {
     @CreationTimestamp
     private LocalDateTime appliedAt;
 
-
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
     @Version
     private Integer version; // for optimistic locking
 
+
+    // External customer fields
+    @Builder.Default
+    private Integer externalCreditScore = 700; // default CIBIL for testing
+
+    @Builder.Default
+    @Column(name = "external_blacklisted", nullable = false)
+    private boolean externalBlacklisted = false; // default not blacklisted
+
+    @Builder.Default
+    private BigDecimal externalMonthlyIncome = BigDecimal.valueOf(50000); // default income
+
+    @Builder.Default
+    private BigDecimal externalTotalExistingEmi = BigDecimal.ZERO; // default EMI
 
 }

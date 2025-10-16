@@ -1,7 +1,7 @@
+
 package com.bms.account.entities;
 
-import com.bms.account.enums.AccountStatus;
-import com.bms.account.enums.AccountType;
+import com.bms.account.constant.AccountStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -9,7 +9,17 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "accounts")
+@Table(
+        name = "accounts"
+//        indexes = {
+//                @Index(name = "idx_account_number", columnList = "accountNumber"),
+//                @Index(name = "idx_account_cif", columnList = "cifNumber"),
+//                @Index(name = "idx_account_branch", columnList = "branchId")
+//        },
+//        uniqueConstraints = {
+//                @UniqueConstraint(name = "uk_account_number", columnNames = "accountNumber")
+//        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -21,12 +31,18 @@ public class Account {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
+    // Unique per account
+    @Column(unique = true, nullable = false, length = 12)
     private String accountNumber;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private AccountType accountType;  // SAVINGS, CURRENT
+    // CIF links the account to a single customer (cross-service reference)
+    @Column(nullable = false, length = 20)
+    private String cifNumber;
+
+    @ManyToOne(fetch = FetchType.EAGER)  // or LAZY
+    @JoinColumn(name = "account_type_id", nullable = false)
+    private AccountType accountType;
+
 
     @Column(nullable = false)
     private BigDecimal balance;
@@ -36,10 +52,10 @@ public class Account {
     private AccountStatus status;  // ACTIVE, CLOSED, FROZEN
 
     @Column(nullable = false)
-    private Long customerId;  // FK -> Customer (centralized DB)
+    private Long customerId;
 
     @Column(nullable = false)
-    private Long branchId;    // FK -> Branch (centralized DB)
+    private Long branchId; // FK to Branch (central DB)
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -48,8 +64,18 @@ public class Account {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = createdAt;
+
+        // Auto-generate account number pattern: e.g. "AC202510160001"
+        if (accountNumber == null || accountNumber.isEmpty()) {
+            accountNumber = "AC" + System.currentTimeMillis();
+        }
+
         if (status == null) {
-            status = AccountStatus.ACTIVE;
+            status = AccountStatus.PENDING;
+        }
+
+        if (balance == null) {
+            balance = BigDecimal.ZERO;
         }
     }
 

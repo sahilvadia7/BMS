@@ -1,4 +1,4 @@
-package com.bms.account.enums;
+package com.bms.account.constant;
 
 public enum AccountStatus {
     ACTIVE,

@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -15,7 +17,7 @@ public class InterestRateResponse {
 
     private String loanType;
 
-    private double baseRate;
+    private BigDecimal baseRate;
 
     private double maxLTV;
 

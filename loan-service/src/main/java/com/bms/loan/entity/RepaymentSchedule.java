@@ -27,9 +27,9 @@ public class RepaymentSchedule {
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "loan_application_id")
+    @JoinColumn(name = "loan_id")
     @JsonBackReference
-    private LoanApplication loanApplication;
+    private Loans loans;
 
     private LocalDate dueDate;
 

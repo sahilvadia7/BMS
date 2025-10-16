@@ -11,15 +11,10 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class InterestRateRequest {
-
-    private String loanType;
-
-    private BigDecimal baseRate;
-
-    private double maxLTV;
-
-    private int minTenure;
-
-    private int maxTenure;
+public class CarLoanDetailsDto {
+    private String carModel;
+    private String manufacturer;
+    private int manufactureYear;
+    private BigDecimal carValue;
+    private String registrationNumber;
 }

@@ -9,6 +9,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 @Entity
 @Data
 @NoArgsConstructor
@@ -19,7 +21,7 @@ public class InterestRate {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
     private String loanType;
-    private double baseRate;
+    private BigDecimal baseRate;
     private double maxLTV;
     private int minTenure;
     private int maxTenure;
