@@ -10,4 +10,5 @@ import java.util.Optional;
 @Repository
 public interface KycRepository extends JpaRepository<Kyc,Long> {
     Optional<Kyc> findByDocumentTypeAndDocumentNumber(@NotBlank(message = "Document type is required") String s, @NotBlank(message = "Document number is required") String s1);
+    Optional<Kyc> findByDocumentNumber(String documentNumber);
 }

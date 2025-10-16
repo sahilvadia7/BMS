@@ -2,6 +2,7 @@ package com.bms.customer.dtos.kyc;
 
 import com.bms.customer.enums.KycStatus;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 public record KycRequestDTO(
 
@@ -11,5 +12,6 @@ public record KycRequestDTO(
         @NotBlank(message = "Document number is required")
         String documentNumber,
 
-        KycStatus status // optional in create, default will be PENDING
+        @NotNull(message = "Status is required for the request model")
+        KycStatus status
 ) { }

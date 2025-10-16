@@ -1,13 +1,30 @@
 package com.bms.customer.entities;
 
+import com.bms.customer.enums.Gender;
+import com.bms.customer.enums.Roles;
+import com.bms.customer.enums.UserStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
-@Table(name = "customers")
+@Table(
+        name = "customers",
+        indexes = {
+                @Index(name = "idx_customer_cif_number", columnList = "cifNumber"),
+                @Index(name = "idx_customer_email", columnList = "email"),
+                @Index(name = "idx_customer_phone", columnList = "phoneNo")
+        },
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_customer_cif_number", columnNames = "cifNumber"),
+                @UniqueConstraint(name = "uk_customer_email", columnNames = "email"),
+                @UniqueConstraint(name = "uk_customer_phone", columnNames = "phoneNo")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -17,13 +34,34 @@ public class Customer {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long customerId;
 
     @Column(nullable = false)
-    private Long userId; // FK to User (centralized DB)
+    private String firstName;
 
-//    @Column(nullable = false)
-//    private String name;
+    private String lastName;
+
+    @Column(nullable = false, unique = true)
+    private String email;
+
+    @Column(nullable = false, unique = true, length = 10)
+    private String phoneNo;
+
+    @Column(nullable = false)
+    private String password;
+
+    @Enumerated(EnumType.STRING)
+    private Roles role;
+
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    private UserStatus status;
+
+    @Enumerated(EnumType.STRING)
+    private Gender gender;
+
+    @Column(nullable = false, unique = true, length = 20)
+    private String cifNumber;
 
     @Column(nullable = false)
     private String address;
@@ -31,8 +69,9 @@ public class Customer {
     @Column(nullable = false)
     private LocalDate dob;
 
-    @Column(nullable = false)
-    private Long kycId; // FK to KYC entity/table
+    @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private Set<CustomerKycMapping> kycDocuments = new HashSet<>();
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -41,8 +80,13 @@ public class Customer {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = createdAt;
-        if (kycId == null) {
-            kycId = 0L; // default value if you want
+
+        if (cifNumber == null || cifNumber.isEmpty()) {
+            cifNumber = "CIF" + System.currentTimeMillis();
+        }
+
+        if (this.status == null) {
+            this.status = UserStatus.PENDING;
         }
     }
 
