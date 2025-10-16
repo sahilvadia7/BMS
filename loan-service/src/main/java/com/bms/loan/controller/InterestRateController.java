@@ -35,11 +35,7 @@ public class InterestRateController {
         return ResponseEntity.ok(service.getRateByLoanType(loanType));
     }
 
-    // Create new
-    @PostMapping
-    public ResponseEntity<InterestRateResponse> createRate(@RequestBody InterestRateRequest request) {
-        return ResponseEntity.ok(service.createRate(request));
-    }
+
 
     // Update existing
     @PutMapping("/{id}")
