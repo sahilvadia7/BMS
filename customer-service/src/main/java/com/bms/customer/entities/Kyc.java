@@ -20,14 +20,14 @@ public class Kyc {
     private Long id;
 
     @Column(nullable = false)
-    private String documentType; // e.g., "PAN", "Aadhar", "Passport"
+    private String documentType;
 
     @Column(nullable = false ,unique = true)
     private String documentNumber;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private KycStatus status; // e.g., PENDING, VERIFIED, REJECTED
+    private KycStatus status;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

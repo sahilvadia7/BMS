@@ -1,21 +1,27 @@
 package com.bms.customer.services.impl;
 
-import com.bms.customer.dtos.CustomerRequestDTO;
-import com.bms.customer.dtos.CustomerResponseDTO;
+import com.bms.customer.dtos.request.ChangePwdDTO;
+import com.bms.customer.dtos.request.CustomerRegisterRequestDTO;
+import com.bms.customer.dtos.request.LoginRequest;
+import com.bms.customer.dtos.request.LogoutRequest;
+import com.bms.customer.dtos.response.CustomerKycMappingDTO;
+import com.bms.customer.dtos.response.CustomerRegistrationResponseDTO;
+import com.bms.customer.dtos.response.CustomerResponseDTO;
 import com.bms.customer.entities.Customer;
-import com.bms.customer.entities.Kyc;
-import com.bms.customer.enums.KycStatus;
-
-import com.bms.customer.feign.AuthClient;
+import com.bms.customer.enums.Roles;
+import com.bms.customer.enums.UserStatus;
 import com.bms.customer.repositories.CustomerRepository;
 import com.bms.customer.repositories.KycRepository;
+import com.bms.customer.repositories.CustomerKycMappingRepository;
 import com.bms.customer.services.CustomerService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,65 +30,91 @@ public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepository customerRepository;
     private final KycRepository kycRepository;
-    private final AuthClient authClient;
-
-    private CustomerResponseDTO mapToResponse(Customer customer) {
-        return new CustomerResponseDTO(
-//                customer.getId(),
-//                customer.getUserId(),
-                customer.getName(),
-                customer.getAddress(),
-                customer.getDob(),
-//                customer.getKycId(),
-                customer.getCreatedAt(),
-                customer.getUpdatedAt()
-        );
-    }
+    private final CustomerKycMappingRepository mappingRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
-    public CustomerResponseDTO createCustomer(Long id, CustomerRequestDTO requestDTO) {
-        try {
-            authClient.getUser(id);
-        } catch (feign.FeignException.NotFound e) {
-            throw new RuntimeException("User with ID " + id + " does not exist in Auth service.");
+    public CustomerRegistrationResponseDTO registerCustomer(CustomerRegisterRequestDTO requestDTO) {
+        if (customerRepository.findByEmail(requestDTO.getEmail()).isPresent()) {
+            throw new RuntimeException("Email is already registered");
         }
-
-        Kyc kyc;
-        Optional<Kyc> existingKyc = kycRepository.findById(requestDTO.kycId());
-        if (existingKyc.isPresent()) {
-            kyc = existingKyc.get(); // use existing KYC
-        } else {
-            // If KYC not found → create default
-            kyc = Kyc.builder()
-                    .documentType("UNKNOWN")
-                    .documentNumber("N/A")
-                    .status(KycStatus.PENDING)
-                    .createdAt(LocalDateTime.now())
-                    .updatedAt(LocalDateTime.now())
-                    .build();
-//            kyc = kycRepository.save(kyc);
+        if (customerRepository.findByPhoneNo(requestDTO.getPhoneNo()).isPresent()) {
+            throw new RuntimeException("Phone number is already registered");
         }
 
         Customer customer = Customer.builder()
-                .userId(id)
-                .name(requestDTO.name())
-                .address(requestDTO.address())
-                .dob(requestDTO.dob())
-                .kycId(kyc.getId())
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
+                .firstName(requestDTO.getFirstName())
+                .lastName(requestDTO.getLastName())
+                .email(requestDTO.getEmail())
+                .phoneNo(requestDTO.getPhoneNo())
+                .password(passwordEncoder.encode(requestDTO.getPassword()))
+                .address(requestDTO.getAddress())
+                .dob(LocalDate.parse(requestDTO.getDob()))
+                .gender(requestDTO.getGender().orElse(null))
+                .role(Roles.CUSTOMER)
+                .status(UserStatus.PENDING)
                 .build();
 
-        Customer saved = customerRepository.save(customer);
-        return mapToResponse(saved);
+        Customer savedCustomer = customerRepository.save(customer);
+
+        return CustomerRegistrationResponseDTO.builder()
+                .cifNumber(savedCustomer.getCifNumber())
+                .message("Registration successful. Please proceed with KYC verification to activate your account.")
+                .status(savedCustomer.getStatus().name())
+                .build();
     }
 
+    @Override
+    public CustomerResponseDTO login(LoginRequest loginRequest) {
+        Customer customer = customerRepository.findByEmail(loginRequest.getLoginId())
+                .orElseGet(() -> customerRepository.findByPhoneNo(loginRequest.getLoginId())
+                        .orElseThrow(() -> new RuntimeException("User not found")));
 
+        if (!passwordEncoder.matches(loginRequest.getPassword(), customer.getPassword())) {
+            throw new RuntimeException("Invalid credentials");
+        }
+
+        if (customer.getStatus() != UserStatus.ACTIVE) {
+            throw new RuntimeException("Account is not active. Status: " + customer.getStatus().name() + ". Please complete KYC.");
+        }
+
+        return mapToResponse(customer);
+    }
+
+    @Override
+    public Map<String, String> logout(LogoutRequest logoutRequest) {
+        // Token invalidation logic here
+        return Map.of("message", "Logout successful for " + logoutRequest.getCifNumber());
+    }
+
+    @Override
+    public Map<String, String> changePassword(ChangePwdDTO changePwdDTO) {
+        Customer customer = customerRepository.findByCifNumber(changePwdDTO.getCifNumber())
+                .orElseGet(() -> customerRepository.findByEmail(changePwdDTO.getEmail())
+                        .orElseGet(() -> customerRepository.findByPhoneNo(changePwdDTO.getPhoneNo())
+                                .orElseThrow(() -> new RuntimeException("User not found"))));
+
+        if (!passwordEncoder.matches(changePwdDTO.getCurrentPassword(), customer.getPassword())) {
+            throw new RuntimeException("Current password is incorrect");
+        }
+
+        customer.setPassword(passwordEncoder.encode(changePwdDTO.getNewPassword()));
+        customerRepository.save(customer);
+
+        return Map.of("message", "Password changed successfully");
+    }
 
     @Override
     public CustomerResponseDTO getCustomerById(Long id) {
-        Customer customer = customerRepository.findById(id)
+        Customer customer = customerRepository.findWithKycByCustomerId(id)
                 .orElseThrow(() -> new RuntimeException("Customer not found"));
+        return mapToResponse(customer);
+    }
+
+    @Override
+    public CustomerResponseDTO getCustomerByCifNumber(String cifNumber) {
+        Customer customer = customerRepository.findByCifNumber(cifNumber)
+                .orElseThrow(() -> new RuntimeException("Customer not found for CIF: " + cifNumber));
         return mapToResponse(customer);
     }
 
@@ -93,30 +125,32 @@ public class CustomerServiceImpl implements CustomerService {
                 .collect(Collectors.toList());
     }
 
-    @Override
-    public CustomerResponseDTO updateCustomer(Long id, CustomerRequestDTO requestDTO) {
-        Customer customer = customerRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Customer not found"));
+    private CustomerResponseDTO mapToResponse(Customer customer) {
 
-        customer.setUserId(requestDTO.userId());
-        customer.setName(requestDTO.name());
-        customer.setAddress(requestDTO.address());
-        customer.setDob(requestDTO.dob());
-        customer.setUpdatedAt(LocalDateTime.now());
+        Set<CustomerKycMappingDTO> kycMappings = customer.getKycDocuments().stream()
+                .map(mapping -> CustomerKycMappingDTO.builder()
+                        .kycId(mapping.getKyc().getId())
+                        .documentType(mapping.getKyc().getDocumentType())
+                        .documentNumber(mapping.getKyc().getDocumentNumber())
+                        .documentStatus(mapping.getKyc().getStatus())
+                        .isPrimary(mapping.isPrimary())
+                        .build())
+                .collect(Collectors.toSet());
 
-        Customer updated = customerRepository.save(customer);
-        return mapToResponse(updated);
+        return CustomerResponseDTO.builder()
+                .customerId(customer.getCustomerId())
+                .firstName(customer.getFirstName())
+                .lastName(customer.getLastName())
+                .email(customer.getEmail())
+                .phoneNo(customer.getPhoneNo())
+                .role(customer.getRole())
+                .status(customer.getStatus())
+                .gender(customer.getGender())
+                .cifNumber(customer.getCifNumber())
+                .address(customer.getAddress())
+                .dob(customer.getDob())
+                .kycDocuments(kycMappings)
+                .createdAt(customer.getCreatedAt())
+                .build();
     }
-
-    @Override
-    public void deleteCustomer(Long id) {
-        if (!customerRepository.existsById(id)) throw new RuntimeException("Customer not found");
-        customerRepository.deleteById(id);
-    }
-
-    @Override
-    public boolean existsById(Long id) {
-        return customerRepository.existsById(id);
-    }
-
 }
