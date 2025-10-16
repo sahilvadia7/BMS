@@ -1,13 +1,13 @@
 package com.bms.account.dtos;
 
-import com.bms.account.enums.AccountType;
+import com.bms.account.constant.AccountTypeEnum;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 
 public record AccountRequestDTO(
         @NotNull(message = "Account type is required")
-        AccountType accountType,
+        AccountTypeEnum accountType,
 
         @NotNull(message = "Balance is required")
         BigDecimal balance,

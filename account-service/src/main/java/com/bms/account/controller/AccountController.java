@@ -26,8 +26,8 @@ public class AccountController {
 
     @Operation(summary = "Create a new bank account")
     @PostMapping("/{customerId}")
-    public ResponseEntity<AccountResponseDTO> createAccount(@Valid @PathVariable Long customerId, @RequestBody AccountRequestDTO requestDTO) {
-        return new ResponseEntity<>(accountService.createAccount(customerId,requestDTO), HttpStatus.CREATED);
+    public ResponseEntity<AccountResponseDTO> createAccount(@Valid @RequestBody AccountRequestDTO requestDTO) {
+        return new ResponseEntity<>(accountService.createAccount(requestDTO), HttpStatus.CREATED);
     }
 
     @Operation(summary = "Get account by ID")
