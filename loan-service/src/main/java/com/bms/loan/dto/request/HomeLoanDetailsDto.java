@@ -11,15 +11,9 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class InterestRateRequest {
-
-    private String loanType;
-
-    private BigDecimal baseRate;
-
-    private double maxLTV;
-
-    private int minTenure;
-
-    private int maxTenure;
+public class HomeLoanDetailsDto {
+    private String propertyAddress;
+    private BigDecimal propertyValue;
+    private String builderName;
+    private BigDecimal downPayment;
 }

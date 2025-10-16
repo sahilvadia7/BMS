@@ -10,9 +10,9 @@ import java.util.Optional;
 
 @Repository
 public interface RepaymentScheduleRepository extends JpaRepository<RepaymentSchedule , Long> {
-    Optional<RepaymentSchedule> findFirstByLoanApplicationIdAndStatusOrderByDueDateAsc(Long loanId, PaymentStatus paymentStatus);
+    Optional<RepaymentSchedule> findFirstByLoans_LoanIdAndStatusOrderByDueDateAsc(Long loanId, PaymentStatus paymentStatus);
 
     List<RepaymentSchedule> findByStatusAndDueDateBefore(PaymentStatus status, java.time.LocalDate date);
 
-    List<RepaymentSchedule> findByLoanApplicationId(Long loanId);
+    List<RepaymentSchedule> findByLoans_LoanId(Long loanId);
 }

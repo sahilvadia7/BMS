@@ -11,15 +11,10 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class InterestRateRequest {
-
-    private String loanType;
-
-    private BigDecimal baseRate;
-
-    private double maxLTV;
-
-    private int minTenure;
-
-    private int maxTenure;
+public class EducationLoanDetailsDto {
+    private String courseName;
+    private String university;
+    private Integer courseDurationMonths;
+    private BigDecimal tuitionFees;
+    private String coApplicantName;
 }
