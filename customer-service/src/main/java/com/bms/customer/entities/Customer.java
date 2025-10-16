@@ -22,8 +22,8 @@ public class Customer {
     @Column(nullable = false)
     private Long userId; // FK to User (centralized DB)
 
-    @Column(nullable = false)
-    private String name;
+//    @Column(nullable = false)
+//    private String name;
 
     @Column(nullable = false)
     private String address;

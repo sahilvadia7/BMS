@@ -61,4 +61,10 @@ public class CustomerController {
         return ResponseEntity.ok(exists);
     }
 
+    @Operation(summary = "Get customer by User ID")
+    @GetMapping("/by-user/{userId}")
+    public ResponseEntity<CustomerResponseDTO> getCustomerByUserId(@PathVariable Long userId) {
+        return ResponseEntity.ok(customerService.getCustomerByUserId(userId));
+    }
+
 }
