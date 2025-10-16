@@ -28,8 +28,9 @@ public class CarLoanEvaluator {
 
         // 1️⃣ Common checks
         if (!commonChecks(loan.getCustomerId() , loan)) {
-            return new LoanEvaluationResult(false, loan.getRemarks());
+            return new LoanEvaluationResult(false, loan.getRemarks(), LoanStatus.REJECTED);
         }
+
 
 
         // 2️⃣ Car-specific checks
@@ -39,30 +40,73 @@ public class CarLoanEvaluator {
             loan.setStatus(LoanStatus.REJECTED);
             loan.setRemarks("Car loan details missing");
             loansRepository.save(loan);
-            return new LoanEvaluationResult(false, loan.getRemarks());
+            return new LoanEvaluationResult(false, loan.getRemarks(), LoanStatus.REJECTED);
         }
 
+        // Car Age Check
+        if (car.getCarAgeYears() > 8) {
+            loan.setStatus(LoanStatus.REJECTED);
+            loan.setRemarks("Car too old for loan (max 8 years)");
+            loansRepository.save(loan);
+            return new LoanEvaluationResult(false, loan.getRemarks(), LoanStatus.REJECTED);
+        }
+
+        // Condition check
+        if (car.getCarConditionScore() < 5) {
+            loan.setStatus(LoanStatus.REJECTED);
+            loan.setRemarks("Car condition below acceptable level");
+            loansRepository.save(loan);
+            return new LoanEvaluationResult(false, loan.getRemarks(), LoanStatus.REJECTED);
+        }
+
+        // Down payment ratio check (min 10%)
+        BigDecimal minDownPayment = car.getCarValue().multiply(BigDecimal.valueOf(0.1));
+        if (car.getDownPayment().compareTo(minDownPayment) < 0) {
+            loan.setStatus(LoanStatus.REJECTED);
+            loan.setRemarks("Insufficient down payment (<10%)");
+            loansRepository.save(loan);
+            return new LoanEvaluationResult(false, loan.getRemarks(), LoanStatus.REJECTED);
+        }
+
+        // Loan-to-Value (LTV)
         BigDecimal ltv = loan.getRequestedAmount()
                 .divide(car.getCarValue(), 2, RoundingMode.HALF_UP);
-        if (ltv.compareTo(BigDecimal.valueOf(0.9)) > 0) {
+        if (ltv.compareTo(BigDecimal.valueOf(0.85)) > 0) {
             loan.setStatus(LoanStatus.REJECTED);
-            loan.setRemarks("LTV too high: " + ltv);
+            loan.setRemarks("LTV exceeds 85%");
             loansRepository.save(loan);
-            return new LoanEvaluationResult(false, loan.getRemarks());
+            return new LoanEvaluationResult(false, loan.getRemarks(), LoanStatus.REJECTED);
         }
 
+        // Employment Stability Check
+        if (car.getEmploymentStabilityYears() < 1) {
+            loan.setStatus(LoanStatus.REJECTED);
+            loan.setRemarks("Employment too short (<1 year)");
+            loansRepository.save(loan);
+            return new LoanEvaluationResult(false, loan.getRemarks(), LoanStatus.REJECTED);
+        }
+
+        // Insurance validity
+        if (!car.isInsuranceValid()) {
+            loan.setStatus(LoanStatus.REJECTED);
+            loan.setRemarks("Insurance not valid or expired");
+            loansRepository.save(loan);
+            return new LoanEvaluationResult(false, loan.getRemarks(), LoanStatus.REJECTED);
+        }
+
+        // Tenure check
         if (loan.getRequestedTenureMonths() > 60) {
             loan.setStatus(LoanStatus.REJECTED);
-            loan.setRemarks("Tenure exceeds max allowed for car loan");
+            loan.setRemarks("Tenure exceeds max allowed for car loan (60 months)");
             loansRepository.save(loan);
-            return new LoanEvaluationResult(false, loan.getRemarks());
+            return new LoanEvaluationResult(false, loan.getRemarks(), LoanStatus.REJECTED);
         }
 
         // 3️⃣ All checks passed → approve
-        loan.setStatus(LoanStatus.EVALUATED);
+        loan.setStatus(LoanStatus.APPLIED);
         loan.setRemarks("Car loan approved for evaluation");
         loansRepository.save(loan);
-        return new LoanEvaluationResult(true, loan.getRemarks());
+        return new LoanEvaluationResult(true, loan.getRemarks(), LoanStatus.APPLIED);
     }
 
     private boolean commonChecks(Long customerId, Loans loan) {

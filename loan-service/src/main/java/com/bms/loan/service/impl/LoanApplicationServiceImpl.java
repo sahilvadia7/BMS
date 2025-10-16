@@ -1,14 +1,15 @@
 package com.bms.loan.service.impl;
 
 import com.bms.loan.Repository.*;
-import com.bms.loan.dto.request.CarLoanDetailsDto;
-import com.bms.loan.dto.request.EducationLoanDetailsDto;
-import com.bms.loan.dto.request.HomeLoanDetailsDto;
-import com.bms.loan.dto.request.LoanApplicationRequest;
+import com.bms.loan.dto.request.*;
+import com.bms.loan.dto.response.CarLoanEvaluationByBankResponse;
 import com.bms.loan.dto.response.LoanApplicationResponse;
+import com.bms.loan.dto.response.LoanEvaluationResponse;
+import com.bms.loan.dto.response.LoanEvaluationResult;
 import com.bms.loan.entity.*;
 import com.bms.loan.enums.LoanStatus;
 import com.bms.loan.service.LoanApplicationService;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -24,6 +25,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     private final HomeLoanRepository homeLoanRepo;
     private final EducationLoanRepository educationLoanRepo;
     private final InterestRateRepository interestRateRepository;
+    private final CarLoanEvaluator carLoanEvaluator;
 
     @Override
     public LoanApplicationResponse applyLoan(LoanApplicationRequest request) {
@@ -59,6 +61,9 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         switch (request.getLoanType()) {
             case CAR -> {
                 CarLoanDetailsDto cd = request.getCarDetails();
+
+                int currentYear = java.time.Year.now().getValue();
+
                 carLoanRepo.save(CarLoanDetails.builder()
                         .loans(savedLoan)
                         .carModel(cd.getCarModel())
@@ -66,6 +71,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                         .manufactureYear(cd.getManufactureYear())
                         .carValue(cd.getCarValue())
                         .registrationNumber(cd.getRegistrationNumber())
+                        .carAgeYears(currentYear- cd.getManufactureYear())
                         .build());
             }
             case HOME -> {
@@ -99,5 +105,61 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 .status(String.valueOf(savedLoan.getStatus()))
                 .message("Loan application submitted successfully.")
                 .build();
+    }
+
+    @Override
+    public CarLoanEvaluationByBankResponse updateEvaluationData(Long loanId, CarLoanEvaluationRequestDto request) {
+        CarLoanDetails carLoan = carLoanRepo.findByLoans_LoanId(loanId)
+                .orElseThrow(() -> new EntityNotFoundException("Car loan not found for loanId: " + loanId));
+
+        if (request.getDownPayment() != null)
+            carLoan.setDownPayment(request.getDownPayment());
+
+        carLoan.setInsuranceValid(request.isInsuranceValid());
+        carLoan.setCarConditionScore(request.getCarConditionScore());
+        carLoan.setEmploymentStabilityYears(request.getEmploymentStabilityYears());
+
+        CarLoanDetails saved = carLoanRepo.save(carLoan);
+
+
+        return CarLoanEvaluationByBankResponse.builder()
+                .loanId(saved.getLoans().getLoanId())
+                .carModel(saved.getCarModel())
+                .manufacturer(saved.getManufacturer())
+                .manufactureYear(saved.getManufactureYear())
+                .carValue(saved.getCarValue())
+                .registrationNumber(saved.getRegistrationNumber())
+                .carAgeYears(saved.getCarAgeYears())
+                .downPayment(saved.getDownPayment())
+                .insuranceValid(saved.isInsuranceValid())
+                .carConditionScore(saved.getCarConditionScore())
+                .employmentStabilityYears(saved.getEmploymentStabilityYears())
+                .build();
+    }
+
+    @Override
+    public LoanEvaluationResponse evaluateLoan(Long loanId) {
+        Loans loan = loansRepository.findById(Math.toIntExact(loanId))
+                .orElseThrow(() -> new EntityNotFoundException("Loan not found with id: " + loanId));
+
+        LoanEvaluationResponse loanEvaluationResponse = new LoanEvaluationResponse();
+        loanEvaluationResponse.setLoanId(loanId);
+
+        switch (loan.getLoanType()) {
+            case CAR -> {
+                LoanEvaluationResult result = carLoanEvaluator.evaluateCarLoan(loanId);
+                loanEvaluationResponse.setLoanType(String.valueOf(loan.getLoanType()));
+                loanEvaluationResponse.setApproved(result.isApproved());
+                loanEvaluationResponse.setRemarks(result.getRemarks());
+                loanEvaluationResponse.setStatus(String.valueOf(result.getStatus()));
+            }
+            case HOME, EDUCATION -> {
+                // Future: integrate HomeLoanEvaluator / EducationLoanEvaluator
+            }
+            default -> throw new IllegalArgumentException("Unsupported loan type: " + loan.getLoanType());
+        }
+
+        // Return unified response
+        return loanEvaluationResponse;
     }
 }
