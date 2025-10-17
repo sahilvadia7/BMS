@@ -1,17 +1,12 @@
 package com.bms.account.dtos;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
+import lombok.Data;
 
-public record CustomerResponseDTO(
-        Long id,
-        Long userId,
-        String name,
-        String address,
-        LocalDate dob,
-        Long kycId,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
-) {
+@Data
+public class CustomerResponseDTO {
 
+    private Long cId;
+    private String message;
+    private String cifNumber;
+    private String status;
 }

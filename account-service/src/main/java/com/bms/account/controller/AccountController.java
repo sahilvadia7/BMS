@@ -25,7 +25,7 @@ public class AccountController {
     private final AccountService accountService;
 
     @Operation(summary = "Create a new bank account")
-    @PostMapping("/{customerId}")
+    @PostMapping
     public ResponseEntity<AccountResponseDTO> createAccount(@Valid @RequestBody AccountRequestDTO requestDTO) {
         return new ResponseEntity<>(accountService.createAccount(requestDTO), HttpStatus.CREATED);
     }
@@ -53,10 +53,11 @@ public class AccountController {
 
     @Operation(summary = "Delete account by ID")
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteAccount(@PathVariable Long id) {
-        accountService.deleteAccount(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<String> deleteAccount(@PathVariable Long id) {
+        String message = accountService.deleteAccount(id);
+        return ResponseEntity.ok(message); // returns 200 OK with message
     }
+
 
     @Operation(summary = "Get account by account number")
     @GetMapping("/number/{accountNumber}")

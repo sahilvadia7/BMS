@@ -13,7 +13,7 @@ public record AccountRequestDTO(
         CustomerRegisterRequestDTO customer,
 
         @NotNull(message = "Account type is required")
-        AccountTypeEnum accountType,
+        Long accountTypeId,
 
         @NotNull(message = "Balance is required")
         BigDecimal balance
