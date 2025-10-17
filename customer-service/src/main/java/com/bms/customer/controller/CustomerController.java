@@ -14,9 +14,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping("/api/v1/customers")
@@ -53,8 +55,10 @@ public class CustomerController {
     @Operation(summary = "Get a customer by internal ID")
     @GetMapping("/{id}")
     public ResponseEntity<CustomerResponseDTO> getCustomerById(@PathVariable Long id) {
-        return ResponseEntity.ok(customerService.getCustomerById(id));
+        CustomerResponseDTO customer = customerService.getCustomerById(id); // throws 404 if missing
+        return ResponseEntity.ok(customer);
     }
+
 
     @Operation(summary = "Get customer by CIF Number (For internal service use)")
     @GetMapping("/cif/{cifNumber}")

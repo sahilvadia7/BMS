@@ -103,7 +103,7 @@ public class CarLoanEvaluator {
         }
 
         // 3️⃣ All checks passed → approve
-        loan.setStatus(LoanStatus.APPLIED);
+        loan.setStatus(LoanStatus.APPROVED);
         loan.setRemarks("Car loan approved for evaluation");
         loansRepository.save(loan);
         return new LoanEvaluationResult(true, loan.getRemarks(), LoanStatus.APPLIED);
