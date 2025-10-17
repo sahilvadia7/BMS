@@ -13,7 +13,7 @@ public record AccountResponseDTO(
         BigDecimal balance,
         String status,
         Long customerId,
-        Long cifNumber,
+        String cifNumber,
         Long branchId,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

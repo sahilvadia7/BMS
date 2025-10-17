@@ -16,11 +16,13 @@ public interface AccountService {
 
     AccountResponseDTO updateAccount(Long id, AccountRequestDTO requestDTO);
 
-    void deleteAccount(Long id);
+    
 
     AccountResponseDTO getAccountByNumber(String accountNumber);
 
     BigDecimal getBalance(Long accountId);
 
     void updateBalance(Long accountId, BigDecimal amount, String transactionType);
+
+    String deleteAccount(Long id);
 }
