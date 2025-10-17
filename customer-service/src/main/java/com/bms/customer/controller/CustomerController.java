@@ -8,68 +8,64 @@ import com.bms.customer.dtos.response.CustomerRegistrationResponseDTO;
 import com.bms.customer.dtos.response.CustomerResponseDTO;
 import com.bms.customer.services.CustomerService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping("/api/v1/customers")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
-@Tag(name = "Customer APIs", description = "Endpoints for customer registration, authentication, and profile management")
 public class CustomerController {
 
     private final CustomerService customerService;
 
     @Operation(summary = "Register a new customer")
     @PostMapping("/register")
-    public ResponseEntity<CustomerRegistrationResponseDTO> registerCustomer(@Valid @RequestBody CustomerRegisterRequestDTO requestDTO) {
-        return new ResponseEntity<>(customerService.registerCustomer(requestDTO), HttpStatus.CREATED);
+    public ResponseEntity<CustomerRegistrationResponseDTO> register(@Valid @RequestBody CustomerRegisterRequestDTO dto) {
+        CustomerRegistrationResponseDTO response = customerService.registerCustomer(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @Operation(summary = "Login a customer")
+    @Operation(summary = "Customer login")
     @PostMapping("/login")
     public ResponseEntity<CustomerResponseDTO> login(@Valid @RequestBody LoginRequest loginRequest) {
-        return ResponseEntity.ok(customerService.login(loginRequest));
+        CustomerResponseDTO response = customerService.login(loginRequest);
+        return ResponseEntity.ok(response);
     }
 
-    @Operation(summary = "Logout a customer")
+    @Operation(summary = "Logout customer")
     @PostMapping("/logout")
-    public ResponseEntity<Map<String, String>> logout(@Valid @RequestBody LogoutRequest logoutRequest) {
-        return ResponseEntity.ok(customerService.logout(logoutRequest));
+    public ResponseEntity<Void> logout(@Valid @RequestBody LogoutRequest logoutRequest) {
+        customerService.logout(logoutRequest);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 
-    @Operation(summary = "Change a customer's password")
+    @Operation(summary = "Change customer password")
     @PostMapping("/change-password")
-    public ResponseEntity<Map<String, String>> changePassword(@Valid @RequestBody ChangePwdDTO changePwdDTO) {
-        return ResponseEntity.ok(customerService.changePassword(changePwdDTO));
+    public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePwdDTO changePwdDTO) {
+        customerService.changePassword(changePwdDTO);
+        return ResponseEntity.ok().build();
     }
 
-    @Operation(summary = "Get a customer by internal ID")
+    @Operation(summary = "Get customer by ID")
     @GetMapping("/{id}")
-    public ResponseEntity<CustomerResponseDTO> getCustomerById(@PathVariable Long id) {
-        CustomerResponseDTO customer = customerService.getCustomerById(id); // throws 404 if missing
-        return ResponseEntity.ok(customer);
+    public ResponseEntity<CustomerResponseDTO> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(customerService.getCustomerById(id));
     }
 
-
-    @Operation(summary = "Get customer by CIF Number (For internal service use)")
+    @Operation(summary = "Get customer by CIF number")
     @GetMapping("/cif/{cifNumber}")
-    public ResponseEntity<CustomerResponseDTO> getCustomerByCifNumber(@PathVariable String cifNumber) {
+    public ResponseEntity<CustomerResponseDTO> getByCif(@PathVariable String cifNumber) {
         return ResponseEntity.ok(customerService.getCustomerByCifNumber(cifNumber));
     }
 
     @Operation(summary = "Get all customers")
     @GetMapping
-    public ResponseEntity<List<CustomerResponseDTO>> getAllCustomers() {
+    public ResponseEntity<List<CustomerResponseDTO>> getAll() {
         return ResponseEntity.ok(customerService.getAllCustomers());
     }
 }

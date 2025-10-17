@@ -15,15 +15,11 @@ import com.bms.customer.repositories.KycRepository;
 import com.bms.customer.repositories.CustomerKycMappingRepository;
 import com.bms.customer.services.CustomerService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -87,12 +83,11 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
-    public Map<String, String> logout(LogoutRequest logoutRequest) {
-        return Map.of("message", "Logout successful for " + logoutRequest.getCifNumber());
+    public void logout(LogoutRequest logoutRequest) {
     }
 
     @Override
-    public Map<String, String> changePassword(ChangePwdDTO changePwdDTO) {
+    public void changePassword(ChangePwdDTO changePwdDTO) {
         Customer customer = customerRepository.findByCifNumber(changePwdDTO.getCifNumber())
                 .orElseGet(() -> customerRepository.findByEmail(changePwdDTO.getEmail())
                         .orElseGet(() -> customerRepository.findByPhoneNo(changePwdDTO.getPhoneNo())
@@ -105,7 +100,6 @@ public class CustomerServiceImpl implements CustomerService {
         customer.setPassword(passwordEncoder.encode(changePwdDTO.getNewPassword()));
         customerRepository.save(customer);
 
-        return Map.of("message", "Password changed successfully");
     }
 
     @Override
