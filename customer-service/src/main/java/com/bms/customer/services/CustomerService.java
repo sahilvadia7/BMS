@@ -7,7 +7,6 @@ import com.bms.customer.dtos.request.LogoutRequest;
 import com.bms.customer.dtos.response.CustomerRegistrationResponseDTO;
 import com.bms.customer.dtos.response.CustomerResponseDTO;
 import java.util.List;
-import java.util.Map;
 
 public interface CustomerService {
 
@@ -15,9 +14,9 @@ public interface CustomerService {
 
     CustomerResponseDTO login(LoginRequest loginRequest);
 
-    Map<String, String> logout(LogoutRequest logoutRequest);
+    void logout(LogoutRequest logoutRequest);
 
-    Map<String, String> changePassword(ChangePwdDTO changePwdDTO);
+    void changePassword(ChangePwdDTO changePwdDTO);
 
     CustomerResponseDTO getCustomerById(Long id);
 
