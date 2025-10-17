@@ -67,7 +67,8 @@ public class Account {
 
         // Auto-generate account number pattern: e.g. "AC202510160001"
         if (accountNumber == null || accountNumber.isEmpty()) {
-            accountNumber = "AC" + System.currentTimeMillis();
+            String ts = String.valueOf(System.currentTimeMillis());
+            accountNumber = "AC" + ts.substring(ts.length() - 10); // 2 + 10 = 12 chars
         }
 
         if (status == null) {
