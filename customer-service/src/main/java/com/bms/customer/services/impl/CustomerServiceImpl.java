@@ -58,6 +58,7 @@ public class CustomerServiceImpl implements CustomerService {
         Customer savedCustomer = customerRepository.save(customer);
 
         return CustomerRegistrationResponseDTO.builder()
+                .cId(savedCustomer.getCustomerId())
                 .cifNumber(savedCustomer.getCifNumber())
                 .message("Registration successful. Please proceed with KYC verification to activate your account.")
                 .status(savedCustomer.getStatus().name())
