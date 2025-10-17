@@ -23,6 +23,7 @@ import java.util.NoSuchElementException;
 @RestController
 @RequestMapping("/api/v1/customers")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 @Tag(name = "Customer APIs", description = "Endpoints for customer registration, authentication, and profile management")
 public class CustomerController {
 
