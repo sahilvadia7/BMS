@@ -13,6 +13,8 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @Builder
 public class LoanApplicationRequest {
+
+    private CustomerRegisterRequest customerDetails;
     private Long customerId;
     private LoanType loanType;
     private BigDecimal requestedAmount;

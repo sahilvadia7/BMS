@@ -7,7 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-//@AllArgsConstructor
+@AllArgsConstructor
 @NoArgsConstructor
 @Builder
 public class LoanEvaluationResult {
@@ -15,6 +15,6 @@ public class LoanEvaluationResult {
     private String remarks;
     private LoanStatus status;
 
-    public LoanEvaluationResult(boolean b, String remarks ,LoanStatus status) {
-    }
+//    public LoanEvaluationResult(boolean b, String remarks ,LoanStatus status) {
+//    }
 }

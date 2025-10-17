@@ -15,8 +15,11 @@ import com.bms.customer.repositories.KycRepository;
 import com.bms.customer.repositories.CustomerKycMappingRepository;
 import com.bms.customer.services.CustomerService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -58,6 +61,7 @@ public class CustomerServiceImpl implements CustomerService {
         Customer savedCustomer = customerRepository.save(customer);
 
         return CustomerRegistrationResponseDTO.builder()
+                .customerId(savedCustomer.getCustomerId())
                 .cifNumber(savedCustomer.getCifNumber())
                 .message("Registration successful. Please proceed with KYC verification to activate your account.")
                 .status(savedCustomer.getStatus().name())

@@ -11,6 +11,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -26,12 +27,17 @@ public class Loans {
 
     private Long customerId;
 
+    private String cifNumber;
+
+
     @Enumerated(EnumType.STRING)
     private LoanType loanType; // CAR, HOME, EDUCATION, PERSONAL, BUSINESS
 
     private BigDecimal interestRate;
 
     private BigDecimal requestedAmount; // amount customer applied for
+
+    private BigDecimal ApprovedAmount;
 
     private Integer requestedTenureMonths; // tenure in months
 
@@ -63,7 +69,7 @@ public class Loans {
     private Integer externalCreditScore = 700; // default CIBIL for testing
 
     @Builder.Default
-    @Column(name = "external_blacklisted", nullable = false)
+    @Column(name = "external_blacklisted")
     private boolean externalBlacklisted = false; // default not blacklisted
 
     @Builder.Default
@@ -71,5 +77,7 @@ public class Loans {
 
     @Builder.Default
     private BigDecimal externalTotalExistingEmi = BigDecimal.ZERO; // default EMI
+
+    private LocalDate DisbursementDate;
 
 }
