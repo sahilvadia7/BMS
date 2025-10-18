@@ -3,14 +3,11 @@ package com.bms.customer.services.impl;
 import com.bms.customer.dtos.kyc.KycRequestDTO;
 import com.bms.customer.dtos.kyc.KycResponseDTO;
 import com.bms.customer.dtos.response.CustomerResponseDTO;
-import com.bms.customer.entities.Customer;
-import com.bms.customer.entities.Kyc;
-import com.bms.customer.entities.CustomerKycMapping;
-import com.bms.customer.enums.KycStatus;
-import com.bms.customer.enums.UserStatus;
-import com.bms.customer.repositories.CustomerRepository;
-import com.bms.customer.repositories.KycRepository;
-import com.bms.customer.repositories.CustomerKycMappingRepository;
+import com.bms.customer.entities.*;
+import com.bms.customer.enums.*;
+import com.bms.customer.exception.BadRequestException;
+import com.bms.customer.exception.ResourceNotFoundException;
+import com.bms.customer.repositories.*;
 import com.bms.customer.services.KycService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -52,7 +49,7 @@ public class KycServiceImpl implements KycService {
     @Override
     public KycResponseDTO createKycDocument(KycRequestDTO requestDTO) {
         if (kycRepository.findByDocumentNumber(requestDTO.documentNumber()).isPresent()) {
-            throw new RuntimeException("KYC document number already exists.");
+            throw new BadRequestException("KYC document number already exists.");
         }
 
         Kyc kyc = Kyc.builder()
@@ -61,20 +58,20 @@ public class KycServiceImpl implements KycService {
                 .status(KycStatus.PENDING)
                 .build();
 
-        Kyc savedKyc = kycRepository.save(kyc);
-        return mapToKycResponse(savedKyc);
+        return mapToKycResponse(kycRepository.save(kyc));
     }
 
     @Override
     public KycResponseDTO getKycById(Long id) {
         Kyc kyc = kycRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("KYC document not found for ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("KYC document not found for ID: " + id));
         return mapToKycResponse(kyc);
     }
 
     @Override
     public List<KycResponseDTO> getAllKyc() {
-        return kycRepository.findAll().stream()
+        return kycRepository.findAll()
+                .stream()
                 .map(this::mapToKycResponse)
                 .collect(Collectors.toList());
     }
@@ -82,24 +79,23 @@ public class KycServiceImpl implements KycService {
     @Override
     public KycResponseDTO updateKyc(Long id, KycRequestDTO requestDTO) {
         Kyc kyc = kycRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("KYC document not found for ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("KYC document not found for ID: " + id));
 
         if (!kyc.getDocumentNumber().equals(requestDTO.documentNumber()) &&
                 kycRepository.findByDocumentNumber(requestDTO.documentNumber()).isPresent()) {
-            throw new RuntimeException("Cannot update document number; new number already exists.");
+            throw new BadRequestException("Document number already exists for another record.");
         }
 
         kyc.setDocumentType(requestDTO.documentType());
         kyc.setDocumentNumber(requestDTO.documentNumber());
 
-        Kyc updatedKyc = kycRepository.save(kyc);
-        return mapToKycResponse(updatedKyc);
+        return mapToKycResponse(kycRepository.save(kyc));
     }
 
     @Override
     public void deleteKyc(Long id) {
         if (!kycRepository.existsById(id)) {
-            throw new RuntimeException("KYC document not found for ID: " + id);
+            throw new ResourceNotFoundException("KYC document not found for ID: " + id);
         }
         kycRepository.deleteById(id);
     }
@@ -107,14 +103,15 @@ public class KycServiceImpl implements KycService {
     @Override
     public CustomerResponseDTO verifyAndLinkKyc(Long customerId, Long kycId) {
         Customer customer = customerRepository.findById(customerId)
-                .orElseThrow(() -> new RuntimeException("Customer not found for ID: " + customerId));
+                .orElseThrow(() -> new ResourceNotFoundException("Customer not found for ID: " + customerId));
 
         Kyc kyc = kycRepository.findById(kycId)
-                .orElseThrow(() -> new RuntimeException("KYC document not found for ID: " + kycId));
+                .orElseThrow(() -> new ResourceNotFoundException("KYC document not found for ID: " + kycId));
 
-        if (kyc.getStatus() != KycStatus.PENDING && kyc.getStatus() != KycStatus.VERIFIED) {
-            throw new RuntimeException("KYC status cannot be linked. Current status: " + kyc.getStatus());
+        if (kyc.getStatus() == KycStatus.REJECTED) {
+            throw new BadRequestException("Rejected KYC cannot be linked.");
         }
+
         kyc.setStatus(KycStatus.VERIFIED);
         kycRepository.save(kyc);
 
@@ -126,13 +123,9 @@ public class KycServiceImpl implements KycService {
 
         mappingRepository.save(mapping);
 
-        customer.getKycDocuments().add(mapping);
-
         customer.setStatus(UserStatus.ACTIVE);
         customer.setUpdatedAt(LocalDateTime.now());
 
-        Customer updatedCustomer = customerRepository.save(customer);
-
-        return mapToCustomerResponse(updatedCustomer);
+        return mapToCustomerResponse(customerRepository.save(customer));
     }
 }
