@@ -29,13 +29,7 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     public CustomerRegistrationResponseDTO registerCustomer(CustomerRegisterRequestDTO requestDTO) {
 
-        if (customerRepository.findByEmail(requestDTO.getEmail()).isPresent()) {
-            throw new DuplicateResourceException("Email is already registered");
-        }
-
-        if (customerRepository.findByPhoneNo(requestDTO.getPhoneNo()).isPresent()) {
-            throw new DuplicateResourceException("Phone number is already registered");
-        }
+        String cifNumber = generateUniqueCifNumber();
 
         Customer customer = Customer.builder()
                 .firstName(requestDTO.getFirstName())
@@ -48,6 +42,7 @@ public class CustomerServiceImpl implements CustomerService {
                 .gender(requestDTO.getGender().orElse(null))
                 .role(Roles.CUSTOMER)
                 .status(UserStatus.PENDING)
+                .cifNumber(cifNumber)
                 .build();
 
         Customer savedCustomer = customerRepository.save(customer);
@@ -127,6 +122,7 @@ public class CustomerServiceImpl implements CustomerService {
                         .documentNumber(mapping.getKyc().getDocumentNumber())
                         .documentStatus(mapping.getKyc().getStatus())
                         .isPrimary(mapping.isPrimary())
+                        .approvalDate(mapping.getVerificationDate())
                         .build())
                 .collect(Collectors.toSet());
 
@@ -146,4 +142,23 @@ public class CustomerServiceImpl implements CustomerService {
                 .createdAt(customer.getCreatedAt())
                 .build();
     }
+
+    private String generateUniqueCifNumber(){
+        String cif;
+        int attempts = 0;
+        do{
+            long nano = System.nanoTime();
+            int random = (int) (Math.random() * 1000);
+            cif = "CIF" + nano + random;
+            if (cif.length() > 20) {
+                cif = cif.substring(0, 20);
+            }
+            attempts++;
+            if (attempts > 5) {
+                throw new IllegalStateException("Failed to generate unique CIF after multiple attempts");
+            }
+        }while (customerRepository.findByCifNumber(cif).isPresent());
+        return cif;
+    }
+
 }

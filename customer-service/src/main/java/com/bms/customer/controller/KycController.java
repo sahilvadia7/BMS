@@ -22,11 +22,11 @@ public class KycController {
 
     private final KycService kycService;
 
-    @Operation(summary = "Submit new KYC document details")
-    @PostMapping
-    public ResponseEntity<KycResponseDTO> submitKycDocument(@Valid @RequestBody KycRequestDTO requestDTO) {
-        return new ResponseEntity<>(kycService.createKycDocument(requestDTO), HttpStatus.CREATED);
-    }
+//    @Operation(summary = "Submit new KYC document details")
+//    @PostMapping
+//    public ResponseEntity<KycResponseDTO> submitKycDocument(@Valid @RequestBody KycRequestDTO requestDTO) {
+//        return new ResponseEntity<>(kycService.createKycDocument(requestDTO), HttpStatus.CREATED);
+//    }
 
     @Operation(summary = "Admin: Get all KYC documents")
     @GetMapping
@@ -59,7 +59,36 @@ public class KycController {
             @PathVariable Long customerId,
             @PathVariable Long kycId) {
 
-        CustomerResponseDTO response = kycService.verifyAndLinkKyc(customerId, kycId);
+        CustomerResponseDTO response = kycService.linkKycToCustomer(customerId, kycId);
         return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "Customer: Upload KYC document")
+    @PostMapping("/upload")
+    public ResponseEntity<KycResponseDTO> uploadKyc(
+            @RequestParam Long customerId,
+            @Valid @RequestBody KycRequestDTO dto) {
+        return ResponseEntity.ok(kycService.uploadKycForCustomer(customerId, dto));
+    }
+
+    @Operation(summary = "Branch Manager: Approve KYC and activate customer")
+//    @PreAuthorize("hasRole('BRANCH_MANAGER')")
+    @PatchMapping("/{kycId}/approve")
+    public ResponseEntity<CustomerResponseDTO> approveKyc(
+            @PathVariable Long kycId,
+            @RequestHeader(value = "X-Approved-By", required = false) String approvedBy) {
+
+        String approver = approvedBy != null ? approvedBy : "system@test.com";
+        return ResponseEntity.ok(kycService.approveKyc(kycId, approver));
+    }
+
+    @Operation(summary = "Branch Manager: Reject KYC")
+//    @PreAuthorize("hasRole('BRANCH_MANAGER')")
+    @PatchMapping("/{kycId}/reject")
+    public ResponseEntity<Void> rejectKyc(
+            @PathVariable Long kycId,
+            @RequestParam String reason) {
+        kycService.rejectKyc(kycId, reason);
+        return ResponseEntity.noContent().build();
     }
 }

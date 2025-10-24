@@ -6,7 +6,8 @@ public enum UserStatus {
     INACTIVE("Temporarily disabled, can be reactivated later"),
     BLOCKED("Blocked due to suspicious activity or policy violation"),
     CLOSED("Permanently closed account or user record"),
-    PENDING("Awaiting verification or approval");
+    PENDING("Awaiting verification or approval"),
+    REJECTED("Rejected");
 
     private final String description;
 

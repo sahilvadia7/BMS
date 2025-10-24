@@ -4,6 +4,8 @@ import com.bms.customer.enums.KycStatus;
 import lombok.Builder;
 import lombok.Data;
 
+import java.time.LocalDate;
+
 @Data
 @Builder
 public class CustomerKycMappingDTO {
@@ -12,5 +14,6 @@ public class CustomerKycMappingDTO {
     private String documentType;
     private String documentNumber;
     private KycStatus documentStatus;
+    private LocalDate approvalDate;
     private boolean isPrimary;
 }

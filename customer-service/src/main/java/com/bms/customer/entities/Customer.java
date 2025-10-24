@@ -41,10 +41,10 @@ public class Customer {
 
     private String lastName;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String email;
 
-    @Column(nullable = false, unique = true, length = 10)
+    @Column(nullable = false, length = 10)
     private String phoneNo;
 
     @Column(nullable = false)
@@ -80,10 +80,6 @@ public class Customer {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = createdAt;
-
-        if (cifNumber == null || cifNumber.isEmpty()) {
-            cifNumber = "CIF" + System.currentTimeMillis();
-        }
 
         if (this.status == null) {
             this.status = UserStatus.PENDING;

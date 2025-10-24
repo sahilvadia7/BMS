@@ -2,7 +2,6 @@ package com.bms.customer.entities;
 
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.time.LocalDate;
 
 @Entity
@@ -19,7 +18,7 @@ public class CustomerKycMapping {
     private Customer customer;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "kyc_id", nullable = false, unique = true)
+    @JoinColumn(name = "kyc_id", nullable = false)
     private Kyc kyc;
 
     @Column(nullable = false)
@@ -27,6 +26,7 @@ public class CustomerKycMapping {
 
     private LocalDate verificationDate;
 
+    private String verifiedBy;
     @PrePersist
     protected void onCreate() {
         if (this.verificationDate == null) {
