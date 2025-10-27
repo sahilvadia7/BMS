@@ -16,5 +16,5 @@ public interface CustomerClient {
     CustomerResponseDTO registerCustomer(@Valid @RequestBody CustomerRegisterRequest requestDTO) ;
 
     @GetMapping("/{id}")
-    CustomerResponseDTO getCustomerById(@PathVariable Long id);
+    CustomerResponseDTO getById(@PathVariable Long id);
 }

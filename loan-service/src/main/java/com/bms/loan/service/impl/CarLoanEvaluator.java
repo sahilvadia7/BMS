@@ -2,7 +2,7 @@ package com.bms.loan.service.impl;
 
 import com.bms.loan.Repository.CarLoanRepository;
 import com.bms.loan.Repository.LoanRepository;
-import com.bms.loan.dto.response.LoanEvaluationResult;
+import com.bms.loan.dto.response.loan.LoanEvaluationResult;
 import com.bms.loan.entity.CarLoanDetails;
 import com.bms.loan.entity.Loans;
 import com.bms.loan.enums.LoanStatus;
@@ -26,14 +26,14 @@ public class CarLoanEvaluator {
         Loans loan = loansRepository.findById(Math.toIntExact(loanId))
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
-        // 1️⃣ Common checks
+        // Common checks
         if (!commonChecks(loan.getCustomerId() , loan)) {
             return new LoanEvaluationResult(false, loan.getRemarks(), LoanStatus.REJECTED);
         }
 
 
 
-        // 2️⃣ Car-specific checks
+        // Car-specific checks
         CarLoanDetails car = carLoanRepository.findByLoans_LoanId(loanId)
                 .orElseThrow(() -> new RuntimeException("Car loan not found"));
         if (car == null) {
@@ -102,11 +102,12 @@ public class CarLoanEvaluator {
             return new LoanEvaluationResult(false, loan.getRemarks(), LoanStatus.REJECTED);
         }
 
-        // 3️⃣ All checks passed → approve
+        // All checks passed → approve
         loan.setStatus(LoanStatus.APPROVED);
         loan.setRemarks("Car loan approved for evaluation");
+        loan.setApprovedAmount(loan.getRequestedAmount());
         loansRepository.save(loan);
-        return new LoanEvaluationResult(true, loan.getRemarks(), LoanStatus.APPLIED);
+        return new LoanEvaluationResult(true, loan.getRemarks(), LoanStatus.APPROVED);
     }
 
     private boolean commonChecks(Long customerId, Loans loan) {

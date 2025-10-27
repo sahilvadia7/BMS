@@ -31,5 +31,13 @@ public class LoanEmiSchedule {
     private BigDecimal interestComponent;
 
     @Enumerated(EnumType.STRING)
-    private EmiStatus status; // PAID / UNPAID
+    private EmiStatus status;
+
+    private LocalDate paymentDate;
+    private BigDecimal paidAmount = BigDecimal.ZERO;
+    private BigDecimal lateFee = BigDecimal.ZERO;
+
+    private Integer daysLate = 0;
+    private String remarks;
+
 }

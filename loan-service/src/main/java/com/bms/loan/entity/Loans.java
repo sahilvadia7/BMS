@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -37,11 +38,29 @@ public class Loans {
 
     private BigDecimal requestedAmount; // amount customer applied for
 
-    private BigDecimal ApprovedAmount;
+    private BigDecimal ApprovedAmount; // final sanctioned amount
 
     private Integer requestedTenureMonths; // tenure in months
 
-    private BigDecimal totalAmountPaid; // amount paid
+    @Builder.Default
+    @Column(nullable = false)
+    private BigDecimal outstandingAmount = BigDecimal.ZERO;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private BigDecimal totalAmountPaid = BigDecimal.ZERO; // amount paid
+
+    @Builder.Default
+    @Column(nullable = false)
+    private BigDecimal totalInterestPaid = BigDecimal.ZERO; // interest portion paid
+
+    @Builder.Default
+    @Column(nullable = false)
+    private BigDecimal totalLateFee = BigDecimal.ZERO; // total penalty paid
+
+    @Builder.Default
+    private Integer totalPaidEmiCount = 0; // number of EMIs paid
+
 
     private String bankName;
 
@@ -78,6 +97,7 @@ public class Loans {
     @Builder.Default
     private BigDecimal externalTotalExistingEmi = BigDecimal.ZERO; // default EMI
 
-    private LocalDate DisbursementDate;
+    private LocalDate disbursementDate;
 
+    private LocalDate nextDueDate;
 }

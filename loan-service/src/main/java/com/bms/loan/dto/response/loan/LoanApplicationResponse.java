@@ -1,4 +1,4 @@
-package com.bms.loan.dto.response;
+package com.bms.loan.dto.response.loan;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,10 +9,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class LoanEvaluationResponse {
+public class LoanApplicationResponse {
     private Long loanId;
-    private boolean approved;
-    private String remarks;
     private String loanType;
     private String status;
+    private String message;
 }

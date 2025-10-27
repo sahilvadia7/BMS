@@ -1,4 +1,4 @@
-package com.bms.loan.dto.request;
+package com.bms.loan.dto.request.education;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

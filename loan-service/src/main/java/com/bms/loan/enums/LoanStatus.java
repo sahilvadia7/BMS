@@ -8,5 +8,5 @@ public enum LoanStatus {
     REJECTED,
     DISBURSED,
     CLOSED,
-    EVALUATED
+    OVERDUE, EVALUATED
 }

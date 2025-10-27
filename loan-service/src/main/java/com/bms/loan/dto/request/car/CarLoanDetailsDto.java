@@ -1,4 +1,4 @@
-package com.bms.loan.dto.response;
+package com.bms.loan.dto.request.car;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,17 +11,10 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CarLoanEvaluationByBankResponse {
-
-    private Long loanId;                   // Parent loan id
+public class CarLoanDetailsDto {
     private String carModel;
     private String manufacturer;
     private int manufactureYear;
     private BigDecimal carValue;
     private String registrationNumber;
-    private int carAgeYears;
-    private BigDecimal downPayment;
-    private boolean insuranceValid;
-    private int carConditionScore;
-    private int employmentStabilityYears;
 }

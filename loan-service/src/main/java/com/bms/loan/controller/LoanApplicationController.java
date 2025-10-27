@@ -1,14 +1,18 @@
 package com.bms.loan.controller;
 
-import com.bms.loan.dto.request.CarLoanEvaluationRequestDto;
+import com.bms.loan.dto.request.car.CarLoanEvaluationRequestDto;
 import com.bms.loan.dto.request.LoanApplicationRequest;
-import com.bms.loan.dto.response.CarLoanEvaluationByBankResponse;
-import com.bms.loan.dto.response.LoanApplicationResponse;
-import com.bms.loan.dto.response.LoanDisbursementResponse;
-import com.bms.loan.dto.response.LoanEvaluationResponse;
+import com.bms.loan.dto.response.car.CarLoanEvaluationByBankResponse;
+import com.bms.loan.dto.response.emi.LoanEmiScheduleResponse;
+import com.bms.loan.dto.response.loan.LoanApplicationResponse;
+import com.bms.loan.dto.response.loan.LoanDisbursementResponse;
+import com.bms.loan.dto.response.loan.LoanEvaluationResponse;
 import com.bms.loan.service.LoanApplicationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.List;
 
 
 @RestController
@@ -47,4 +51,19 @@ public class LoanApplicationController {
         LoanDisbursementResponse response = loanService.disburseLoan(loanId);
         return ResponseEntity.ok(response);
     }
+
+    // Fetch EMI Schedule
+    @GetMapping("/{loanId}/schedule")
+    public ResponseEntity<List<LoanEmiScheduleResponse>> getEmiSchedule(@PathVariable Long loanId) {
+        return ResponseEntity.ok(loanService.getEmiSchedule(loanId));
+    }
+
+
+    // Pay EMI
+    @PostMapping("/{loanId}/emi/{emiId}/pay")
+    public ResponseEntity<String> payEmi(@PathVariable Long loanId, @PathVariable Long emiId){
+            loanService.payEmi(loanId, emiId , LocalDate.now());
+        return ResponseEntity.ok("EMI payment processed successfully");
+    }
+
 }
