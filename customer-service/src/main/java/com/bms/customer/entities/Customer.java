@@ -20,9 +20,7 @@ import java.util.Set;
                 @Index(name = "idx_customer_phone", columnList = "phoneNo")
         },
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_customer_cif_number", columnNames = "cifNumber"),
-                @UniqueConstraint(name = "uk_customer_email", columnNames = "email"),
-                @UniqueConstraint(name = "uk_customer_phone", columnNames = "phoneNo")
+                @UniqueConstraint(name = "uk_customer_cif_number", columnNames = "cifNumber")
         }
 )
 @Getter

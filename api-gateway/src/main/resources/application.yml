@@ -1,0 +1,105 @@
+#spring:
+#  application:
+#    name: api-gateway
+#  cloud:
+#    gateway:
+#      # Disable Eureka-based route discovery (you're using static routes)
+#      discovery:
+#        locator:
+#          enabled: false
+#          lower-case-service-id: true
+#
+#      # Global CORS configuration
+#      globalcors:
+#        cors-configurations:
+#          '[/**]':
+#            allowed-origins: "*"
+#            allowed-methods:
+#              - GET
+#              - POST
+#              - PUT
+#              - DELETE
+#              - OPTIONS
+#            allowed-headers: "*"
+#            allow-credentials: false
+#            max-age: 3600
+#
+#      # Static routes
+#      routes:
+#        - id: auth-service
+#          uri: http://localhost:8081
+#          predicates:
+#            - Path=/api/v1/auth/**
+#
+#        - id: customer-service
+#          uri: http://localhost:8082
+#          predicates:
+#            - Path=/api/v1/customers/**
+#
+#        - id: customer-service-kyc
+#          uri: http://localhost:8082
+#          predicates:
+#            - Path=/api/v1/kyc/**
+#
+#        - id: branch-service
+#          uri: http://localhost:8083
+#          predicates:
+#            - Path=/api/v1/branches/**
+#
+#        - id: account-service
+#          uri: http://localhost:8084
+#          predicates:
+#            - Path=/api/v1/accounts/**
+#
+#        - id: transaction-service
+#          uri: http://localhost:8085
+#          predicates:
+#            - Path=/api/v1/transactions/**
+#
+#        - id: loan-service
+#          uri: http://localhost:8086
+#          predicates:
+#            - Path=/api/v1/loans/**
+#
+#        - id: card-service
+#          uri: http://localhost:8087
+#          predicates:
+#            - Path=/api/v1/cards/**
+#
+#        - id: notification-service
+#          uri: http://localhost:8088
+#          predicates:
+#            - Path=/api/v1/notifications/**
+#
+#        - id: report-service
+#          uri: http://localhost:8089
+#          predicates:
+#            - Path=/api/v1/reports/**
+#
+#  # Eureka client (optional if you're not using service discovery)
+#  eureka:
+#    client:
+#      service-url:
+#        defaultZone: http://localhost:8761/eureka/
+#    instance:
+#      prefer-ip-address: true
+#
+## Server
+#server:
+#  port: 8080
+#
+## Logging
+#logging:
+#  level:
+#    org.springframework.cloud.gateway: DEBUG
+#
+## HTTP client settings
+#spring.cloud.gateway.httpclient:
+#  connect-timeout: 5000
+#  response-timeout: 10s
+#  pool:
+#    max-idle-time: 5s
+#    max-life-time: 30s
+#
+## ANSI output
+#spring.output.ansi.enabled: ALWAYS
