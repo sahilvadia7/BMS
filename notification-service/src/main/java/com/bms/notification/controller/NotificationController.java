@@ -1,5 +1,6 @@
 package com.bms.notification.controller;
 
+import com.bms.notification.dto.OtpEmailDTO;
 import com.bms.notification.dto.request.EmailRequestDTO;
 import com.bms.notification.service.EmailService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,5 +22,12 @@ public class NotificationController {
         emailService.sendRegistrationEmail(request);
         return ResponseEntity.ok("Email sent successfully");
     }
+
+    @PostMapping("/send-otp")
+    public ResponseEntity<String> sendOtpEmail(@RequestBody OtpEmailDTO request) {
+        emailService.sendOtpEmail(request);
+        return ResponseEntity.ok("OTP email sent");
+    }
+
 }
 

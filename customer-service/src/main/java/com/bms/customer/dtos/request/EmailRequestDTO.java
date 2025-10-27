@@ -1,16 +1,19 @@
-package com.bms.notification.dto.request;
+package com.bms.customer.dtos.request;
 
+import lombok.Builder;
+
+@Builder
 public class EmailRequestDTO {
     private String toEmail;
     private String customerName;
     private String cifId;
+
     public EmailRequestDTO(){}
 
-    public EmailRequestDTO(String toEmail, String customerName, String cifId,Integer otp) {
+    public EmailRequestDTO(String toEmail, String customerName, String cifId) {
         this.toEmail = toEmail;
         this.customerName = customerName;
         this.cifId = cifId;
-
     }
 
     public String getToEmail() {
