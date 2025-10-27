@@ -37,4 +37,8 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
         WHERE m.kyc.id = :kycId
     """)
     Optional<Customer> findCustomerByKycId(@Param("kycId") Long kycId);
+
+    @Query("SELECT c FROM Customer c WHERE c.cifNumber = :cifId AND c.email = :email")
+    Optional<Customer> findByCifNumberAndEmail(@Param("cifId") String cifId, @Param("email") String email);
+
 }

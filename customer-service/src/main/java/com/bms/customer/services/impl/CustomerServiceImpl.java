@@ -6,6 +6,7 @@ import com.bms.customer.entities.Customer;
 import com.bms.customer.enums.Roles;
 import com.bms.customer.enums.UserStatus;
 import com.bms.customer.exception.*;
+import com.bms.customer.feign.NotificationClient;
 import com.bms.customer.repositories.*;
 import com.bms.customer.services.CustomerService;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ public class CustomerServiceImpl implements CustomerService {
     private final KycRepository kycRepository;
     private final CustomerKycMappingRepository mappingRepository;
     private final PasswordEncoder passwordEncoder;
+    private final NotificationClient notificationClient;
 
     @Override
     public CustomerRegistrationResponseDTO registerCustomer(CustomerRegisterRequestDTO requestDTO) {
@@ -47,10 +49,19 @@ public class CustomerServiceImpl implements CustomerService {
 
         Customer savedCustomer = customerRepository.save(customer);
 
+        if(savedCustomer!=null) {
+            EmailRequestDTO emailRequestDTO = EmailRequestDTO.builder()
+                    .toEmail(savedCustomer.getEmail())
+                    .customerName(savedCustomer.getFirstName())
+                    .cifId(savedCustomer.getCifNumber())
+                    .build();
+
+            notificationClient.sendRegistrationEmail(emailRequestDTO);
+        }
         return CustomerRegistrationResponseDTO.builder()
                 .customerId(savedCustomer.getCustomerId())
                 .cifNumber(savedCustomer.getCifNumber())
-                .message("Registration successful. Please proceed with KYC verification to activate your account.")
+                .message("Registration successful. Your login credentials have been sent to your registered email. Please check your inbox and log in to continue the process.")
                 .status(savedCustomer.getStatus().name())
                 .build();
     }
