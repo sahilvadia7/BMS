@@ -6,11 +6,14 @@ import com.bms.customer.dtos.resetpass.OtpVerifyDTO;
 import com.bms.customer.dtos.resetpass.PasswordResetDTO;
 import com.bms.customer.entities.Customer;
 import com.bms.customer.entities.CustomerOtp;
+import com.bms.customer.exception.OtpValidationException;
+import com.bms.customer.exception.ResourceNotFoundException;
 import com.bms.customer.feign.NotificationClient;
 import com.bms.customer.repositories.CustomerOtpRepository;
 import com.bms.customer.repositories.CustomerRepository;
 import com.bms.customer.services.ForgotPasswordService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +22,7 @@ import java.util.Random;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ForgotPasswordServiceImpl implements ForgotPasswordService {
 
     private final CustomerRepository customerRepository;
@@ -30,7 +34,7 @@ public class ForgotPasswordServiceImpl implements ForgotPasswordService {
     public void requestOtp(OtpRequestDTO request) {
         Customer customer = customerRepository
                 .findByCifNumberAndEmail(request.getCifId(), request.getEmail())
-                .orElseThrow(() -> new RuntimeException("Customer not found with given CIF ID and email."));
+                .orElseThrow(() -> new ResourceNotFoundException("Customer not found with the provided CIF ID and email."));
 
         String otp = String.valueOf(new Random().nextInt(900000) + 100000);
 
@@ -46,31 +50,36 @@ public class ForgotPasswordServiceImpl implements ForgotPasswordService {
 
         customerOtpRepository.save(otpEntity);
 
-            OtpEmailDTO emailDTO = OtpEmailDTO.builder()
-                    .toEmail(customer.getEmail())
-                    .customerName(customer.getFirstName())
-                    .otp(otp)
-                    .build();
+        OtpEmailDTO emailDTO = OtpEmailDTO.builder()
+                .toEmail(customer.getEmail())
+                .customerName(customer.getFirstName())
+                .otp(otp)
+                .build();
 
+        try {
             notificationClient.sendOtpEmail(emailDTO);
-
-
-
+        } catch (Exception e) {
+            log.error("Failed to send OTP email via notification service for CIF: {}. Reason: {}", request.getCifId(), e.getMessage());
+        }
     }
 
     @Override
     public void verifyOtp(OtpVerifyDTO request) {
         Customer customer = customerRepository.findByCifNumber(request.getCifId())
-                .orElseThrow(() -> new RuntimeException("Invalid CIF ID."));
+                .orElseThrow(() -> new ResourceNotFoundException("Invalid CIF ID."));
 
         CustomerOtp otpEntity = customerOtpRepository.findTopByCustomerOrderByCreatedAtDesc(customer)
-                .orElseThrow(() -> new RuntimeException("No OTP found for this customer."));
+                .orElseThrow(() -> new ResourceNotFoundException("No OTP has been requested for this customer."));
 
-        if (otpEntity.isUsed() || otpEntity.getExpiresAt().isBefore(LocalDateTime.now()))
-            throw new RuntimeException("OTP expired or already used.");
-
-        if (!otpEntity.getOtp().equals(request.getOtp()))
-            throw new RuntimeException("Invalid OTP.");
+        if (otpEntity.isUsed()) {
+            throw new OtpValidationException("This OTP has already been used.");
+        }
+        if (otpEntity.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new OtpValidationException("OTP has expired. Please request a new one.");
+        }
+        if (!otpEntity.getOtp().equals(request.getOtp())) {
+            throw new OtpValidationException("The OTP provided is invalid.");
+        }
 
         otpEntity.setVerified(true);
         customerOtpRepository.save(otpEntity);
@@ -79,19 +88,20 @@ public class ForgotPasswordServiceImpl implements ForgotPasswordService {
     @Override
     public void resetPassword(PasswordResetDTO request) {
         Customer customer = customerRepository.findByCifNumber(request.getCifId())
-                .orElseThrow(() -> new RuntimeException("Invalid CIF ID."));
+                .orElseThrow(() -> new ResourceNotFoundException("Invalid CIF ID."));
 
         CustomerOtp otpEntity = customerOtpRepository.findTopByCustomerOrderByCreatedAtDesc(customer)
-                .orElseThrow(() -> new RuntimeException("No OTP found for this customer."));
+                .orElseThrow(() -> new ResourceNotFoundException("No valid OTP found. Please request and verify a new OTP first."));
 
-        if (!otpEntity.isVerified())
-            throw new RuntimeException("OTP not verified. Please verify your OTP before resetting password.");
-
-        if (otpEntity.isUsed())
-            throw new RuntimeException("OTP already used for password reset.");
-
-        if (otpEntity.getExpiresAt().isBefore(LocalDateTime.now()))
-            throw new RuntimeException("OTP expired. Please request a new one.");
+        if (!otpEntity.isVerified()) {
+            throw new OtpValidationException("OTP has not been verified. Please complete the verification step first.");
+        }
+        if (otpEntity.isUsed()) {
+            throw new OtpValidationException("This OTP has already been used for a password reset.");
+        }
+        if (otpEntity.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new OtpValidationException("OTP has expired. Please request a new one.");
+        }
 
         customer.setPassword(passwordEncoder.encode(request.getNewPassword()));
         customerRepository.save(customer);

@@ -8,7 +8,6 @@ import lombok.Data;
 @Data
 public class ChangePwdDTO {
 
-    @Pattern(regexp = "^CIF\\d{6,}$", message = "Invalid CIF number format")
     private String cifNumber;
 
     @NotBlank(message = "Current password is required")
