@@ -26,7 +26,6 @@ public class CustomerKycMapping {
 
     private LocalDate verificationDate;
 
-    private String verifiedBy;
     @PrePersist
     protected void onCreate() {
         if (this.verificationDate == null) {
