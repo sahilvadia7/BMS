@@ -92,12 +92,10 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     public void changePassword(ChangePwdDTO changePwdDTO) {
         Customer customer = customerRepository.findByCifNumber(changePwdDTO.getCifNumber())
-                .orElseGet(() -> customerRepository.findByEmail(changePwdDTO.getEmail())
-                        .orElseGet(() -> customerRepository.findByPhoneNo(changePwdDTO.getPhoneNo())
-                                .orElseThrow(() -> new CustomerNotFoundException("User not found."))));
+                .orElseThrow(() -> new CustomerNotFoundException("User not found with the provided CIF number."));
 
         if (!passwordEncoder.matches(changePwdDTO.getCurrentPassword(), customer.getPassword())) {
-            throw new InvalidCredentialsException("Current password is incorrect");
+            throw new InvalidCredentialsException("The current password provided is incorrect.");
         }
 
         customer.setPassword(passwordEncoder.encode(changePwdDTO.getNewPassword()));
