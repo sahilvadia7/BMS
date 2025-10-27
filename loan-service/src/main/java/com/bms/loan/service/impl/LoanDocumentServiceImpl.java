@@ -3,7 +3,7 @@ package com.bms.loan.service.impl;
 import com.bms.loan.Repository.LoanDocumentRepository;
 import com.bms.loan.Repository.LoanRepository;
 import com.bms.loan.dto.request.LoanDocumentRequest;
-import com.bms.loan.dto.response.LoanDocumentResponse;
+import com.bms.loan.dto.response.loan.LoanDocumentResponse;
 import com.bms.loan.entity.LoanDocument;
 import com.bms.loan.entity.Loans;
 import com.bms.loan.enums.DocumentType;

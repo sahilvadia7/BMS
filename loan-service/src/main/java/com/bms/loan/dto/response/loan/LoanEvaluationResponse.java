@@ -1,7 +1,5 @@
-package com.bms.loan.dto.response;
+package com.bms.loan.dto.response.loan;
 
-import com.bms.loan.enums.LoanStatus;
-import com.bms.loan.enums.LoanType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,9 +9,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class LoanApplicationResponse {
+public class LoanEvaluationResponse {
     private Long loanId;
+    private boolean approved;
+    private String remarks;
     private String loanType;
     private String status;
-    private String message;
 }

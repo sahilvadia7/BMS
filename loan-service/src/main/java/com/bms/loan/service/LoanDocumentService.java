@@ -1,7 +1,7 @@
 package com.bms.loan.service;
 
 import com.bms.loan.dto.request.LoanDocumentRequest;
-import com.bms.loan.dto.response.LoanDocumentResponse;
+import com.bms.loan.dto.response.loan.LoanDocumentResponse;
 import com.bms.loan.entity.LoanDocument;
 import com.bms.loan.enums.KycStatus;
 import org.springframework.web.multipart.MultipartFile;

@@ -1,5 +1,8 @@
 package com.bms.loan.dto.request;
 
+import com.bms.loan.dto.request.car.CarLoanDetailsDto;
+import com.bms.loan.dto.request.education.EducationLoanDetailsDto;
+import com.bms.loan.dto.request.home.HomeLoanDetailsDto;
 import com.bms.loan.enums.LoanType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

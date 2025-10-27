@@ -1,4 +1,4 @@
-package com.bms.loan.dto.response;
+package com.bms.loan.dto.response.loan;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

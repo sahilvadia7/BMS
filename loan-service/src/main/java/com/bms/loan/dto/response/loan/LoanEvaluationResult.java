@@ -1,4 +1,4 @@
-package com.bms.loan.dto.response;
+package com.bms.loan.dto.response.loan;
 
 import com.bms.loan.enums.LoanStatus;
 import lombok.AllArgsConstructor;
