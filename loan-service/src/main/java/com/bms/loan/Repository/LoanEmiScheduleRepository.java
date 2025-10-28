@@ -1,6 +1,6 @@
 package com.bms.loan.Repository;
 
-import com.bms.loan.entity.LoanEmiSchedule;
+import com.bms.loan.entity.loan.LoanEmiSchedule;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

@@ -1,5 +1,6 @@
 package com.bms.loan.entity;
 
+import com.bms.loan.entity.loan.Loans;
 import com.bms.loan.enums.PaymentStatus;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;

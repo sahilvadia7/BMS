@@ -1,4 +1,4 @@
-package com.bms.loan.entity;
+package com.bms.loan.entity.loan;
 
 import com.bms.loan.enums.EmiStatus;
 import jakarta.persistence.*;

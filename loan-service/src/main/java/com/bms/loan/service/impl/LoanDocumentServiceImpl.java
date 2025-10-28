@@ -5,7 +5,7 @@ import com.bms.loan.Repository.LoanRepository;
 import com.bms.loan.dto.request.LoanDocumentRequest;
 import com.bms.loan.dto.response.loan.LoanDocumentResponse;
 import com.bms.loan.entity.LoanDocument;
-import com.bms.loan.entity.Loans;
+import com.bms.loan.entity.loan.Loans;
 import com.bms.loan.enums.DocumentType;
 import com.bms.loan.enums.KycStatus;
 import com.bms.loan.service.LoanDocumentService;

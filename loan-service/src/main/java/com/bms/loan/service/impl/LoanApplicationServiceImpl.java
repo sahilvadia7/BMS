@@ -14,9 +14,15 @@ import com.bms.loan.dto.response.loan.LoanDisbursementResponse;
 import com.bms.loan.dto.response.loan.LoanEvaluationResponse;
 import com.bms.loan.dto.response.loan.LoanEvaluationResult;
 import com.bms.loan.entity.*;
+import com.bms.loan.entity.car.CarLoanDetails;
+import com.bms.loan.entity.education.EducationLoanDetails;
+import com.bms.loan.entity.home.HomeLoanDetails;
+import com.bms.loan.entity.loan.LoanEmiSchedule;
+import com.bms.loan.entity.loan.Loans;
 import com.bms.loan.enums.EmiStatus;
 import com.bms.loan.enums.LoanStatus;
 import com.bms.loan.feign.CustomerClient;
+import com.bms.loan.service.HomeLoanService;
 import com.bms.loan.service.LoanApplicationService;
 import feign.FeignException;
 import jakarta.persistence.EntityNotFoundException;
@@ -28,7 +34,6 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.Year;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
@@ -41,6 +46,7 @@ import java.util.stream.Collectors;
 @Primary
 public class LoanApplicationServiceImpl implements LoanApplicationService {
 
+    private final HomeLoanService homeLoanService;
     private final LoanRepository loansRepository;
     private final CarLoanRepository carLoanRepo;
     private final HomeLoanRepository homeLoanRepo;
@@ -176,7 +182,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
     @Override
     public LoanEvaluationResponse evaluateLoan(Long loanId) {
-        Loans loan = loansRepository.findById(Math.toIntExact(loanId))
+        Loans loan = loansRepository.findById(loanId)
                 .orElseThrow(() -> new EntityNotFoundException("Loan not found with id: " + loanId));
 
         LoanEvaluationResponse loanEvaluationResponse = new LoanEvaluationResponse();
@@ -190,9 +196,21 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 loanEvaluationResponse.setRemarks(result.getRemarks());
                 loanEvaluationResponse.setStatus(String.valueOf(result.getStatus()));
             }
-            case HOME, EDUCATION -> {
+            case HOME -> {
+                // Delegate home loan evaluation to HomeLoanService
+                LoanEvaluationResponse homeResult = homeLoanService.evaluateLoan(loanId);
+
+                // Use homeResult to populate unified response (loanEvaluationResponse already created)
+                loanEvaluationResponse.setLoanType(homeResult.getLoanType());
+                loanEvaluationResponse.setApproved(homeResult.isApproved());
+                loanEvaluationResponse.setRemarks(homeResult.getRemarks());
+                loanEvaluationResponse.setStatus(homeResult.getStatus());
+
+            }
+            case EDUCATION -> {
                 // Future: integrate HomeLoanEvaluator / EducationLoanEvaluator
             }
+
             default -> throw new IllegalArgumentException("Unsupported loan type: " + loan.getLoanType());
         }
 
@@ -201,7 +219,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     }
 
     public LoanDisbursementResponse disburseLoan(Long loanId) {
-        Loans loan = loansRepository.findById(Math.toIntExact(loanId))
+        Loans loan = loansRepository.findById(loanId)
                 .orElseThrow(() -> new EntityNotFoundException("Loan not found"));
 
         if (loan.getStatus() != LoanStatus.APPROVED) {
@@ -367,6 +385,5 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 .multiply(BigDecimal.valueOf(daysLate))
                 .setScale(2, RoundingMode.HALF_UP);
     }
-
 
 }

@@ -2,8 +2,8 @@ package com.bms.loan.service.impl;
 
 import com.bms.loan.Repository.CarLoanRepository;
 import com.bms.loan.Repository.LoanRepository;
-import com.bms.loan.entity.CarLoanDetails;
-import com.bms.loan.entity.Loans;
+import com.bms.loan.entity.car.CarLoanDetails;
+import com.bms.loan.entity.loan.Loans;
 //import com.itextpdf.kernel.pdf.PdfDocument;
 //import com.itextpdf.kernel.pdf.PdfWriter;
 //import com.itextpdf.layout.Document;
@@ -12,10 +12,7 @@ import com.bms.loan.entity.Loans;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 
 @Service
 public class SanctionLetterService {

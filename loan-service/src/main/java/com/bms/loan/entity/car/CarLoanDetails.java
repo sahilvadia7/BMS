@@ -1,5 +1,6 @@
-package com.bms.loan.entity;
+package com.bms.loan.entity.car;
 
+import com.bms.loan.entity.loan.Loans;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
