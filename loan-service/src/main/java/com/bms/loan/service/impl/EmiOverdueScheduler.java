@@ -2,8 +2,8 @@ package com.bms.loan.service.impl;
 
 import com.bms.loan.Repository.LoanEmiScheduleRepository;
 import com.bms.loan.Repository.LoanRepository;
-import com.bms.loan.entity.LoanEmiSchedule;
-import com.bms.loan.entity.Loans;
+import com.bms.loan.entity.loan.LoanEmiSchedule;
+import com.bms.loan.entity.loan.Loans;
 import com.bms.loan.enums.EmiStatus;
 import com.bms.loan.enums.LoanStatus;
 import lombok.RequiredArgsConstructor;
