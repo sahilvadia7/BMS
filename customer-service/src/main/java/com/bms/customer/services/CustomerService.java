@@ -4,6 +4,7 @@ import com.bms.customer.dtos.request.ChangePwdDTO;
 import com.bms.customer.dtos.request.CustomerRegisterRequestDTO;
 import com.bms.customer.dtos.request.LoginRequest;
 import com.bms.customer.dtos.request.LogoutRequest;
+import com.bms.customer.dtos.response.AuthResponseDTO;
 import com.bms.customer.dtos.response.CustomerRegistrationResponseDTO;
 import com.bms.customer.dtos.response.CustomerResponseDTO;
 import java.util.List;
@@ -12,7 +13,7 @@ public interface CustomerService {
 
     CustomerRegistrationResponseDTO registerCustomer(CustomerRegisterRequestDTO requestDTO);
 
-    CustomerResponseDTO login(LoginRequest loginRequest);
+    AuthResponseDTO login(LoginRequest loginRequest);
 
     void logout(LogoutRequest logoutRequest);
 
