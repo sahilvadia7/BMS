@@ -10,8 +10,8 @@ public record KycRequestDTO(
         String documentType,
 
         @NotBlank(message = "Document number is required")
-        String documentNumber,
+        String documentNumber
 
-        @NotNull(message = "Status is required for the request model")
-        KycStatus status
+//        @NotNull(message = "Status is required for the request model")
+//        KycStatus status
 ) { }

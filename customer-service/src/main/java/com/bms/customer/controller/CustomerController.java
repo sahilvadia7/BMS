@@ -1,11 +1,11 @@
 package com.bms.customer.controller;
 
-import com.bms.customer.dtos.request.ChangePwdDTO;
-import com.bms.customer.dtos.request.CustomerRegisterRequestDTO;
-import com.bms.customer.dtos.request.LoginRequest;
-import com.bms.customer.dtos.request.LogoutRequest;
+import com.bms.customer.dtos.request.*;
+import com.bms.customer.dtos.response.AuthResponseDTO;
 import com.bms.customer.dtos.response.CustomerRegistrationResponseDTO;
 import com.bms.customer.dtos.response.CustomerResponseDTO;
+import com.bms.customer.entities.Customer;
+import com.bms.customer.security.JwtService;
 import com.bms.customer.services.CustomerService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/customers")
@@ -22,6 +23,7 @@ import java.util.List;
 public class CustomerController {
 
     private final CustomerService customerService;
+    private final JwtService jwtService;
 
     @Operation(summary = "Register a new customer")
     @PostMapping("/register")
@@ -32,8 +34,8 @@ public class CustomerController {
 
     @Operation(summary = "Customer login")
     @PostMapping("/login")
-    public ResponseEntity<CustomerResponseDTO> login(@Valid @RequestBody LoginRequest loginRequest) {
-        CustomerResponseDTO response = customerService.login(loginRequest);
+    public ResponseEntity<AuthResponseDTO> login(@Valid @RequestBody LoginRequest loginRequest) {
+        AuthResponseDTO response = customerService.login(loginRequest);
         return ResponseEntity.ok(response);
     }
 
@@ -68,4 +70,26 @@ public class CustomerController {
     public ResponseEntity<List<CustomerResponseDTO>> getAll() {
         return ResponseEntity.ok(customerService.getAllCustomers());
     }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refresh(@RequestBody TokenRequest request) {
+        String refreshToken = request.getRefreshToken();
+        String cifNumber = jwtService.extractCifNumber(refreshToken);
+        if (jwtService.isTokenValid(refreshToken,
+                org.springframework.security.core.userdetails.User
+                        .withUsername(cifNumber)
+                        .password("")
+                        .authorities("ROLE_USER")
+                        .build())) {
+
+            String newAccessToken = jwtService.generateToken(cifNumber);
+            return ResponseEntity.ok(Map.of(
+                    "accessToken", newAccessToken,
+                    "refreshToken", refreshToken
+            ));
+        }
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("error", "Invalid or expired refresh token"));
+    }
+
 }

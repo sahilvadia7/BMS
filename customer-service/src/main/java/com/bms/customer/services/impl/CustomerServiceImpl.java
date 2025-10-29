@@ -7,8 +7,10 @@ import com.bms.customer.enums.Roles;
 import com.bms.customer.enums.UserStatus;
 import com.bms.customer.exception.*;
 import com.bms.customer.feign.NotificationClient;
-import com.bms.customer.repositories.*;
+import com.bms.customer.repositories.CustomerRepository;
+import com.bms.customer.security.JwtService;
 import com.bms.customer.services.CustomerService;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -23,14 +25,13 @@ import java.util.stream.Collectors;
 public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepository customerRepository;
-    private final KycRepository kycRepository;
-    private final CustomerKycMappingRepository mappingRepository;
     private final PasswordEncoder passwordEncoder;
     private final NotificationClient notificationClient;
+    private final JwtService jwtService;
 
+    // ✅ 1️⃣ Register new customer
     @Override
     public CustomerRegistrationResponseDTO registerCustomer(CustomerRegisterRequestDTO requestDTO) {
-
         String cifNumber = generateUniqueCifNumber();
 
         Customer customer = Customer.builder()
@@ -49,7 +50,8 @@ public class CustomerServiceImpl implements CustomerService {
 
         Customer savedCustomer = customerRepository.save(customer);
 
-        if(savedCustomer!=null) {
+        // Send email notification
+        if (savedCustomer != null) {
             EmailRequestDTO emailRequestDTO = EmailRequestDTO.builder()
                     .toEmail(savedCustomer.getEmail())
                     .customerName(savedCustomer.getFirstName())
@@ -58,35 +60,50 @@ public class CustomerServiceImpl implements CustomerService {
 
             notificationClient.sendRegistrationEmail(emailRequestDTO);
         }
+
         return CustomerRegistrationResponseDTO.builder()
                 .customerId(savedCustomer.getCustomerId())
                 .cifNumber(savedCustomer.getCifNumber())
-                .message("Registration successful. Your login credentials have been sent to your registered email. Please check your inbox and log in to continue the process.")
+                .message("Registration successful. Please check your email to continue.")
                 .status(savedCustomer.getStatus().name())
                 .build();
     }
 
     @Override
-    public CustomerResponseDTO login(LoginRequest loginRequest) {
-        Customer customer = customerRepository.findByEmail(loginRequest.getLoginId())
-                .orElseGet(() -> customerRepository.findByPhoneNo(loginRequest.getLoginId())
-                        .orElseGet(() -> customerRepository.findByCifNumber(loginRequest.getLoginId())
-                                .orElseThrow(() -> new CustomerNotFoundException("User not found or invalid login ID."))));
+    public AuthResponseDTO login(LoginRequest loginRequest) {
+        Customer customer = customerRepository.findByCifNumber(loginRequest.getLoginId())
+                                .orElseThrow(() -> new CustomerNotFoundException("User not found or invalid login ID."));
 
         if (!passwordEncoder.matches(loginRequest.getPassword(), customer.getPassword())) {
             throw new InvalidCredentialsException("Invalid credentials. Please try again.");
         }
 
-        if (customer.getStatus() != UserStatus.ACTIVE) {
-            throw new AccountNotActiveException("Account is not active. Status: " + customer.getStatus().name() + ". Please complete KYC.");
-        }
+        // Optional check
+//        if (customer.getStatus() != UserStatus.ACTIVE) {
+//            throw new AccountNotActiveException("Account not active. Please complete KYC.");
+//        }
 
-        return mapToResponse(customer);
+        String accessToken = jwtService.generateToken(customer.getCifNumber());
+        String refreshToken = jwtService.generateRefreshToken(customer.getCifNumber());
+
+        TokenResponseDTO tokenResponse = TokenResponseDTO.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .tokenType("Bearer")
+                .build();
+
+        CustomerResponseDTO customerResponse = mapToResponse(customer);
+
+        return AuthResponseDTO.builder()
+                .message("Login successful")
+                .tokens(tokenResponse)
+                .customer(customerResponse)
+                .build();
     }
 
     @Override
     public void logout(LogoutRequest logoutRequest) {
-        // Example placeholder for logout logic (if JWT is used)
+        // JWT logout = frontend just discards token
     }
 
     @Override
@@ -123,6 +140,7 @@ public class CustomerServiceImpl implements CustomerService {
                 .collect(Collectors.toList());
     }
 
+    // ✅ helper: map entity to DTO
     private CustomerResponseDTO mapToResponse(Customer customer) {
         Set<CustomerKycMappingDTO> kycMappings = customer.getKycDocuments().stream()
                 .map(mapping -> CustomerKycMappingDTO.builder()
@@ -152,10 +170,10 @@ public class CustomerServiceImpl implements CustomerService {
                 .build();
     }
 
-    private String generateUniqueCifNumber(){
+    private String generateUniqueCifNumber() {
         String cif;
         int attempts = 0;
-        do{
+        do {
             long nano = System.nanoTime();
             int random = (int) (Math.random() * 1000);
             cif = "CIF" + nano + random;
@@ -166,8 +184,7 @@ public class CustomerServiceImpl implements CustomerService {
             if (attempts > 5) {
                 throw new IllegalStateException("Failed to generate unique CIF after multiple attempts");
             }
-        }while (customerRepository.findByCifNumber(cif).isPresent());
+        } while (customerRepository.findByCifNumber(cif).isPresent());
         return cif;
     }
-
 }
