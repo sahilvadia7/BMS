@@ -1,18 +1,22 @@
 package com.bms.account.services.impl;
 
-//import com.bms.account.config.RabbitMQConfig;
-import com.bms.account.dtos.AccountRequestDTO;
-import com.bms.account.dtos.AccountResponseDTO;
-import com.bms.account.dtos.CustomerResponseDTO;
+import com.bms.account.constant.AccountStatus;
+import com.bms.account.constant.AccountTypeEnum;
+import com.bms.account.dtos.*;
+import com.bms.account.dtos.accountType.CurrentAccountRequestDTO;
+import com.bms.account.dtos.accountType.SavingsAccountRequestDTO;
 import com.bms.account.entities.Account;
 import com.bms.account.entities.AccountType;
+import com.bms.account.entities.accountType.CurrentAccount;
+import com.bms.account.entities.accountType.SavingsAccount;
 import com.bms.account.exception.ResourceNotFoundException;
 import com.bms.account.feign.CustomerClient;
 import com.bms.account.repositories.AccountRepository;
 import com.bms.account.repositories.AccountTypeRepository;
+import com.bms.account.repositories.accountType.CurrentAccountRepository;
+import com.bms.account.repositories.accountType.SavingsAccountRepository;
 import com.bms.account.services.AccountService;
 import lombok.RequiredArgsConstructor;
-//import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -25,51 +29,94 @@ public class AccountServiceImpl implements AccountService {
 
     private final AccountRepository accountRepository;
     private final AccountTypeRepository accountTypeRepository;
+    private final SavingsAccountRepository savingsAccountRepository;
+    private final CurrentAccountRepository currentAccountRepository;
     private final CustomerClient customerClient;
 
-    // Helper: Map Account -> AccountResponseDTO
+    // 🔹 Convert entity → DTO
     private AccountResponseDTO mapToResponse(Account account) {
         return AccountResponseDTO.builder()
                 .id(account.getId())
                 .accountNumber(account.getAccountNumber())
-                .customerId(account.getCustomerId())
-                .accountType(account.getAccountType().toString())
+                .accountType(account.getAccountType().getType().name())
                 .balance(account.getBalance())
-                .status(account.getStatus().toString())
+                .status(account.getStatus().name())
                 .cifNumber(account.getCifNumber())
-                .branchId(account.getBranchId())
                 .createdAt(account.getCreatedAt())
                 .updatedAt(account.getUpdatedAt())
                 .build();
     }
 
+    // 🟢 CREATE SAVINGS ACCOUNT
     @Override
-    public AccountResponseDTO createAccount(AccountRequestDTO requestDTO) {
+    public AccountResponseDTO createSavingsAccount(SavingsAccountRequestDTO dto) {
+        //  1. Verify Customer exists
+        CustomerResponseDTO customer = customerClient.getByCif(dto.getCifNumber());
+        if (customer == null) {
+            throw new ResourceNotFoundException("Customer not found with CIF: " + dto.getCifNumber());
+        }
 
-        // 1️⃣ Call the Customer service to create/get customer
-        CustomerResponseDTO customerResponse = customerClient.registerCustomer(requestDTO.customer());
-        System.out.println(customerResponse.toString());
-        // 2️⃣ Fetch the account type from DB
-        AccountType accountType = accountTypeRepository.findById(requestDTO.accountTypeId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "AccountType not found with ID: " + requestDTO.accountTypeId()
-                ));
+        //  2. Get AccountType
+        AccountType accountType = accountTypeRepository.findByType(AccountTypeEnum.SAVINGS)
+                .orElseThrow(() -> new ResourceNotFoundException("Account type SAVINGS not found"));
 
-        // 3️⃣ Build Account entity using customer info
-        Account account = Account.builder()
-                .cifNumber(customerResponse.getCifNumber())
-                .customerId(customerResponse.getCId())
-                .branchId(1L)
+        //  3. Upload KYC
+        KycUploadRequest kycUploadRequest = new KycUploadRequest();
+        kycUploadRequest.setCustomerId(customer.getCustomerId());
+        kycUploadRequest.setKyc(dto.getKycDetails());
+        KycResponseDTO uploadedKyc = customerClient.uploadKyc(kycUploadRequest);
+
+        //  4. Create account
+        SavingsAccount account = SavingsAccount.builder()
+                .cifNumber(dto.getCifNumber())
                 .accountType(accountType)
-                .balance(requestDTO.balance() != null ? requestDTO.balance() : BigDecimal.ZERO)
-//                .status(requestDTO.getStatus() != null ? requestDTO.getStatus() : AccountStatus.PENDING)
+                .balance(dto.getInitialDeposit() != null ? dto.getInitialDeposit() : BigDecimal.ZERO)
+                .status(AccountStatus.PENDING)
+                .kycId(uploadedKyc.getId())
+                .minimumBalance(dto.getMinimumBalance())
+                .withdrawalLimitPerMonth(dto.getWithdrawalLimitPerMonth())
+                .chequeBookAvailable(dto.getChequeBookAvailable())
+                .interestRate(dto.getInterestRate())
                 .build();
 
-        // 4️⃣ Save and return response
-        return mapToResponse(accountRepository.save(account));
+        SavingsAccount saved = savingsAccountRepository.save(account);
+        return mapToResponse(saved);
     }
 
+    // 🟠 CREATE CURRENT ACCOUNT
+    @Override
+    public AccountResponseDTO createCurrentAccount(CurrentAccountRequestDTO dto) {
+        CustomerResponseDTO customer = customerClient.getByCif(dto.getCifNumber());
+        if (customer == null) {
+            throw new ResourceNotFoundException("Customer not found with CIF: " + dto.getCifNumber());
+        }
 
+        AccountType accountType = accountTypeRepository.findByType(AccountTypeEnum.CURRENT)
+                .orElseThrow(() -> new ResourceNotFoundException("Account type CURRENT not found"));
+
+        KycUploadRequest kycUploadRequest = new KycUploadRequest();
+        kycUploadRequest.setCustomerId(customer.getCustomerId());
+        kycUploadRequest.setKyc(dto.getKycDetails());
+        KycResponseDTO uploadedKyc = customerClient.uploadKyc(kycUploadRequest);
+
+        CurrentAccount account = CurrentAccount.builder()
+                .cifNumber(dto.getCifNumber())
+                .accountType(accountType)
+                .balance(dto.getInitialDeposit() != null ? dto.getInitialDeposit() : BigDecimal.ZERO)
+                .status(AccountStatus.PENDING)
+                .kycId(uploadedKyc.getId())
+                .businessName(dto.getBusinessName())
+                .overdraftLimit(dto.getOverdraftLimit())
+                .monthlyServiceCharge(dto.getMonthlyServiceCharge())
+                .hasOverdraftFacility(dto.getHasOverdraftFacility())
+                .chequeBookAvailable(dto.getChequeBookAvailable())
+                .build();
+
+        CurrentAccount saved = currentAccountRepository.save(account);
+        return mapToResponse(saved);
+    }
+
+    // 🟣 COMMON METHODS
     @Override
     public AccountResponseDTO getAccountById(Long id) {
         Account account = accountRepository.findById(id)
@@ -84,31 +131,6 @@ public class AccountServiceImpl implements AccountService {
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
-
-    @Override
-    public AccountResponseDTO updateAccount(Long id, AccountRequestDTO requestDTO) {
-//        Account account = accountRepository.findById(id)
-//                .orElseThrow(() -> new ResourceNotFoundException("Account not found with ID: " + id));
-//
-//        if (requestDTO.balance() != null) account.setBalance(requestDTO.balance());
-////        if (requestDTO. != null) account.setStatus(requestDTO.getStatus());
-//        if (requestDTO.accountType().toString() != null) {
-//            AccountType accountType = accountTypeRepository.findById(requestDTO.getAccountTypeId())
-//                    .orElseThrow(() -> new ResourceNotFoundException("AccountType not found with ID: " + requestDTO.getAccountTypeId()));
-//            account.setAccountType(accountType);
-//        }
-//        return mapToResponse(accountRepository.save(account));
-        return null;
-    }
-
-    @Override
-    public String deleteAccount(Long id) {
-        Account account = accountRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Account not found with ID: " + id));
-        accountRepository.delete(account);
-        return "Account with ID " + id + " deleted successfully";
-    }
-
 
     @Override
     public AccountResponseDTO getAccountByNumber(String accountNumber) {
@@ -132,14 +154,29 @@ public class AccountServiceImpl implements AccountService {
         if ("DEPOSIT".equalsIgnoreCase(transactionType)) {
             account.setBalance(account.getBalance().add(amount));
         } else if ("WITHDRAW".equalsIgnoreCase(transactionType)) {
-            if (account.getBalance().compareTo(amount) < 0) {
-                throw new IllegalArgumentException("Insufficient balance");
+            BigDecimal newBalance = account.getBalance().subtract(amount);
+            if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
+                throw new IllegalArgumentException("Insufficient balance for withdrawal");
             }
-            account.setBalance(account.getBalance().subtract(amount));
+            account.setBalance(newBalance);
         } else {
             throw new IllegalArgumentException("Invalid transaction type: " + transactionType);
         }
 
         accountRepository.save(account);
+    }
+
+    @Override
+    public String deleteAccount(Long id) {
+        Account account = accountRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found with ID: " + id));
+        accountRepository.delete(account);
+        return "Account deleted successfully with ID: " + id;
+    }
+
+    @Override
+    public AccountResponseDTO updateAccount(Long id, Object requestDTO) {
+        // For now — just a placeholder
+        throw new UnsupportedOperationException("Account update not implemented yet");
     }
 }

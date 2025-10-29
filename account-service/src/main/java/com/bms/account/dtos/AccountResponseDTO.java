@@ -12,9 +12,9 @@ public record AccountResponseDTO(
         String accountType,
         BigDecimal balance,
         String status,
-        Long customerId,
+//        Long customerId,
         String cifNumber,
-        Long branchId,
+//        Long branchId,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) { }
