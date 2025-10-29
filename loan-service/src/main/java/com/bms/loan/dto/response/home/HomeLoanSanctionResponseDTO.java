@@ -19,5 +19,6 @@ public class HomeLoanSanctionResponseDTO {
     private Integer tenureMonths;// Final sanctioned tenure
     private LocalDate sanctionDate;// Date of approval
     private String sanctionedBy;// Officer ID/name
+    private BigDecimal emiAmount;
     private String remarks;
 }

@@ -1,6 +1,9 @@
 package com.bms.loan.service.impl;
 
 import com.bms.loan.Repository.*;
+import com.bms.loan.Repository.home.HomeLoanRepository;
+import com.bms.loan.dto.email.ApplyLoanEmailDTO;
+import com.bms.loan.dto.email.DisbursementEmailDTO;
 import com.bms.loan.dto.request.*;
 import com.bms.loan.dto.request.car.CarLoanDetailsDto;
 import com.bms.loan.dto.request.car.CarLoanEvaluationRequestDto;
@@ -8,11 +11,9 @@ import com.bms.loan.dto.request.education.EducationLoanDetailsDto;
 import com.bms.loan.dto.request.home.HomeLoanDetailsDto;
 import com.bms.loan.dto.response.*;
 import com.bms.loan.dto.response.car.CarLoanEvaluationByBankResponse;
+import com.bms.loan.dto.response.emi.EmiSummary;
 import com.bms.loan.dto.response.emi.LoanEmiScheduleResponse;
-import com.bms.loan.dto.response.loan.LoanApplicationResponse;
-import com.bms.loan.dto.response.loan.LoanDisbursementResponse;
-import com.bms.loan.dto.response.loan.LoanEvaluationResponse;
-import com.bms.loan.dto.response.loan.LoanEvaluationResult;
+import com.bms.loan.dto.response.loan.*;
 import com.bms.loan.entity.*;
 import com.bms.loan.entity.car.CarLoanDetails;
 import com.bms.loan.entity.education.EducationLoanDetails;
@@ -21,7 +22,9 @@ import com.bms.loan.entity.loan.LoanEmiSchedule;
 import com.bms.loan.entity.loan.Loans;
 import com.bms.loan.enums.EmiStatus;
 import com.bms.loan.enums.LoanStatus;
+import com.bms.loan.exception.ResourceNotFoundException;
 import com.bms.loan.feign.CustomerClient;
+import com.bms.loan.feign.NotificationClient;
 import com.bms.loan.service.HomeLoanService;
 import com.bms.loan.service.LoanApplicationService;
 import feign.FeignException;
@@ -55,6 +58,8 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     private final CarLoanEvaluator carLoanEvaluator;
     private final LoanEmiScheduleRepository loanEmiScheduleRepository;
     private final CustomerClient customerClient;
+    private final NotificationClient notificationClient;
+    private final Mapper mapper;
 
     @Override
     public LoanApplicationResponse applyLoan(LoanApplicationRequest request) {
@@ -83,13 +88,15 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
         // Create main loan record
         Loans loan = Loans.builder()
-                .customerId(request.getCustomerId())
+                .customerId(customer.getCId())
                 .cifNumber(customer.getCifNumber())
                 .loanType(request.getLoanType())
                 .interestRate(interestRate.getBaseRate())
                 .requestedAmount(request.getRequestedAmount())
                 .requestedTenureMonths(request.getRequestedTenureMonths())
                 .totalAmountPaid(BigDecimal.valueOf(0))
+                .employmentType(request.getEmploymentType())
+                .monthlyIncome(request.getMonthlyIncome())
                 .bankName(request.getBankName())
                 .bankAccount(request.getBankAccount())
                 .ifscCode(request.getIfscCode())
@@ -138,6 +145,16 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
             }
             default -> throw new IllegalArgumentException("Unsupported loan type");
         }
+
+        ApplyLoanEmailDTO applyLoanEmailDTO = ApplyLoanEmailDTO.builder()
+                .email(request.getCustomerDetails().getEmail())
+                .customerName(request.getCustomerDetails().getFirstName()+" "+request.getCustomerDetails().getLastName())
+                .loanId(savedLoan.getLoanId())
+                .cifNumber(savedLoan.getCifNumber())
+                .build();
+
+        // Send notification email
+        notificationClient.sendApplyLoanEmail(applyLoanEmailDTO);
 
         //Build and return response
         return LoanApplicationResponse.builder()
@@ -260,6 +277,39 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
             dueDate = dueDate.plusMonths(1);
         }
 
+        // Fetch first 3 EMIs for preview
+        List<LoanEmiSchedule> firstFewEmis = loanEmiScheduleRepository
+                .findTop3ByLoanOrderByInstallmentNumberAsc(loan);
+
+        List<EmiSummary> emiPreview = firstFewEmis.stream()
+                .map(e -> EmiSummary.builder()
+                        .installmentNumber(e.getInstallmentNumber())
+                        .dueDate(e.getDueDate())
+                        .emiAmount(e.getEmiAmount())
+                        .principalComponent(e.getPrincipalComponent())
+                        .interestComponent(e.getInterestComponent())
+                        .build())
+                .toList();
+
+        CustomerDetailsResponseDTO customer = customerClient.getByCif(loan.getCifNumber());
+
+
+        // Prepare email payload
+        DisbursementEmailDTO emailDTO = DisbursementEmailDTO.builder()
+                .toEmail(customer.getEmail())
+                .customerName(customer.getFirstName()+" "+customer.getLastName())
+                .loanType(loan.getLoanType().name())
+                .sanctionedAmount(loan.getApprovedAmount())
+                .interestRate(loan.getInterestRate())
+                .tenureMonths(loan.getRequestedTenureMonths())
+                .emiAmount(emi)
+                .firstEmiDate(LocalDate.now().plusMonths(1))
+                .firstFewEmis(emiPreview)
+                .build();
+
+        // Send email
+        notificationClient.sendDisbursementEmail(emailDTO);
+
         // Build response
         return LoanDisbursementResponse.builder()
                 .loanId(loan.getLoanId())
@@ -268,7 +318,6 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 .message("Loan disbursed successfully and EMI schedule created")
                 .build();
 
-    // Optional: send email notification to customer
     }
 
 
@@ -379,11 +428,46 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         loansRepository.save(loan);
     }
 
+    @Override
+    public LoanDetailsResponse getLoanDetailsById(Long loanId) {
+
+        Loans loan = loansRepository.findById(loanId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Loan not found with ID: " + loanId));
+
+        HomeLoanDetails homeDetails = homeLoanRepo.findByLoans_LoanId(loanId).orElse(null);
+        CarLoanDetails carDetails = carLoanRepo.findByLoans_LoanId(loanId).orElse(null);
+        List<LoanEmiSchedule> emiList = loanEmiScheduleRepository.findByLoan_LoanId(loanId);
+
+        return mapper.toLoanDetailsResponse(loan, homeDetails, carDetails);
+    }
+
+    @Override
+    public List<LoanDetailsResponse> getLoansByCif(String cifNumber) {
+        return loansRepository.findByCifNumber(cifNumber).stream()
+                .map(loan -> getLoanDetailsById(loan.getLoanId()))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<EmiSummary> getAllEmisByLoanId(Long loanId) {
+        return loanEmiScheduleRepository.findByLoan_LoanId(loanId).stream()
+                .map(mapper::toEmiSummary)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public EmiSummary getEmiById(Long loanId, Long emiId) {
+        LoanEmiSchedule emi = loanEmiScheduleRepository.findByIdAndLoan_LoanId(emiId, loanId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "EMI not found for loanId: " + loanId + " and emiId: " + emiId));
+        return mapper.toEmiSummary(emi);
+    }
+
     private BigDecimal calculateLateFee(BigDecimal emiAmount, long daysLate) {
         BigDecimal dailyRate = new BigDecimal("0.001"); // 0.1% per day on EMI
         return emiAmount.multiply(dailyRate)
                 .multiply(BigDecimal.valueOf(daysLate))
                 .setScale(2, RoundingMode.HALF_UP);
     }
-
 }

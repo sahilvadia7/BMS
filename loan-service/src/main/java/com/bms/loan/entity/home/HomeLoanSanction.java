@@ -25,7 +25,7 @@ public class HomeLoanSanction {
     private BigDecimal sanctionedAmount;
     private BigDecimal interestRate;
     private Integer tenureMonths;
-
+    private BigDecimal emiAmount;
     private LocalDate sanctionDate;
     private boolean eSigned; // true after e-sign completed
 }

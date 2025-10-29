@@ -1,7 +1,9 @@
 package com.bms.loan.feign;
 
 import com.bms.loan.dto.request.CustomerRegisterRequest;
+import com.bms.loan.dto.response.CustomerDetailsResponseDTO;
 import com.bms.loan.dto.response.CustomerResponseDTO;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,4 +19,9 @@ public interface CustomerClient {
 
     @GetMapping("/{id}")
     CustomerResponseDTO getById(@PathVariable Long id);
+
+
+    @GetMapping("/cif/{cifNumber}")
+    CustomerDetailsResponseDTO getByCif(@PathVariable String cifNumber);
+
 }

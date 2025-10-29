@@ -3,8 +3,10 @@ package com.bms.loan.service;
 import com.bms.loan.dto.request.car.CarLoanEvaluationRequestDto;
 import com.bms.loan.dto.request.LoanApplicationRequest;
 import com.bms.loan.dto.response.car.CarLoanEvaluationByBankResponse;
+import com.bms.loan.dto.response.emi.EmiSummary;
 import com.bms.loan.dto.response.emi.LoanEmiScheduleResponse;
 import com.bms.loan.dto.response.loan.LoanApplicationResponse;
+import com.bms.loan.dto.response.loan.LoanDetailsResponse;
 import com.bms.loan.dto.response.loan.LoanDisbursementResponse;
 import com.bms.loan.dto.response.loan.LoanEvaluationResponse;
 
@@ -23,4 +25,13 @@ public interface LoanApplicationService {
     List<LoanEmiScheduleResponse> getEmiSchedule(Long loanId);
 
     void payEmi(Long loanId, Long emiId, LocalDate paymentDate);
+
+    LoanDetailsResponse getLoanDetailsById(Long loanId);
+
+    List<LoanDetailsResponse> getLoansByCif(String cifNumber);
+
+    List<EmiSummary> getAllEmisByLoanId(Long loanId);
+
+    EmiSummary getEmiById(Long loanId, Long emiId);
+
 }

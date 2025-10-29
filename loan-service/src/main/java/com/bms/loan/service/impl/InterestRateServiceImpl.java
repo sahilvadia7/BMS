@@ -18,7 +18,7 @@ public class InterestRateServiceImpl implements InterestRateService {
     private InterestRateRepository repository;
 
     @Autowired
-    private InterestRateMapper mapper;
+    private Mapper mapper;
 
 
     public List<InterestRateResponse> getAllRates() {

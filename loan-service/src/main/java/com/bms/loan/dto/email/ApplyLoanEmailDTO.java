@@ -1,4 +1,5 @@
-package com.bms.loan.dto.response;
+package com.bms.loan.dto.email;
+
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -6,14 +7,12 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class CustomerResponseDTO {
-    private Long cId;
-    private String message;
+public class ApplyLoanEmailDTO {
+    private String email;
+    private String customerName;
+    private Long loanId;
     private String cifNumber;
-    private String status;
-
-
 }
