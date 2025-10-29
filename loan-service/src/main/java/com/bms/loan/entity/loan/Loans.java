@@ -1,5 +1,6 @@
-package com.bms.loan.entity;
+package com.bms.loan.entity.loan;
 
+import com.bms.loan.enums.EmploymentType;
 import com.bms.loan.enums.LoanStatus;
 import com.bms.loan.enums.LoanType;
 import jakarta.persistence.*;
@@ -7,7 +8,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -61,6 +61,11 @@ public class Loans {
     @Builder.Default
     private Integer totalPaidEmiCount = 0; // number of EMIs paid
 
+    @Builder.Default
+    private BigDecimal monthlyIncome = BigDecimal.ZERO;
+
+    @Enumerated(EnumType.STRING)
+    private EmploymentType employmentType;
 
     private String bankName;
 

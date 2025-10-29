@@ -3,8 +3,8 @@ package com.bms.loan.service.impl;
 import com.bms.loan.Repository.CarLoanRepository;
 import com.bms.loan.Repository.LoanRepository;
 import com.bms.loan.dto.response.loan.LoanEvaluationResult;
-import com.bms.loan.entity.CarLoanDetails;
-import com.bms.loan.entity.Loans;
+import com.bms.loan.entity.car.CarLoanDetails;
+import com.bms.loan.entity.loan.Loans;
 import com.bms.loan.enums.LoanStatus;
 import org.springframework.stereotype.Service;
 
@@ -23,7 +23,7 @@ public class CarLoanEvaluator {
     }
 
     public LoanEvaluationResult evaluateCarLoan(Long loanId) {
-        Loans loan = loansRepository.findById(Math.toIntExact(loanId))
+        Loans loan = loansRepository.findById(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
         // Common checks

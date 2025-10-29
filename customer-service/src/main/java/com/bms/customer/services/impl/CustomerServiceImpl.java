@@ -81,6 +81,8 @@ public class CustomerServiceImpl implements CustomerService {
         // Optional check
 //        if (customer.getStatus() != UserStatus.ACTIVE) {
 //            throw new AccountNotActiveException("Account not active. Please complete KYC.");
+//        if (customer.getStatus() != UserStatus.ACTIVE) {
+//            throw new AccountNotActiveException("Account is not active. Status: " + customer.getStatus().name() + ". Please complete KYC.");
 //        }
 
         String accessToken = jwtService.generateToken(customer.getCifNumber());

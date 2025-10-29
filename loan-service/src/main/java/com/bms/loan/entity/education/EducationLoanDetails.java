@@ -1,5 +1,6 @@
-package com.bms.loan.entity;
+package com.bms.loan.entity.education;
 
+import com.bms.loan.entity.loan.Loans;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

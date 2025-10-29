@@ -5,7 +5,7 @@ import lombok.Data;
 @Data
 public class CustomerResponseDTO {
 
-    private Long cId;
+    private Long customerId;
     private String message;
     private String cifNumber;
     private String status;

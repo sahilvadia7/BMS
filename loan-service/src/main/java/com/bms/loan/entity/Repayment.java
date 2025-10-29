@@ -1,5 +1,6 @@
 package com.bms.loan.entity;
 
+import com.bms.loan.entity.loan.Loans;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;

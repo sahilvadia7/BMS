@@ -14,4 +14,6 @@ public class CustomerResponseDTO {
     private String message;
     private String cifNumber;
     private String status;
+
+
 }

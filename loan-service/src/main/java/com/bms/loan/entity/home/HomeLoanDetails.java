@@ -1,5 +1,6 @@
-package com.bms.loan.entity;
+package com.bms.loan.entity.home;
 
+import com.bms.loan.entity.loan.Loans;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -27,4 +28,9 @@ public class HomeLoanDetails {
     private BigDecimal propertyValue;
     private String builderName;
     private BigDecimal downPayment;
+    private String propertyType; // FLAT, VILLA, PLOT
+    private BigDecimal loanToValueRatio; // (calculated)
+    private String ownershipType; // SELF_OWNED / JOINT
+    private String registrationNumber; // property registration id
+    private boolean approvedByAuthority;
 }

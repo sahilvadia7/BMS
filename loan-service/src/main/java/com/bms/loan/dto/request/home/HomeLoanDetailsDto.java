@@ -16,4 +16,8 @@ public class HomeLoanDetailsDto {
     private BigDecimal propertyValue;
     private String builderName;
     private BigDecimal downPayment;
+    private String propertyType; // FLAT, VILLA, PLOT
+    private String ownershipType; // SELF_OWNED / JOINT
+    private String registrationNumber; // property registration id
+
 }
