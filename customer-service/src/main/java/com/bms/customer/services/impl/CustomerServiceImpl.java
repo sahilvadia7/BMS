@@ -77,9 +77,9 @@ public class CustomerServiceImpl implements CustomerService {
             throw new InvalidCredentialsException("Invalid credentials. Please try again.");
         }
 
-        if (customer.getStatus() != UserStatus.ACTIVE) {
-            throw new AccountNotActiveException("Account is not active. Status: " + customer.getStatus().name() + ". Please complete KYC.");
-        }
+//        if (customer.getStatus() != UserStatus.ACTIVE) {
+//            throw new AccountNotActiveException("Account is not active. Status: " + customer.getStatus().name() + ". Please complete KYC.");
+//        }
 
         return mapToResponse(customer);
     }

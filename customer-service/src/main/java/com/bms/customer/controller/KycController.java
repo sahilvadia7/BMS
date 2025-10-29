@@ -2,6 +2,7 @@ package com.bms.customer.controller;
 
 import com.bms.customer.dtos.kyc.KycRequestDTO;
 import com.bms.customer.dtos.kyc.KycResponseDTO;
+import com.bms.customer.dtos.kyc.KycUploadRequestDto;
 import com.bms.customer.dtos.response.CustomerResponseDTO;
 import com.bms.customer.services.KycService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -65,10 +66,8 @@ public class KycController {
 
     @Operation(summary = "Customer: Upload KYC document")
     @PostMapping("/upload")
-    public ResponseEntity<KycResponseDTO> uploadKyc(
-            @RequestParam Long customerId,
-            @Valid @RequestBody KycRequestDTO dto) {
-        return ResponseEntity.ok(kycService.uploadKycForCustomer(customerId, dto));
+    public ResponseEntity<KycResponseDTO> uploadKyc(@Valid @RequestBody KycUploadRequestDto dto) {
+        return ResponseEntity.ok(kycService.uploadKycForCustomer(dto.getCustomerId(), dto.getKyc()));
     }
 
     @Operation(summary = "Branch Manager: Approve KYC and activate customer")

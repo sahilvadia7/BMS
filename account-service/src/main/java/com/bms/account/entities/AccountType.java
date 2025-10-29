@@ -1,14 +1,15 @@
 package com.bms.account.entities;
+
 import com.bms.account.constant.AccountTypeEnum;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 @Entity
 @Table(name = "account_types")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -19,17 +20,12 @@ public class AccountType {
     private Long id;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, unique = true)
-    private AccountTypeEnum type; // e.g., SAVINGS, CURRENT
+    @Column(nullable = false, unique = true, length = 50)
+    private AccountTypeEnum type; // e.g., SAVINGS, CURRENT, FIXED_DEPOSIT
+
+    @Column(nullable = false, precision = 5, scale = 2)
+    private BigDecimal interest; // interest rate (e.g., 3.50)
 
     @Column(nullable = false)
-    private BigDecimal interest; // interest rate
-
-    @Column(nullable = false)
-    private Boolean active = true; // true if the account type is active
-
-    // One AccountType can have many Accounts
-    @OneToMany(mappedBy = "accountType", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Account> accounts;
-
+    private Boolean active = true; // whether type is active
 }
