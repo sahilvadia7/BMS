@@ -3,8 +3,10 @@ package com.bms.loan.controller;
 import com.bms.loan.dto.request.car.CarLoanEvaluationRequestDto;
 import com.bms.loan.dto.request.LoanApplicationRequest;
 import com.bms.loan.dto.response.car.CarLoanEvaluationByBankResponse;
+import com.bms.loan.dto.response.emi.EmiSummary;
 import com.bms.loan.dto.response.emi.LoanEmiScheduleResponse;
 import com.bms.loan.dto.response.loan.LoanApplicationResponse;
+import com.bms.loan.dto.response.loan.LoanDetailsResponse;
 import com.bms.loan.dto.response.loan.LoanDisbursementResponse;
 import com.bms.loan.dto.response.loan.LoanEvaluationResponse;
 import com.bms.loan.service.LoanApplicationService;
@@ -16,7 +18,7 @@ import java.util.List;
 
 
 @RestController
-@RequestMapping("/api/loans")
+@RequestMapping("/api/v1/loans")
 public class LoanApplicationController {
 
     private final LoanApplicationService loanService;
@@ -64,6 +66,31 @@ public class LoanApplicationController {
     public ResponseEntity<String> payEmi(@PathVariable Long loanId, @PathVariable Long emiId){
             loanService.payEmi(loanId, emiId , LocalDate.now());
         return ResponseEntity.ok("EMI payment processed successfully");
+    }
+
+    // Get loan Details by loan id
+    @GetMapping("/{loanId}/detail")
+    public ResponseEntity<LoanDetailsResponse> getLoanDetails(@PathVariable Long loanId) {
+        return ResponseEntity.ok(loanService.getLoanDetailsById(loanId));
+    }
+
+
+    // get all loan by CIFNumber
+    @GetMapping("/{cifNumber}/all")
+    public ResponseEntity<List<LoanDetailsResponse>> getLoansByCif(@PathVariable String cifNumber) {
+        return ResponseEntity.ok(loanService.getLoansByCif(cifNumber));
+    }
+
+    // get all emi list for loan
+    @GetMapping("/{loanId}/emi/all")
+    public ResponseEntity<List<EmiSummary>> getAllEmis(@PathVariable Long loanId) {
+        return ResponseEntity.ok(loanService.getAllEmisByLoanId(loanId));
+    }
+
+    // get single emi by loan id and emi id
+    @GetMapping("/{loanId}/emi/{emiId}")
+    public ResponseEntity<EmiSummary> getEmiById(@PathVariable Long loanId, @PathVariable Long emiId) {
+        return ResponseEntity.ok(loanService.getEmiById(loanId, emiId));
     }
 
 }

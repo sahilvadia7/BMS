@@ -1,6 +1,7 @@
 package com.bms.loan.Repository;
 
 import com.bms.loan.entity.loan.LoanEmiSchedule;
+import com.bms.loan.entity.loan.Loans;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -19,4 +20,5 @@ public interface LoanEmiScheduleRepository extends JpaRepository<LoanEmiSchedule
     @Query("SELECT e FROM LoanEmiSchedule e WHERE e.status = 'UNPAID' AND e.dueDate < :today")
     List<LoanEmiSchedule> findAllOverdueEmis(@Param("today") LocalDate today);
 
+    List<LoanEmiSchedule> findTop3ByLoanOrderByInstallmentNumberAsc(Loans loan);
 }

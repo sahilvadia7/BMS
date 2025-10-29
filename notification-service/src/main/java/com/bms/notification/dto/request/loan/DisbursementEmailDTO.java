@@ -1,0 +1,26 @@
+package com.bms.notification.dto.request.loan;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class DisbursementEmailDTO {
+    private String toEmail;
+    private String customerName;
+    private String loanType;
+    private BigDecimal sanctionedAmount;
+    private BigDecimal interestRate;
+    private Integer tenureMonths;
+    private BigDecimal emiAmount;
+    private LocalDate firstEmiDate;
+    private List<EmiSummary> firstFewEmis; // preview (first 3)
+}

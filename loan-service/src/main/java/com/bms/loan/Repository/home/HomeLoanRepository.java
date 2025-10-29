@@ -1,4 +1,4 @@
-package com.bms.loan.Repository;
+package com.bms.loan.Repository.home;
 
 import com.bms.loan.entity.home.HomeLoanDetails;
 import org.springframework.data.jpa.repository.JpaRepository;
