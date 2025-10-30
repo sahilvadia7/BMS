@@ -112,7 +112,10 @@ public class HomeLoanServiceImpl implements HomeLoanService {
         HomeLoanDetails details = homeLoanRepository.findByLoans_LoanId(loanId)
                 .orElseThrow(() -> new EntityNotFoundException("Home loan details not found"));
 
-        InterestRate rate = interestRateRepository.findByLoanType(String.valueOf(loan.getLoanType()));
+
+        InterestRate rate = interestRateRepository.findByLoanType(String.valueOf(loan.getLoanType()))
+                .orElseThrow(() -> new ResourceNotFoundException("Interest Rate not found with Type: " + loan.getLoanType()));
+
 
         // Extract data safely
         BigDecimal propertyValue = details.getPropertyValue() != null ? details.getPropertyValue() : BigDecimal.ZERO;

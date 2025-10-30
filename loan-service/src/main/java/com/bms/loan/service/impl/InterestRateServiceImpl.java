@@ -4,6 +4,7 @@ import com.bms.loan.Repository.InterestRateRepository;
 import com.bms.loan.dto.request.InterestRateRequest;
 import com.bms.loan.dto.response.InterestRateResponse;
 import com.bms.loan.entity.InterestRate;
+import com.bms.loan.exception.ResourceNotFoundException;
 import com.bms.loan.service.InterestRateService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -36,7 +37,8 @@ public class InterestRateServiceImpl implements InterestRateService {
     }
 
     public InterestRateResponse getRateByLoanType(String loanType) {
-        InterestRate rate = repository.findByLoanType(loanType.toUpperCase());
+        InterestRate rate = repository.findByLoanType(loanType.toUpperCase())
+                .orElseThrow(() -> new ResourceNotFoundException("Interest Rate not found with Type: " + loanType));
         if (rate == null)
             throw new RuntimeException("Interest rate not found for loan type: " + loanType);
         return mapper.toResponse(rate);

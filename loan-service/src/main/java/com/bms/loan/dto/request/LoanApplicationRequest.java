@@ -19,7 +19,7 @@ import java.math.BigDecimal;
 public class LoanApplicationRequest {
 
     private CustomerRegisterRequest customerDetails;
-    private Long customerId;
+    private String cifNumber;
     private LoanType loanType;
     private BigDecimal requestedAmount;
     private Integer requestedTenureMonths;

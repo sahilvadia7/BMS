@@ -9,6 +9,8 @@ import com.bms.loan.dto.response.loan.LoanApplicationResponse;
 import com.bms.loan.dto.response.loan.LoanDetailsResponse;
 import com.bms.loan.dto.response.loan.LoanDisbursementResponse;
 import com.bms.loan.dto.response.loan.LoanEvaluationResponse;
+import com.bms.loan.enums.DocumentType;
+import com.bms.loan.enums.LoanType;
 import com.bms.loan.service.LoanApplicationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -93,4 +95,8 @@ public class LoanApplicationController {
         return ResponseEntity.ok(loanService.getEmiById(loanId, emiId));
     }
 
+    @GetMapping("/required/{loanType}")
+    public ResponseEntity<List<DocumentType>> getRequiredDocuments(@PathVariable LoanType loanType) {
+        return ResponseEntity.ok(DocumentType.getRequiredForLoan(loanType));
+    }
 }
