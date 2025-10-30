@@ -13,11 +13,8 @@ import lombok.NoArgsConstructor;
 public class LoanDocumentRequest {
 
     private Long loanApplicationId;
-
     private String documentType;
-
     private String documentName;
-
+    private String documentNumber;
     private String remarks;
-
 }

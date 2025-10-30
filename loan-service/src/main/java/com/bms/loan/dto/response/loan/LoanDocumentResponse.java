@@ -14,16 +14,9 @@ import java.time.LocalDateTime;
 public class LoanDocumentResponse {
 
     private Long loanApplicationId;
-
     private String documentType;
-
     private String documentName;
-
-    private String documentPath;
-
     private String kycStatus;
-
     private String remarks;
-
     private LocalDateTime uploadedAt;
 }

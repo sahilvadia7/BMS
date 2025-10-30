@@ -31,10 +31,13 @@ public class LoanDocument {
     @Enumerated(EnumType.STRING)
     private DocumentType documentType;
 
+    private String documentNumber;
+
     private String documentName;
 
     // file stored in byte in DB
     @Lob
+    @Basic(fetch = FetchType.EAGER)
     private byte[] documentData;
 
     @Enumerated(EnumType.STRING)

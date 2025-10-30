@@ -14,7 +14,7 @@ import java.util.List;
 
 
 @RestController
-@RequestMapping("/api/loan-documents")
+@RequestMapping("/api/v1/loan-documents")
 public class LoanDocumentController {
 
     @Autowired
@@ -24,7 +24,7 @@ public class LoanDocumentController {
     @PostMapping("/upload")
     public ResponseEntity<LoanDocumentResponse> uploadDocument(
             @RequestParam("file") MultipartFile file,
-            @RequestBody LoanDocumentRequest request)
+            @RequestPart LoanDocumentRequest request)
     {
         return ResponseEntity.ok(service.uploadDocument(file , request));
     }
@@ -38,19 +38,13 @@ public class LoanDocumentController {
     // Verify or reject document (KYC)
     @PutMapping("/{documentId}/verify")
     public ResponseEntity<LoanDocumentResponse> verifyDocument(
-            @PathVariable Long documentId,
-            @RequestParam KycStatus status,
-            @RequestParam(required = false) String remarks) {
-        return ResponseEntity.ok(service.verifyDocument(documentId, status, remarks));
+            @PathVariable Long documentId) {
+        return ResponseEntity.ok(service.verifyDocument(documentId));
     }
 
     @GetMapping("/{documentId}/download")
     public ResponseEntity<byte[]> downloadDocument(@PathVariable Long documentId) {
-        LoanDocument doc = service.getDocument(documentId);
-
-        return ResponseEntity.ok()
-                .header("Content-Disposition", "attachment; filename=" + doc.getDocumentName())
-                .body(doc.getDocumentData());
+        return service.downloadDocument(documentId);
     }
 
     private String getContentType(String fileName) {

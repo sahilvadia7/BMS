@@ -28,7 +28,6 @@ import com.bms.loan.feign.NotificationClient;
 import com.bms.loan.service.HomeLoanService;
 import com.bms.loan.service.LoanApplicationService;
 import feign.FeignException;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Primary;
@@ -64,18 +63,26 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     @Override
     public LoanApplicationResponse applyLoan(LoanApplicationRequest request) {
 
-        InterestRate interestRate = interestRateRepository.findByLoanType(String.valueOf(request.getLoanType()));
+        InterestRate interestRate = interestRateRepository.findByLoanType(String.valueOf(request.getLoanType()))
+                .orElseThrow(() -> new ResourceNotFoundException("Interest Rate not found with Type: " + request.getLoanType()));
 
         if (interestRate == null) {
-            throw new RuntimeException("Interest rate not found with id: ");
+            throw new ResourceNotFoundException("Interest rate not found with id: ");
         }
         if (request.getRequestedTenureMonths() > interestRate.getMaxTenure()){
             throw new RuntimeException("Tenure months cannot be greater than interest rate maximum");
         }
 
-        CustomerResponseDTO customer;
+        CustomerResponseDTO customer = new CustomerResponseDTO();
         try {
-            customer = customerClient.getById(request.getCustomerId());
+            if(request.getCifNumber()==null || request.getCifNumber().isEmpty()){
+                request.setCifNumber("0000");
+            }
+
+            CustomerDetailsResponseDTO customerDetails = customerClient.getByCif(request.getCifNumber());
+            customer.setCId(customerDetails.getCustomerId());
+            customer.setCifNumber(customerDetails.getCifNumber());
+
         } catch (FeignException e) {
             if (e.status() == 404) {
                 // Call register customer
@@ -168,7 +175,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     @Override
     public CarLoanEvaluationByBankResponse updateEvaluationData(Long loanId, CarLoanEvaluationRequestDto request) {
         CarLoanDetails carLoan = carLoanRepo.findByLoans_LoanId(loanId)
-                .orElseThrow(() -> new EntityNotFoundException("Car loan not found for loanId: " + loanId));
+                .orElseThrow(() -> new ResourceNotFoundException("Car loan not found for loanId: " + loanId));
 
         if (request.getDownPayment() != null)
             carLoan.setDownPayment(request.getDownPayment());
@@ -200,7 +207,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     @Override
     public LoanEvaluationResponse evaluateLoan(Long loanId) {
         Loans loan = loansRepository.findById(loanId)
-                .orElseThrow(() -> new EntityNotFoundException("Loan not found with id: " + loanId));
+                .orElseThrow(() -> new ResourceNotFoundException("Loan not found with id: " + loanId));
 
         LoanEvaluationResponse loanEvaluationResponse = new LoanEvaluationResponse();
         loanEvaluationResponse.setLoanId(loanId);
@@ -225,7 +232,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
             }
             case EDUCATION -> {
-                // Future: integrate HomeLoanEvaluator / EducationLoanEvaluator
+                // Future: integrate EducationLoanEvaluator
             }
 
             default -> throw new IllegalArgumentException("Unsupported loan type: " + loan.getLoanType());
@@ -237,7 +244,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
     public LoanDisbursementResponse disburseLoan(Long loanId) {
         Loans loan = loansRepository.findById(loanId)
-                .orElseThrow(() -> new EntityNotFoundException("Loan not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Loan not found"));
 
         if (loan.getStatus() != LoanStatus.APPROVED) {
             throw new IllegalStateException("Loan is not approved for disbursement");
@@ -356,7 +363,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     @Override
     public void payEmi(Long loanId, Long emiId, LocalDate paymentDate) {
         LoanEmiSchedule emi = loanEmiScheduleRepository.findByIdAndLoan_LoanId(emiId, loanId)
-                .orElseThrow(() -> new RuntimeException("EMI not found for given loan"));
+                .orElseThrow(() -> new ResourceNotFoundException("EMI not found for given loan"));
 
         Loans loan = emi.getLoan();
 
