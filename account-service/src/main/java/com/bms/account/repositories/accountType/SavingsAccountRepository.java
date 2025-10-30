@@ -10,4 +10,6 @@ import java.util.Optional;
 
 @Repository
 public interface SavingsAccountRepository extends JpaRepository<SavingsAccount,Long> {
+    boolean existsByCifNumber(String cifNumber);
+
 }

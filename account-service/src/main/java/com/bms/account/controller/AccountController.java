@@ -25,7 +25,7 @@ public class AccountController {
 
     private final AccountService accountService;
 
-    // 🟢 Create Savings Account
+    //  Create Savings Account
     @Operation(summary = "Create a new Savings Account")
     @PostMapping("/savings")
     public ResponseEntity<AccountResponseDTO> createSavingsAccount(
@@ -35,7 +35,7 @@ public class AccountController {
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    // 🟠 Create Current Account
+    //  Create Current Account
     @Operation(summary = "Create a new Current Account")
     @PostMapping("/current")
     public ResponseEntity<AccountResponseDTO> createCurrentAccount(
@@ -45,21 +45,21 @@ public class AccountController {
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    // 🔵 Get Account by ID
+    //  Get Account by ID
     @Operation(summary = "Get account by ID")
     @GetMapping("/{id}")
     public ResponseEntity<AccountResponseDTO> getAccountById(@PathVariable Long id) {
         return ResponseEntity.ok(accountService.getAccountById(id));
     }
 
-    // 🟣 Get All Accounts
+    //  Get All Accounts
     @Operation(summary = "Get all accounts")
     @GetMapping
     public ResponseEntity<List<AccountResponseDTO>> getAllAccounts() {
         return ResponseEntity.ok(accountService.getAllAccounts());
     }
 
-    // 🟡 Update Account (optional: could be split by type later)
+    //  Update Account (optional: could be split by type later)
     @Operation(summary = "Update account by ID")
     @PutMapping("/{id}")
     public ResponseEntity<AccountResponseDTO> updateAccount(
@@ -69,7 +69,7 @@ public class AccountController {
         return ResponseEntity.ok(accountService.updateAccount(id, requestDTO));
     }
 
-    // 🔴 Delete Account
+    //  Delete Account
     @Operation(summary = "Delete account by ID")
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteAccount(@PathVariable Long id) {
@@ -77,21 +77,21 @@ public class AccountController {
         return ResponseEntity.ok(message);
     }
 
-    // 🟤 Get Account by Account Number
+    //  Get Account by Account Number
     @Operation(summary = "Get account by account number")
     @GetMapping("/number/{accountNumber}")
     public ResponseEntity<AccountResponseDTO> getAccountByNumber(@PathVariable String accountNumber) {
         return ResponseEntity.ok(accountService.getAccountByNumber(accountNumber));
     }
 
-    // ⚪ Get Balance
+    //  Get Balance
     @GetMapping("/{accountId}/balance")
     public ResponseEntity<BigDecimal> getBalance(@PathVariable Long accountId) {
         BigDecimal balance = accountService.getBalance(accountId);
         return ResponseEntity.ok(balance);
     }
 
-    // ⚫ Update Balance (Deposit / Withdraw)
+    //  Update Balance (Deposit / Withdraw)
     @PostMapping("/{accountId}/balance")
     public ResponseEntity<Void> updateBalance(
             @PathVariable Long accountId,
@@ -100,5 +100,11 @@ public class AccountController {
 
         accountService.updateBalance(accountId, amount, transactionType);
         return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "Get all accounts by CIF number")
+    @GetMapping("/cif/{cifNumber}")
+    public ResponseEntity<List<AccountResponseDTO>> getAccountsByCif(@PathVariable String cifNumber) {
+        return ResponseEntity.ok(accountService.getAccountsByCif(cifNumber));
     }
 }
