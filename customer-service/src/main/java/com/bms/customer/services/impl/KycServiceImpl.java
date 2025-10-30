@@ -211,6 +211,37 @@ public class KycServiceImpl implements KycService {
 
         return mapToCustomerResponse(customer);
     }
+    @Override
+    public KycResponseDTO getKycByCustomerId(Long customerId) {
+        Optional<CustomerKycMapping> mapping = mappingRepository.findByCustomer_CustomerId(customerId);
+
+        if (mapping.isEmpty()) {
+            return null;
+        }
+
+        Kyc kyc = mapping.get().getKyc();
+
+        return new KycResponseDTO(
+                kyc.getId(),
+                kyc.getDocumentType(),
+                kyc.getDocumentNumber(),
+                kyc.getStatus(),
+                kyc.getCreatedAt(),
+                kyc.getUpdatedAt()
+        );
+    }
+
+    @Override
+    @Transactional
+    public boolean existsByCustomer_CustomerId(Long customerId) {
+        return mappingRepository.existsByCustomerId(customerId);
+    }
+
+    @Override
+    public Long findKycIdByCustomerId(Long customerId) {
+        return mappingRepository.findKycIdByCustomerId(customerId)
+                .orElse(0L); // return 0 if not found
+    }
 
     @Override
     @Transactional

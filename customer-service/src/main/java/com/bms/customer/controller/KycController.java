@@ -13,7 +13,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/kyc")
@@ -40,6 +43,14 @@ public class KycController {
     public ResponseEntity<KycResponseDTO> getKycById(@PathVariable Long id) {
         return ResponseEntity.ok(kycService.getKycById(id));
     }
+
+    @Operation(summary = "Check if KYC exists for given customer ID")
+    @GetMapping("/exists/{customerId}")
+    public ResponseEntity<Long> checkKycExists(@PathVariable Long customerId) {
+        Long kycId = kycService.findKycIdByCustomerId(customerId);
+        return ResponseEntity.ok(kycId);
+    }
+
 
     @Operation(summary = "Admin: Update KYC document details (e.g., correct document number)")
     @PutMapping("/{id}")

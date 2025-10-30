@@ -6,6 +6,7 @@ import com.bms.customer.dtos.response.CustomerResponseDTO;
 import jakarta.validation.Valid;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface KycService {
 
@@ -19,4 +20,11 @@ public interface KycService {
     void rejectKyc(Long kycId, String reason);
 
     KycResponseDTO uploadKycForCustomer(Long customerId, KycRequestDTO requestDTO);
+
+    KycResponseDTO getKycByCustomerId(Long customerId);
+
+    boolean existsByCustomer_CustomerId(Long customerId);
+
+
+    Long findKycIdByCustomerId(Long customerId);
 }
