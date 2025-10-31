@@ -1,6 +1,7 @@
 package com.bms.account.controller;
 
 import com.bms.account.dtos.AccountResponseDTO;
+import com.bms.account.dtos.accountPin.ChangePinRequest;
 import com.bms.account.dtos.accountType.CurrentAccountRequestDTO;
 import com.bms.account.dtos.accountType.SavingsAccountRequestDTO;
 import com.bms.account.services.AccountService;
@@ -33,6 +34,13 @@ public class AccountController {
 
         AccountResponseDTO response = accountService.createSavingsAccount(requestDTO);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
+    }
+
+    @Operation(summary = "Get account balance by 4-digit PIN")
+    @GetMapping("/pin/{accountPin}/balance")
+    public ResponseEntity<BigDecimal> getBalanceByPin(@PathVariable int accountPin) {
+        BigDecimal balance = accountService.getBalanceByPin(accountPin);
+        return ResponseEntity.ok(balance);
     }
 
     //  Create Current Account
@@ -106,5 +114,20 @@ public class AccountController {
     @GetMapping("/cif/{cifNumber}")
     public ResponseEntity<List<AccountResponseDTO>> getAccountsByCif(@PathVariable String cifNumber) {
         return ResponseEntity.ok(accountService.getAccountsByCif(cifNumber));
+    }
+
+    @Operation(summary = "Activate all accounts for a given CIF number")
+    @PutMapping("/{cifNumber}/activate")
+    public ResponseEntity<String> activateByCif(@PathVariable String cifNumber) {
+        String message = accountService.activateAccountsByCif(cifNumber);
+        return ResponseEntity.ok(message);
+    }
+
+    @PutMapping("/{accountNumber}/change-pin")
+    public ResponseEntity<String> changeAccountPin(
+            @PathVariable String accountNumber,
+            @RequestBody ChangePinRequest request) {
+        String result = accountService.changeAccountPin(accountNumber, request);
+        return ResponseEntity.ok(result);
     }
 }

@@ -27,6 +27,8 @@ public class AccountResponseDTO {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    private Integer accountPin;
+
     private SavingsAccountDetailsDTO savingsDetails;
     private CurrentAccountDetailsDTO currentDetails;
 }

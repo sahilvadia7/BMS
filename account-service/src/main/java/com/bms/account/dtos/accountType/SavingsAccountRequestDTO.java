@@ -9,20 +9,20 @@ import java.math.BigDecimal;
 
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
+//@AllArgsConstructor
 @EqualsAndHashCode(callSuper = true)
 @SuperBuilder
 public class SavingsAccountRequestDTO extends BaseAccountRequestDTO {
 
-    @NotNull
-    private BigDecimal minimumBalance;
-
-    @NotNull
-    private BigDecimal interestRate;
-
-    @NotNull
-    private Integer withdrawalLimitPerMonth;
-
-    @NotNull
-    private Boolean chequeBookAvailable;
+//    @NotNull
+//    private BigDecimal minimumBalance;
+//
+//    @NotNull
+//    private BigDecimal interestRate;
+//
+//    @NotNull
+//    private Integer withdrawalLimitPerMonth;
+//
+//    @NotNull
+//    private Boolean chequeBookAvailable;
 }

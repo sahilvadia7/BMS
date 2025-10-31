@@ -11,7 +11,6 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "accounts")
 @Inheritance(strategy = InheritanceType.JOINED)
-//@DiscriminatorColumn(name = "account_category", discriminatorType = DiscriminatorType.STRING)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -40,11 +39,8 @@ public class Account {
     @Column(nullable = false)
     private AccountStatus status;
 
-//    @Column(nullable = false)
-//    private Long customerId;
-
-//    @Column(nullable = false)
-//    private Long branchId;
+    @Column(nullable = false, length = 4)
+    private Integer accountPin; // ✅ PIN saved in DB
 
     @Column(name = "kyc_id")
     private Long kycId;
@@ -66,6 +62,9 @@ public class Account {
         }
         if (balance == null) {
             balance = BigDecimal.ZERO;
+        }
+        if (accountPin == null) {
+            accountPin = (int) (Math.random() * 9000) + 1000; //  generate 4-digit PIN automatically
         }
     }
 

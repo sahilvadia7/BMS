@@ -1,6 +1,8 @@
 package com.bms.notification.service.impl;
 
 import com.bms.notification.dto.OtpEmailDTO;
+import com.bms.notification.dto.request.account.AccountCreationNotificationRequest;
+import com.bms.notification.dto.request.account.pin.OtpEmailRequest;
 import com.bms.notification.dto.request.loan.ApplyLoanEmailDTO;
 import com.bms.notification.dto.request.loan.DisbursementEmailDTO;
 import com.bms.notification.dto.request.EmailRequestDTO;
@@ -11,6 +13,7 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -258,6 +261,46 @@ public class EmailServiceImpl implements EmailService {
             // Log but don’t stop loan creation flow
             System.err.println("Failed to send loan application email: " + e.getMessage());
         }
+    }
+
+    public void sendAccountCreatedEmail(AccountCreationNotificationRequest request) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(request.getEmail());
+        message.setSubject("Your New " + request.getAccountType() + " Account Has Been Created");
+
+        message.setText(String.format("""
+                Dear %s,
+
+                Your %s account has been successfully created.
+
+                CIF Number: %s
+                Account Number: %s
+                Account PIN: %s
+
+                Please keep your PIN confidential and do not share it with anyone.
+
+                Regards,
+                Bank Management System
+                """,
+                request.getCustomerName(),
+                request.getAccountType(),
+                request.getCifNumber(),
+                request.getAccountNumber(),
+                request.getAccountPin()
+        ));
+
+        mailSender.send(message);
+    }
+
+    public void sendOtpEmailPin(OtpEmailRequest request) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(request.getEmail());
+        message.setSubject("Your OTP for PIN Reset");
+        message.setText("Dear customer (CIF: " + request.getCifNumber() + "),\n\n"
+                + "Your OTP for PIN reset is: " + request.getOtp() + "\n\n"
+                + "This OTP will expire in 5 minutes.\n\n"
+                + "Regards,\nBMS Bank");
+        mailSender.send(message);
     }
 
 }
