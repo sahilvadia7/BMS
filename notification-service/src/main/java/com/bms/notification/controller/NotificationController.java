@@ -1,6 +1,8 @@
 package com.bms.notification.controller;
 
 import com.bms.notification.dto.OtpEmailDTO;
+import com.bms.notification.dto.request.account.AccountCreationNotificationRequest;
+import com.bms.notification.dto.request.account.pin.OtpEmailRequest;
 import com.bms.notification.dto.request.loan.ApplyLoanEmailDTO;
 import com.bms.notification.dto.request.loan.DisbursementEmailDTO;
 import com.bms.notification.dto.request.EmailRequestDTO;
@@ -49,6 +51,17 @@ public class NotificationController {
     public ResponseEntity<String> sendApplyLoanEmail(@RequestBody ApplyLoanEmailDTO request) {
         emailService.sendApplyLoanEmail(request);
         return ResponseEntity.ok("loan apply details sent");
+    }
+
+    @PostMapping("/account-created")
+    public void sendAccountCreationNotification(@RequestBody AccountCreationNotificationRequest request) {
+        emailService.sendAccountCreatedEmail(request);
+    }
+
+    @PostMapping("/send-pin-otp")
+    public ResponseEntity<String> sendOtpEmail(@RequestBody OtpEmailRequest request) {
+        emailService.sendOtpEmailPin(request);
+        return ResponseEntity.ok("OTP email sent successfully");
     }
 
 }
