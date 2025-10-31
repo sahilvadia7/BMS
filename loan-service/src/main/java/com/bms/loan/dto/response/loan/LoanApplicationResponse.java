@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class LoanApplicationResponse {
     private Long loanId;
+    private String cifNumber;
     private String loanType;
     private String status;
     private String message;

@@ -4,6 +4,8 @@ public enum LoanStatus {
     APPLIED,
     UNDER_REVIEW,
     DOCUMENTS_SUBMITTED,
+    DOCUMENTS_VERIFIED,
+    SANCTIONED,
     APPROVED,
     REJECTED,
     DISBURSED,

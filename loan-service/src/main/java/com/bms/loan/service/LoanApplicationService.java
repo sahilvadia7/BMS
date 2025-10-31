@@ -2,9 +2,12 @@ package com.bms.loan.service;
 
 import com.bms.loan.dto.request.car.CarLoanEvaluationRequestDto;
 import com.bms.loan.dto.request.LoanApplicationRequest;
+import com.bms.loan.dto.request.education.EducationVerificationRequestDto;
 import com.bms.loan.dto.response.car.CarLoanEvaluationByBankResponse;
+import com.bms.loan.dto.response.education.EducationEvaluationResponse;
 import com.bms.loan.dto.response.emi.EmiSummary;
 import com.bms.loan.dto.response.emi.LoanEmiScheduleResponse;
+import com.bms.loan.dto.response.home.LoanSanctionResponseDTO;
 import com.bms.loan.dto.response.loan.LoanApplicationResponse;
 import com.bms.loan.dto.response.loan.LoanDetailsResponse;
 import com.bms.loan.dto.response.loan.LoanDisbursementResponse;
@@ -17,6 +20,8 @@ public interface LoanApplicationService {
     LoanApplicationResponse applyLoan(LoanApplicationRequest request);
 
     CarLoanEvaluationByBankResponse updateEvaluationData(Long loanId, CarLoanEvaluationRequestDto request);
+
+    EducationEvaluationResponse verifyEducationBackground(Long loanId, EducationVerificationRequestDto request);
 
     LoanEvaluationResponse evaluateLoan(Long loanId);
 
@@ -34,4 +39,6 @@ public interface LoanApplicationService {
 
     EmiSummary getEmiById(Long loanId, Long emiId);
 
+    // Sanction/approve loan based on evaluation
+//    LoanSanctionResponseDTO sanctionLoan(Long loanId);
 }

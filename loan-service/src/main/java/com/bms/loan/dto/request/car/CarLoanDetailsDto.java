@@ -39,7 +39,4 @@ public class CarLoanDetailsDto {
     )
     private String registrationNumber;
 
-    public static class YearConstants {
-        public static final int CURRENT_YEAR = Year.now().getValue();
-    }
 }

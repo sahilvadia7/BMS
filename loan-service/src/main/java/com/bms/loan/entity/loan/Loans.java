@@ -105,4 +105,7 @@ public class Loans {
     private LocalDate disbursementDate;
 
     private LocalDate nextDueDate;
+
+    @Column(nullable = false)
+    private boolean eSign = false;
 }

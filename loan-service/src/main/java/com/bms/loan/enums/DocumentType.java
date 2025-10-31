@@ -14,6 +14,8 @@ public enum DocumentType {
     BUSINESS_PROOF,
     ADDRESS_PROOF,
     PHOTO,
+    MARK_SHEETS,
+    FEE_STRUCTURE,
     BANK_STATEMENT;
 
 
@@ -25,7 +27,7 @@ public enum DocumentType {
             case HOME:
                 return Arrays.asList(AADHAAR, PAN, ADDRESS_PROOF, PROPERTY_PAPER ,SALARY_SLIP ,BANK_STATEMENT, PHOTO);
             case EDUCATION:
-                return Arrays.asList(AADHAAR, PAN, BANK_STATEMENT, EDUCATION_ADMISSION_LETTER);
+                return Arrays.asList(AADHAAR, PAN, BANK_STATEMENT,MARK_SHEETS,FEE_STRUCTURE, EDUCATION_ADMISSION_LETTER);
             case CAR:
                 return Arrays.asList(AADHAAR, PAN, BANK_STATEMENT, VEHICLE_INVOICE ,SALARY_SLIP, PHOTO);
             default:

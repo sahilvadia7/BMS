@@ -9,16 +9,16 @@ import com.bms.loan.dto.email.SanctionEmailDTO;
 import com.bms.loan.dto.request.home.HomeVerificationRequestDto;
 import com.bms.loan.dto.request.home.LoanSanctionRequest;
 import com.bms.loan.dto.response.CustomerDetailsResponseDTO;
-import com.bms.loan.dto.response.home.HomeLoanDisbursementResponseDTO;
-import com.bms.loan.dto.response.home.HomeLoanSanctionResponseDTO;
+import com.bms.loan.dto.response.home.LoanSanctionResponseDTO;
 import com.bms.loan.dto.response.home.HomeVerificationResponse;
 import com.bms.loan.dto.response.loan.LoanEvaluationResponse;
 import com.bms.loan.entity.InterestRate;
 import com.bms.loan.entity.home.HomeLoanDetails;
-import com.bms.loan.entity.home.HomeLoanSanction;
+import com.bms.loan.entity.home.LoanSanction;
 import com.bms.loan.entity.home.HomeVerificationReport;
 import com.bms.loan.entity.loan.Loans;
 import com.bms.loan.enums.LoanStatus;
+import com.bms.loan.exception.InvalidLoanStatusException;
 import com.bms.loan.exception.ResourceNotFoundException;
 import com.bms.loan.feign.CustomerClient;
 import com.bms.loan.feign.NotificationClient;
@@ -55,6 +55,10 @@ public class HomeLoanServiceImpl implements HomeLoanService {
         Loans loan = loanRepository.findById(request.getLoanId())
                 .orElseThrow(() -> new RuntimeException("Loan not found for ID: " + request.getLoanId()));
 
+        if (loan.getStatus() != LoanStatus.APPLIED) {
+            throw new InvalidLoanStatusException("Loan status is not Applied");
+        }
+
         // Save or update verification report
         HomeVerificationReport report = homeVerificationReportRepository
                 .findByLoans_LoanId(request.getLoanId())
@@ -79,7 +83,7 @@ public class HomeLoanServiceImpl implements HomeLoanService {
         homeLoanRepository.save(details);
 
         // Optionally, mark loan as VERIFIED
-        loan.setStatus(LoanStatus.EVALUATED);
+        loan.setStatus(LoanStatus.VERIFIED);
         loanRepository.save(loan);
 
         // Return response
@@ -108,6 +112,10 @@ public class HomeLoanServiceImpl implements HomeLoanService {
     public LoanEvaluationResponse evaluateLoan(Long loanId) {
         Loans loan = loanRepository.findById(loanId)
                 .orElseThrow(() -> new EntityNotFoundException("Loan not found"));
+
+        if (loan.getStatus() != LoanStatus.VERIFIED) {
+            throw new InvalidLoanStatusException("Loan must be Verified before Evaluating the Home Loan");
+        }
 
         HomeLoanDetails details = homeLoanRepository.findByLoans_LoanId(loanId)
                 .orElseThrow(() -> new EntityNotFoundException("Home loan details not found"));
@@ -192,7 +200,7 @@ public class HomeLoanServiceImpl implements HomeLoanService {
         //  Update loan record
         loan.setApprovedAmount(approved ? requestedAmount : requestedAmount.multiply(BigDecimal.valueOf(0.8)));
         loan.setInterestRate(finalInterestRate);
-        loan.setStatus(approved ? LoanStatus.APPROVED : LoanStatus.REJECTED);
+        loan.setStatus(approved ? LoanStatus.EVALUATED : LoanStatus.REJECTED);
         loan.setRemarks(remarks);
         loanRepository.save(loan);
 
@@ -206,63 +214,38 @@ public class HomeLoanServiceImpl implements HomeLoanService {
                 .build();
     }
 
-    @Override
-    public HomeLoanSanctionResponseDTO sanctionLoan(Long loanId, String sanctionedBy) {
-        Loans loan = loanRepository.findById(loanId)
-                .orElseThrow(() -> new EntityNotFoundException("Loan not found"));
-
-        if (loan.getStatus() != LoanStatus.EVALUATED) {
-            throw new IllegalStateException("Loan must be evaluated before sanctioning");
-        }
-
-        loan.setStatus(LoanStatus.APPROVED);
-        loanRepository.save(loan);
-
-        return HomeLoanSanctionResponseDTO.builder()
-                .loanId(loanId)
-                .sanctionedAmount(loan.getApprovedAmount())
-                .interestRate(loan.getInterestRate())
-                .tenureMonths(loan.getRequestedTenureMonths())
-                .sanctionDate(LocalDate.now())
-                .sanctionedBy(sanctionedBy)
-                .remarks("Loan sanctioned successfully")
-                .build();
-    }
-
-    @Override
-    public HomeLoanDisbursementResponseDTO disburseLoan(Long loanId) {
-        Loans loan = loanRepository.findById(loanId)
-                .orElseThrow(() -> new EntityNotFoundException("Loan not found"));
-
-        if (loan.getStatus() != LoanStatus.APPROVED) {
-            throw new IllegalStateException("Loan not approved for disbursement");
-        }
-
-        loan.setStatus(LoanStatus.DISBURSED);
-        loan.setDisbursementDate(LocalDate.now());
-        loan.setOutstandingAmount(loan.getApprovedAmount());
-        loanRepository.save(loan);
-
-        return HomeLoanDisbursementResponseDTO.builder()
-                .loanId(loanId)
-                .disbursedAmount(loan.getApprovedAmount())
-                .disbursementDate(LocalDate.now())
-                .paymentMode("NEFT")
-                .transactionRefNo("TXN" + loanId + System.currentTimeMillis())
-                .remarks("Home loan amount disbursed successfully")
-                .build();
-    }
-
-
+//    @Override
+//    public HomeLoanDisbursementResponseDTO disburseLoan(Long loanId) {
+//        Loans loan = loanRepository.findById(loanId)
+//                .orElseThrow(() -> new EntityNotFoundException("Loan not found"));
+//
+//        if (loan.getStatus() != LoanStatus.APPROVED) {
+//            throw new IllegalStateException("Loan not approved for disbursement");
+//        }
+//
+//        loan.setStatus(LoanStatus.DISBURSED);
+//        loan.setDisbursementDate(LocalDate.now());
+//        loan.setOutstandingAmount(loan.getApprovedAmount());
+//        loanRepository.save(loan);
+//
+//        return HomeLoanDisbursementResponseDTO.builder()
+//                .loanId(loanId)
+//                .disbursedAmount(loan.getApprovedAmount())
+//                .disbursementDate(LocalDate.now())
+//                .paymentMode("NEFT")
+//                .transactionRefNo("TXN" + loanId + System.currentTimeMillis())
+//                .remarks("loan amount disbursed successfully")
+//                .build();
+//    }
 
 
     @Transactional
-    public HomeLoanSanctionResponseDTO sanctionHomeLoan(Long loanId, LoanSanctionRequest request) {
+    public LoanSanctionResponseDTO sanctionHomeLoan(Long loanId, LoanSanctionRequest request) {
         Loans loan = loanRepository.findById(loanId)
                 .orElseThrow(() -> new ResourceNotFoundException("Loan not found "+loanId));
 
-        if (loan.getStatus() != LoanStatus.APPROVED) {
-            throw new IllegalStateException("Loan must be approved before sanctioning");
+        if (loan.getStatus() != LoanStatus.EVALUATED) {
+            throw new InvalidLoanStatusException("Loan must be evaluated before sanctioning");
         }
 
         CustomerDetailsResponseDTO customer = customerClient.getByCif(loan.getCifNumber());
@@ -274,7 +257,7 @@ public class HomeLoanServiceImpl implements HomeLoanService {
         BigDecimal emi = calculateEmi(principal, rate, tenure);
 
         // Save sanction
-        HomeLoanSanction sanction = HomeLoanSanction.builder()
+        LoanSanction sanction = LoanSanction.builder()
                 .loans(loan)
                 .sanctionedAmount(principal)
                 .interestRate(rate)
@@ -283,6 +266,7 @@ public class HomeLoanServiceImpl implements HomeLoanService {
                 .eSigned(false)
                 .build();
 
+        loan.setStatus(LoanStatus.SANCTIONED);
         homeLoanSanctionRepository.save(sanction);
         loanRepository.save(loan);
 
@@ -300,7 +284,7 @@ public class HomeLoanServiceImpl implements HomeLoanService {
 
         notificationClient.sendSanctionEmail(email);
 
-        return HomeLoanSanctionResponseDTO.builder()
+        return LoanSanctionResponseDTO.builder()
                 .loanId(loan.getLoanId())
                 .sanctionedAmount(principal)
                 .interestRate(rate)
@@ -308,17 +292,26 @@ public class HomeLoanServiceImpl implements HomeLoanService {
                 .emiAmount(emi)
                 .sanctionDate(LocalDate.now())
                 .sanctionedBy("Penil")
-                .remarks("Home loan Sanction latter successfully")
+                .remarks("loan Sanction latter successfully")
                 .build();
     }
 
     @Override
     public void eSignSanctionLatter(Long loanId) {
-        HomeLoanSanction homeLoanSanction = homeLoanSanctionRepository.findByLoans_LoanId(loanId)
+
+        Loans loan = loanRepository.findById(loanId)
+                .orElseThrow(() -> new ResourceNotFoundException("Loan not found "+loanId));
+
+        if (loan.getStatus() != LoanStatus.SANCTIONED) {
+            throw new InvalidLoanStatusException("Loan must be evaluated before sanctioning");
+        }
+
+        LoanSanction homeLoanSanction = homeLoanSanctionRepository.findByLoans_LoanId(loanId)
                 .orElseThrow(() -> new ResourceNotFoundException("HomeLoanSanction not found "+loanId));
 
         homeLoanSanction.setESigned(true);
-
+        loan.setESign(true);
+        loanRepository.save(loan);
         homeLoanSanctionRepository.save(homeLoanSanction);
     }
 
