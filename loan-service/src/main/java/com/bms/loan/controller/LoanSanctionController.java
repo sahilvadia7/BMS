@@ -1,13 +1,10 @@
 package com.bms.loan.controller;
 
 import com.bms.loan.dto.request.home.LoanSanctionRequest;
-import com.bms.loan.dto.response.home.HomeLoanSanctionResponseDTO;
+import com.bms.loan.dto.response.home.LoanSanctionResponseDTO;
 import com.bms.loan.service.HomeLoanService;
-import com.bms.loan.service.impl.SanctionLetterService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/v1/loans")
@@ -20,11 +17,11 @@ public class LoanSanctionController {
     }
 
     @PostMapping("/{loanId}/sanction")
-    public ResponseEntity<HomeLoanSanctionResponseDTO> sanctionHomeLoan(
+    public ResponseEntity<LoanSanctionResponseDTO> sanctionHomeLoan(
             @PathVariable Long loanId,
             @RequestBody LoanSanctionRequest request) {
 
-        HomeLoanSanctionResponseDTO response = homeLoanService.sanctionHomeLoan(loanId, request);
+        LoanSanctionResponseDTO response = homeLoanService.sanctionHomeLoan(loanId, request);
         return ResponseEntity.ok(response);
     }
 

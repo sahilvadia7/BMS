@@ -11,7 +11,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class HomeLoanSanctionResponseDTO {
+public class LoanSanctionResponseDTO {
 
     private Long loanId;
     private BigDecimal sanctionedAmount; // Final approved amount

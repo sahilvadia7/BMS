@@ -1,6 +1,7 @@
 package com.bms.loan.service.impl;
 
 import com.bms.loan.Repository.*;
+import com.bms.loan.Repository.education.EducationVerificationReportRepository;
 import com.bms.loan.Repository.home.HomeLoanRepository;
 import com.bms.loan.dto.email.ApplyLoanEmailDTO;
 import com.bms.loan.dto.email.DisbursementEmailDTO;
@@ -8,23 +9,28 @@ import com.bms.loan.dto.request.*;
 import com.bms.loan.dto.request.car.CarLoanDetailsDto;
 import com.bms.loan.dto.request.car.CarLoanEvaluationRequestDto;
 import com.bms.loan.dto.request.education.EducationLoanDetailsDto;
+import com.bms.loan.dto.request.education.EducationVerificationRequestDto;
 import com.bms.loan.dto.request.home.HomeLoanDetailsDto;
 import com.bms.loan.dto.response.*;
 import com.bms.loan.dto.response.car.CarLoanEvaluationByBankResponse;
+import com.bms.loan.dto.response.education.EducationEvaluationResponse;
 import com.bms.loan.dto.response.emi.EmiSummary;
 import com.bms.loan.dto.response.emi.LoanEmiScheduleResponse;
 import com.bms.loan.dto.response.loan.*;
 import com.bms.loan.entity.*;
 import com.bms.loan.entity.car.CarLoanDetails;
 import com.bms.loan.entity.education.EducationLoanDetails;
+import com.bms.loan.entity.education.EducationVerificationReport;
 import com.bms.loan.entity.home.HomeLoanDetails;
 import com.bms.loan.entity.loan.LoanEmiSchedule;
 import com.bms.loan.entity.loan.Loans;
 import com.bms.loan.enums.EmiStatus;
 import com.bms.loan.enums.LoanStatus;
+import com.bms.loan.exception.InvalidLoanStatusException;
 import com.bms.loan.exception.ResourceNotFoundException;
 import com.bms.loan.feign.CustomerClient;
 import com.bms.loan.feign.NotificationClient;
+import com.bms.loan.service.EducationLoanService;
 import com.bms.loan.service.HomeLoanService;
 import com.bms.loan.service.LoanApplicationService;
 import feign.FeignException;
@@ -48,14 +54,17 @@ import java.util.stream.Collectors;
 @Primary
 public class LoanApplicationServiceImpl implements LoanApplicationService {
 
-    private final HomeLoanService homeLoanService;
     private final LoanRepository loansRepository;
     private final CarLoanRepository carLoanRepo;
     private final HomeLoanRepository homeLoanRepo;
     private final EducationLoanRepository educationLoanRepo;
-    private final InterestRateRepository interestRateRepository;
-    private final CarLoanEvaluator carLoanEvaluator;
     private final LoanEmiScheduleRepository loanEmiScheduleRepository;
+    private final InterestRateRepository interestRateRepository;
+    private final EducationVerificationReportRepository educationVerificationRepository;
+
+    private final HomeLoanService homeLoanService;
+    private final EducationLoanService educationLoanService;
+    private final CarLoanEvaluator carLoanEvaluator;
     private final CustomerClient customerClient;
     private final NotificationClient notificationClient;
     private final Mapper mapper;
@@ -148,13 +157,30 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
             }
             case EDUCATION -> {
                 EducationLoanDetailsDto ed = request.getEducationDetails();
+                // Calculate total course cost
+                BigDecimal totalCourseCost = BigDecimal.ZERO;
+                if (ed.getTuitionFees() != null) totalCourseCost = totalCourseCost.add(ed.getTuitionFees());
+                if (ed.getLivingExpenses() != null) totalCourseCost = totalCourseCost.add(ed.getLivingExpenses());
+                if (ed.getOtherExpenses() != null) totalCourseCost = totalCourseCost.add(ed.getOtherExpenses());
+
                 educationLoanRepo.save(EducationLoanDetails.builder()
                         .loans(savedLoan)
                         .courseName(ed.getCourseName())
+                        .fieldOfStudy(ed.getFieldOfStudy())
                         .university(ed.getUniversity())
+                        .country(ed.getCountry())
                         .courseDurationMonths(ed.getCourseDurationMonths())
+                        .courseStartDate(ed.getCourseStartDate())
+                        .expectedCompletionDate(ed.getExpectedCompletionDate())
                         .tuitionFees(ed.getTuitionFees())
+                        .livingExpenses(ed.getLivingExpenses())
+                        .otherExpenses(ed.getOtherExpenses())
+                        .totalCourseCost(totalCourseCost)
                         .coApplicantName(ed.getCoApplicantName())
+                        .coApplicantRelation(ed.getCoApplicantRelation())
+                        .coApplicantOccupation(ed.getCoApplicantOccupation())
+                        .coApplicantAnnualIncome(ed.getCoApplicantAnnualIncome())
+                        .moratoriumMonths(ed.getMoratoriumMonths())
                         .build());
             }
             default -> throw new IllegalArgumentException("Unsupported loan type");
@@ -173,6 +199,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         //Build and return response
         return LoanApplicationResponse.builder()
                 .loanId(savedLoan.getLoanId())
+                .cifNumber(customer.getCifNumber())
                 .loanType(String.valueOf(savedLoan.getLoanType()))
                 .status(String.valueOf(savedLoan.getStatus()))
                 .message("Loan application submitted successfully.")
@@ -181,6 +208,14 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
     @Override
     public CarLoanEvaluationByBankResponse updateEvaluationData(Long loanId, CarLoanEvaluationRequestDto request) {
+
+        Loans loan = loansRepository.findById(loanId)
+                .orElseThrow(() -> new ResourceNotFoundException("Loan not found for ID: " + loanId));
+
+        if (loan.getStatus() != LoanStatus.APPLIED) {
+            throw new InvalidLoanStatusException("Loan status is not verified");
+        }
+
         CarLoanDetails carLoan = carLoanRepo.findByLoans_LoanId(loanId)
                 .orElseThrow(() -> new ResourceNotFoundException("Car loan not found for loanId: " + loanId));
 
@@ -195,6 +230,9 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
         // Make sure loans object is loaded
         Long loanIdValue = saved.getLoans().getLoanId();
+
+        loan.setStatus(LoanStatus.VERIFIED);
+        loansRepository.save(loan);
 
         return CarLoanEvaluationByBankResponse.builder()
                 .loanId(loanIdValue)
@@ -212,26 +250,79 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     }
 
     @Override
+    public EducationEvaluationResponse verifyEducationBackground(Long loanId, EducationVerificationRequestDto request) {
+        Loans loan = loansRepository.findById(loanId)
+                .orElseThrow(() -> new ResourceNotFoundException("Loan not found for ID: " + loanId));
+
+        if (loan.getStatus() != LoanStatus.APPLIED) {
+            throw new InvalidLoanStatusException("Loan status is not verified");
+        }
+
+        EducationVerificationReport report = educationVerificationRepository
+                .findByLoans_LoanId(loanId)
+                .orElse(EducationVerificationReport.builder().loans(loan).build());
+
+        report.setAdmissionVerified(request.isAdmissionVerified());
+        report.setCollegeRecognized(request.isCollegeRecognized());
+        report.setFeeStructureVerified(request.isFeeStructureVerified());
+        report.setOfficerName(request.getOfficerName());
+        report.setOfficerRemarks(request.getOfficerRemarks());
+        report.setVerificationDate(request.getVerificationDate());
+
+
+        boolean verified = request.isAdmissionVerified()
+                && request.isCollegeRecognized()
+                && request.isFeeStructureVerified();
+
+        report.setVerifiedSuccessfully(verified);
+        educationVerificationRepository.save(report);
+
+        // Update EducationLoanDetails (mark verified)
+        EducationLoanDetails details = educationLoanRepo.findByLoans_LoanId(loanId)
+                .orElseThrow(() -> new ResourceNotFoundException("EducationLoanDetails not found for Loan ID: " + loanId));
+        details.setVerified(true);
+        educationLoanRepo.save(details);
+
+        // Update Loan Status
+        loan.setStatus(verified ? LoanStatus.VERIFIED : LoanStatus.VERIFICATION_PENDING);
+        loansRepository.save(loan);
+
+        return EducationEvaluationResponse.builder()
+                .loanId(loan.getLoanId())
+                .verifiedSuccessfully(true)
+                .officerName(report.getOfficerName())
+                .remarks(report.getOfficerRemarks())
+                .verificationDate(report.getVerificationDate())
+                .status(loan.getStatus().name())
+                .message(verified ?
+                        "Education loan verification completed successfully." :
+                        "Verification incomplete. Some details need rechecking.")
+                .build();
+    }
+
+    @Override
     public LoanEvaluationResponse evaluateLoan(Long loanId) {
         Loans loan = loansRepository.findById(loanId)
                 .orElseThrow(() -> new ResourceNotFoundException("Loan not found with id: " + loanId));
+
+        if (loan.getStatus() != LoanStatus.VERIFIED) {
+            throw new InvalidLoanStatusException("Loan status is not verified");
+        }
 
         LoanEvaluationResponse loanEvaluationResponse = new LoanEvaluationResponse();
         loanEvaluationResponse.setLoanId(loanId);
 
         switch (loan.getLoanType()) {
             case CAR -> {
-                LoanEvaluationResult result = carLoanEvaluator.evaluateCarLoan(loanId);
+                LoanEvaluationResult carResult = carLoanEvaluator.evaluateCarLoan(loanId);
                 loanEvaluationResponse.setLoanType(String.valueOf(loan.getLoanType()));
-                loanEvaluationResponse.setApproved(result.isApproved());
-                loanEvaluationResponse.setRemarks(result.getRemarks());
-                loanEvaluationResponse.setStatus(String.valueOf(result.getStatus()));
+                loanEvaluationResponse.setApproved(carResult.isApproved());
+                loanEvaluationResponse.setRemarks(carResult.getRemarks());
+                loanEvaluationResponse.setStatus(String.valueOf(carResult.getStatus()));
             }
             case HOME -> {
                 // Delegate home loan evaluation to HomeLoanService
                 LoanEvaluationResponse homeResult = homeLoanService.evaluateLoan(loanId);
-
-                // Use homeResult to populate unified response (loanEvaluationResponse already created)
                 loanEvaluationResponse.setLoanType(homeResult.getLoanType());
                 loanEvaluationResponse.setApproved(homeResult.isApproved());
                 loanEvaluationResponse.setRemarks(homeResult.getRemarks());
@@ -239,7 +330,12 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
             }
             case EDUCATION -> {
-                // Future: integrate EducationLoanEvaluator
+
+                LoanEvaluationResponse educationResult = educationLoanService.evaluateLoan(loanId);
+                loanEvaluationResponse.setLoanType(educationResult.getLoanType());
+                loanEvaluationResponse.setApproved(educationResult.isApproved());
+                loanEvaluationResponse.setRemarks(educationResult.getRemarks());
+                loanEvaluationResponse.setStatus(educationResult.getStatus());
             }
 
             default -> throw new IllegalArgumentException("Unsupported loan type: " + loan.getLoanType());
@@ -249,12 +345,40 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         return loanEvaluationResponse;
     }
 
+//    @Override
+//    public LoanSanctionResponseDTO sanctionLoan(Long loanId) {
+//        Loans loan = loansRepository.findById(loanId)
+//                .orElseThrow(() -> new EntityNotFoundException("Loan not found"));
+//
+//        if (loan.getStatus() != LoanStatus.EVALUATED) {
+//            throw new IllegalStateException("Loan must be evaluated before sanctioning");
+//        }
+//
+//        loan.setStatus(LoanStatus.APPROVED);
+//        loansRepository.save(loan);
+//
+//        return LoanSanctionResponseDTO.builder()
+//                .loanId(loanId)
+//                .sanctionedAmount(loan.getApprovedAmount())
+//                .interestRate(loan.getInterestRate())
+//                .tenureMonths(loan.getRequestedTenureMonths())
+//                .sanctionDate(LocalDate.now())
+//                .sanctionedBy("PENIL")
+//                .remarks("Loan sanctioned successfully")
+//                .build();
+//    }
+
+
     public LoanDisbursementResponse disburseLoan(Long loanId) {
         Loans loan = loansRepository.findById(loanId)
                 .orElseThrow(() -> new ResourceNotFoundException("Loan not found"));
 
-        if (loan.getStatus() != LoanStatus.APPROVED) {
-            throw new IllegalStateException("Loan is not approved for disbursement");
+        if (!loan.isESign()){
+            throw new IllegalStateException("eSign is not completed");
+        }
+
+        if (loan.getStatus() != LoanStatus.SANCTIONED) {
+            throw new IllegalStateException("Loan is not sanctioned by eSign for disbursement");
         }
 
         // Update status & disbursement date

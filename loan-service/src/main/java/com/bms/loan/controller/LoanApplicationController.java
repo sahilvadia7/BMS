@@ -2,7 +2,9 @@ package com.bms.loan.controller;
 
 import com.bms.loan.dto.request.car.CarLoanEvaluationRequestDto;
 import com.bms.loan.dto.request.LoanApplicationRequest;
+import com.bms.loan.dto.request.education.EducationVerificationRequestDto;
 import com.bms.loan.dto.response.car.CarLoanEvaluationByBankResponse;
+import com.bms.loan.dto.response.education.EducationEvaluationResponse;
 import com.bms.loan.dto.response.emi.EmiSummary;
 import com.bms.loan.dto.response.emi.LoanEmiScheduleResponse;
 import com.bms.loan.dto.response.loan.LoanApplicationResponse;
@@ -35,8 +37,15 @@ public class LoanApplicationController {
         return ResponseEntity.ok(loanService.applyLoan(request));
     }
 
+
+    // Evaluate Loan by ID
+    @PostMapping("/{loanId}/evaluate")
+    public ResponseEntity<LoanEvaluationResponse> evaluateLoan(@PathVariable Long loanId) {
+        return ResponseEntity.ok(loanService.evaluateLoan(loanId));
+    }
+
     //Update Car Loan Evaluation Data
-    @PutMapping("/{loanId}/evaluation")
+    @PutMapping("/{loanId}/car-evaluation")
     public ResponseEntity<CarLoanEvaluationByBankResponse> updateCarLoanEvaluation(
             @PathVariable Long loanId,
             @RequestBody CarLoanEvaluationRequestDto request) {
@@ -44,11 +53,15 @@ public class LoanApplicationController {
         return ResponseEntity.ok(updated);
     }
 
-    // Evaluate Loan by ID
-    @PostMapping("/{loanId}/evaluate")
-    public ResponseEntity<LoanEvaluationResponse> evaluateLoan(@PathVariable Long loanId) {
-        return ResponseEntity.ok(loanService.evaluateLoan(loanId));
+    //Update Car Loan Evaluation Data
+    @PutMapping("/{loanId}/education-verify")
+    public ResponseEntity<EducationEvaluationResponse> verifyEducationBackground(
+            @PathVariable Long loanId,
+            @RequestBody EducationVerificationRequestDto request) {
+        EducationEvaluationResponse updated = loanService.verifyEducationBackground(loanId, request);
+        return ResponseEntity.ok(updated);
     }
+
 
     @PostMapping("/{loanId}/disburse")
     public ResponseEntity<LoanDisbursementResponse> disburseLoan(@PathVariable Long loanId) {
@@ -99,4 +112,5 @@ public class LoanApplicationController {
     public ResponseEntity<List<DocumentType>> getRequiredDocuments(@PathVariable LoanType loanType) {
         return ResponseEntity.ok(DocumentType.getRequiredForLoan(loanType));
     }
+
 }

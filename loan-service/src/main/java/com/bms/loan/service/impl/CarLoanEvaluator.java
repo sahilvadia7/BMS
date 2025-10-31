@@ -6,6 +6,8 @@ import com.bms.loan.dto.response.loan.LoanEvaluationResult;
 import com.bms.loan.entity.car.CarLoanDetails;
 import com.bms.loan.entity.loan.Loans;
 import com.bms.loan.enums.LoanStatus;
+import com.bms.loan.exception.InvalidLoanStatusException;
+import com.bms.loan.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -26,6 +28,9 @@ public class CarLoanEvaluator {
         Loans loan = loansRepository.findById(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
+        if (loan.getStatus() != LoanStatus.VERIFIED) {
+            throw new InvalidLoanStatusException("Loan must be Verified before Evaluating the Car Loan");
+        }
         // Common checks
         if (!commonChecks(loan.getCustomerId() , loan)) {
             return new LoanEvaluationResult(false, loan.getRemarks(), LoanStatus.REJECTED);
@@ -103,11 +108,11 @@ public class CarLoanEvaluator {
         }
 
         // All checks passed → approve
-        loan.setStatus(LoanStatus.APPROVED);
+        loan.setStatus(LoanStatus.EVALUATED);
         loan.setRemarks("Car loan approved for evaluation");
         loan.setApprovedAmount(loan.getRequestedAmount());
         loansRepository.save(loan);
-        return new LoanEvaluationResult(true, loan.getRemarks(), LoanStatus.APPROVED);
+        return new LoanEvaluationResult(true, loan.getRemarks(), LoanStatus.EVALUATED);
     }
 
     private boolean commonChecks(Long customerId, Loans loan) {
