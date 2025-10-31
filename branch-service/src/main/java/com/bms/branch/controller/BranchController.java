@@ -59,20 +59,20 @@ public class BranchController {
         return ResponseEntity.ok(response);
     }
 
-    @Operation(
-            summary = "Delete branch by ID",
-            description = "Removes a branch from the system by its ID",
-            responses = {
-                    @ApiResponse(responseCode = "204", description = "Branch deleted successfully"),
-                    @ApiResponse(responseCode = "404", description = "Branch not found")
-            }
-    )
-    @DeleteMapping("/{branchId}")
-    public ResponseEntity<Void> deleteBranch(
-            @Parameter(description = "Branch ID") @PathVariable Long branchId) {
-        branchService.deleteBranch(branchId);
-        return ResponseEntity.noContent().build();
-    }
+//    @Operation(
+//            summary = "Delete branch by ID",
+//            description = "Removes a branch from the system by its ID",
+//            responses = {
+//                    @ApiResponse(responseCode = "204", description = "Branch deleted successfully"),
+//                    @ApiResponse(responseCode = "404", description = "Branch not found")
+//            }
+//    )
+//    @DeleteMapping("/{branchId}")
+//    public ResponseEntity<Void> deleteBranch(
+//            @Parameter(description = "Branch ID") @PathVariable Long branchId) {
+//        branchService.deleteBranch(branchId);
+//        return ResponseEntity.noContent().build();
+//    }
 
     @Operation(
             summary = "Get branch by ID",

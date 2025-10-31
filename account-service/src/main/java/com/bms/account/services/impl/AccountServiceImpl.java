@@ -3,6 +3,7 @@ package com.bms.account.services.impl;
 import com.bms.account.constant.AccountStatus;
 import com.bms.account.constant.AccountTypeEnum;
 import com.bms.account.dtos.*;
+import com.bms.account.dtos.accountPin.ChangePinRequest;
 import com.bms.account.dtos.accountType.CurrentAccountDetailsDTO;
 import com.bms.account.dtos.accountType.CurrentAccountRequestDTO;
 import com.bms.account.dtos.accountType.SavingsAccountDetailsDTO;
@@ -13,20 +14,24 @@ import com.bms.account.entities.accountType.CurrentAccount;
 import com.bms.account.entities.accountType.SavingsAccount;
 import com.bms.account.exception.ResourceNotFoundException;
 import com.bms.account.feign.CustomerClient;
+import com.bms.account.feign.NotificationClient;
 import com.bms.account.repositories.AccountRepository;
 import com.bms.account.repositories.AccountTypeRepository;
 import com.bms.account.repositories.accountType.CurrentAccountRepository;
 import com.bms.account.repositories.accountType.SavingsAccountRepository;
 import com.bms.account.services.AccountService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j; // ✅ ADD THIS
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j // ADD THIS
 public class AccountServiceImpl implements AccountService {
 
     private final AccountRepository accountRepository;
@@ -34,8 +39,12 @@ public class AccountServiceImpl implements AccountService {
     private final SavingsAccountRepository savingsAccountRepository;
     private final CurrentAccountRepository currentAccountRepository;
     private final CustomerClient customerClient;
+    private final NotificationClient notificationClient;
 
-    // ✅ Map entity to unified DTO
+    private int generateAccountPin() {
+        return (int) (Math.random() * 9000) + 1000;
+    }
+
     private AccountResponseDTO mapToResponse(Account account) {
         AccountResponseDTO.AccountResponseDTOBuilder builder = AccountResponseDTO.builder()
                 .id(account.getId())
@@ -46,9 +55,9 @@ public class AccountServiceImpl implements AccountService {
                 .status(account.getStatus().name())
                 .kycId(account.getKycId())
                 .createdAt(account.getCreatedAt())
-                .updatedAt(account.getUpdatedAt());
+                .updatedAt(account.getUpdatedAt())
+                .accountPin(account.getAccountPin());
 
-        // Map subtype details
         if (account instanceof SavingsAccount sa) {
             builder.savingsDetails(SavingsAccountDetailsDTO.builder()
                     .minimumBalance(sa.getMinimumBalance())
@@ -69,25 +78,26 @@ public class AccountServiceImpl implements AccountService {
         return builder.build();
     }
 
-    // ✅ CREATE SAVINGS ACCOUNT
+    //  SAVINGS ACCOUNT CREATION
     @Override
     public AccountResponseDTO createSavingsAccount(SavingsAccountRequestDTO dto) {
-        // Verify Customer exists
         CustomerResponseDTO customer = customerClient.getByCif(dto.getCifNumber());
-        if (customer == null) {
+        if (customer == null)
             throw new ResourceNotFoundException("Customer not found with CIF: " + dto.getCifNumber());
-        }
 
-        // Get Account Type
         AccountType accountType = accountTypeRepository.findByType(AccountTypeEnum.SAVINGS)
                 .orElseThrow(() -> new ResourceNotFoundException("Account type SAVINGS not found"));
 
-        // Prevent duplicate account
         if (savingsAccountRepository.existsByCifNumber(dto.getCifNumber())) {
             throw new IllegalStateException("Customer already has a Savings Account with CIF: " + dto.getCifNumber());
         }
 
-        // Check KYC
+        BigDecimal minimumBalance = BigDecimal.valueOf(5000.00);
+
+        if (dto.getInitialDeposit() == null || dto.getInitialDeposit().compareTo(minimumBalance) < 0) {
+            throw new IllegalArgumentException("Initial deposit must be at least ₹" + minimumBalance);
+        }
+
         Long kycId = customerClient.checkKycExists(customer.getCustomerId());
         if (kycId == 0) {
             KycUploadRequest uploadRequest = new KycUploadRequest();
@@ -97,42 +107,58 @@ public class AccountServiceImpl implements AccountService {
             kycId = uploadedKyc.getId();
         }
 
-        // ✅ Default values
         SavingsAccount account = SavingsAccount.builder()
                 .cifNumber(dto.getCifNumber())
                 .accountType(accountType)
-                .balance(dto.getInitialDeposit() != null ? dto.getInitialDeposit() : BigDecimal.valueOf(15000.00))
+                .balance(dto.getInitialDeposit())
                 .status(AccountStatus.PENDING)
                 .kycId(kycId)
-                .minimumBalance(BigDecimal.valueOf(5000.00))
+                .minimumBalance(minimumBalance)
                 .withdrawalLimitPerMonth(10)
                 .chequeBookAvailable(true)
                 .interestRate(BigDecimal.valueOf(3.5))
+                .accountPin(generateAccountPin())
                 .build();
 
         SavingsAccount saved = savingsAccountRepository.save(account);
+
+        //  Send notification email
+        try {
+            notificationClient.sendAccountCreationEmail(new AccountCreationNotificationRequest(
+                    customer.getFirstName() + " " + customer.getLastName(),
+                    customer.getEmail(),
+                    dto.getCifNumber(),
+                    saved.getAccountNumber(),
+                    "SAVINGS",
+                    saved.getAccountPin()
+            ));
+        } catch (Exception e) {
+            log.error("Failed to send account creation notification for CIF: {}", dto.getCifNumber(), e);
+        }
+
         return mapToResponse(saved);
     }
 
-    // ✅ CREATE CURRENT ACCOUNT
+    //  CURRENT ACCOUNT CREATION
     @Override
     public AccountResponseDTO createCurrentAccount(CurrentAccountRequestDTO dto) {
-        // Verify Customer exists
         CustomerResponseDTO customer = customerClient.getByCif(dto.getCifNumber());
-        if (customer == null) {
+        if (customer == null)
             throw new ResourceNotFoundException("Customer not found with CIF: " + dto.getCifNumber());
-        }
 
-        // Get Account Type
         AccountType accountType = accountTypeRepository.findByType(AccountTypeEnum.CURRENT)
                 .orElseThrow(() -> new ResourceNotFoundException("Account type CURRENT not found"));
 
-        // Prevent duplicate account
         if (currentAccountRepository.existsByCifNumber(dto.getCifNumber())) {
             throw new IllegalStateException("Customer already has a Current Account with CIF: " + dto.getCifNumber());
         }
 
-        // Check KYC
+        BigDecimal minimumDeposit = BigDecimal.valueOf(10000.00);
+
+        if (dto.getInitialDeposit() == null || dto.getInitialDeposit().compareTo(minimumDeposit) < 0) {
+            throw new IllegalArgumentException("Initial deposit must be at least ₹" + minimumDeposit);
+        }
+
         Long kycId = customerClient.checkKycExists(customer.getCustomerId());
         if (kycId == 0) {
             KycUploadRequest uploadRequest = new KycUploadRequest();
@@ -142,35 +168,46 @@ public class AccountServiceImpl implements AccountService {
             kycId = uploadedKyc.getId();
         }
 
-        // ✅ Default values
         CurrentAccount account = CurrentAccount.builder()
                 .cifNumber(dto.getCifNumber())
                 .accountType(accountType)
-                .balance(dto.getInitialDeposit() != null ? dto.getInitialDeposit() : BigDecimal.valueOf(15000.00))
+                .balance(dto.getInitialDeposit())
                 .status(AccountStatus.PENDING)
                 .kycId(kycId)
                 .businessName(dto.getBusinessName())
-                .overdraftLimit(BigDecimal.valueOf(50000.00))
-                .monthlyServiceCharge(BigDecimal.valueOf(250.00))
+                .overdraftLimit(BigDecimal.valueOf(50000))
+                .monthlyServiceCharge(BigDecimal.valueOf(250))
                 .hasOverdraftFacility(true)
                 .chequeBookAvailable(true)
+                .accountPin(generateAccountPin())
                 .build();
 
         CurrentAccount saved = currentAccountRepository.save(account);
+
+        try {
+            notificationClient.sendAccountCreationEmail(new AccountCreationNotificationRequest(
+                    customer.getFirstName() + " " + customer.getLastName(),
+                    customer.getEmail(),
+                    dto.getCifNumber(),
+                    saved.getAccountNumber(),
+                    "CURRENT",
+                    saved.getAccountPin()
+            ));
+        } catch (Exception e) {
+            log.error("Failed to send account creation notification for CIF: {}", dto.getCifNumber(), e);
+        }
+
         return mapToResponse(saved);
     }
 
-    // ✅ GET ALL ACCOUNTS BY CIF
+    //  other methods unchanged
     @Override
     public List<AccountResponseDTO> getAccountsByCif(String cifNumber) {
         List<Account> accounts = accountRepository.findByCifNumber(cifNumber);
-        if (accounts.isEmpty()) {
-            throw new ResourceNotFoundException("No accounts found for CIF: " + cifNumber);
-        }
+        if (accounts.isEmpty()) throw new ResourceNotFoundException("No accounts found for CIF: " + cifNumber);
         return accounts.stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
-    // ✅ COMMON ACCOUNT METHODS
     @Override
     public AccountResponseDTO getAccountById(Long id) {
         Account account = accountRepository.findById(id)
@@ -180,9 +217,7 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     public List<AccountResponseDTO> getAllAccounts() {
-        return accountRepository.findAll().stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        return accountRepository.findAll().stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
     @Override
@@ -230,5 +265,49 @@ public class AccountServiceImpl implements AccountService {
     @Override
     public AccountResponseDTO updateAccount(Long id, Object requestDTO) {
         throw new UnsupportedOperationException("Account update not implemented yet");
+    }
+
+    @Override
+    public BigDecimal getBalanceByPin(int accountPin) {
+        Account account = accountRepository.findByAccountPin(accountPin)
+                .orElseThrow(() -> new ResourceNotFoundException("No account found with PIN: " + accountPin));
+        return account.getBalance();
+    }
+
+    @Override
+    public String activateAccountsByCif(String cifNumber) {
+        List<Account> accounts = accountRepository.findByCifNumber(cifNumber);
+        if (accounts.isEmpty()) throw new RuntimeException("No accounts found for CIF: " + cifNumber);
+
+        accounts.forEach(acc -> {
+            acc.setStatus(AccountStatus.ACTIVE);
+            acc.setUpdatedAt(LocalDateTime.now());
+        });
+
+        accountRepository.saveAll(accounts);
+        return "All accounts for CIF " + cifNumber + " are now ACTIVE.";
+    }
+
+    @Override
+    public String changeAccountPin(String accountNumber, ChangePinRequest request) {
+        Account account = accountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found with number: " + accountNumber));
+
+        // Verify old pin
+        if (!account.getAccountPin().equals(request.getOldPin())) {
+            throw new IllegalArgumentException("Incorrect old PIN");
+        }
+
+        // Validate new pin
+        if (request.getNewPin() == null || request.getNewPin() < 1000 || request.getNewPin() > 9999) {
+            throw new IllegalArgumentException("PIN must be a 4-digit number");
+        }
+
+        // Update pin
+        account.setAccountPin(request.getNewPin());
+        account.setUpdatedAt(LocalDateTime.now());
+        accountRepository.save(account);
+
+        return "Account PIN updated successfully for account: " + accountNumber;
     }
 }

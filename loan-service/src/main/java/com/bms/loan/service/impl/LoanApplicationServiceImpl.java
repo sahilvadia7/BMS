@@ -135,7 +135,11 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                         .manufactureYear(cd.getManufactureYear())
                         .carValue(cd.getCarValue())
                         .registrationNumber(cd.getRegistrationNumber())
-                        .carAgeYears(currentYear- cd.getManufactureYear())
+                        .carAgeYears(currentYear - cd.getManufactureYear())
+                        .downPayment(cd.getDownPayment())
+                        .carConditionScore(-1)
+                        .insuranceValid(false)
+                        .employmentStabilityYears(65)
                         .build());
             }
             case HOME -> {
@@ -149,7 +153,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                         .propertyType(hd.getPropertyType())
                         .ownershipType(hd.getOwnershipType())
                         .registrationNumber(hd.getRegistrationNumber())
-                        .build());
+                        .approvedByAuthority(false).build());
             }
             case EDUCATION -> {
                 EducationLoanDetailsDto ed = request.getEducationDetails();

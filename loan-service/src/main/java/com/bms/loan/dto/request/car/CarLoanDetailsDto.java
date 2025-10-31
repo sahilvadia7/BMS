@@ -32,6 +32,10 @@ public class CarLoanDetailsDto {
     @DecimalMax(value = "5000000.00", inclusive = true, message = "Car value cannot exceed ₹50 lakh (5,000,000)")
     private BigDecimal carValue;
 
+    @NotNull(message = "Down payment is required")
+    @DecimalMin(value = "10000.00", inclusive = true, message = "Down payment must be at least ₹10,000")
+    private BigDecimal downPayment;
+
     @NotBlank(message = "Car registration number is required")
     @Pattern(
             regexp = "^[A-Z]{2}\\d{2}[A-Z]{2}\\d{4}$",

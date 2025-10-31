@@ -17,15 +17,15 @@ public class CurrentAccountRequestDTO extends BaseAccountRequestDTO {
     @NotBlank
     private String businessName;
 
-    @NotNull
-    private BigDecimal overdraftLimit;
-
-    @NotNull
-    private BigDecimal monthlyServiceCharge;
-
-    @NotNull
-    private Boolean hasOverdraftFacility;
-
-    @NotNull
-    private Boolean chequeBookAvailable;
+//    @NotNull
+//    private BigDecimal overdraftLimit;
+//
+//    @NotNull
+//    private BigDecimal monthlyServiceCharge;
+//
+//    @NotNull
+//    private Boolean hasOverdraftFacility;
+//
+//    @NotNull
+//    private Boolean chequeBookAvailable;
 }
