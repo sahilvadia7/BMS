@@ -40,7 +40,7 @@ public class Account {
     private AccountStatus status;
 
     @Column(nullable = false, length = 4)
-    private Integer accountPin; // ✅ PIN saved in DB
+    private Integer accountPin; //  PIN saved in DB
 
     @Column(name = "kyc_id")
     private Long kycId;

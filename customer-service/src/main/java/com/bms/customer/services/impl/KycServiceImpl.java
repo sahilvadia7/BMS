@@ -136,16 +136,16 @@ public class KycServiceImpl implements KycService {
         Customer customer = customerRepository.findCustomerByKycId(kycId)
                 .orElseThrow(() -> new ResourceNotFoundException("No customer linked to this KYC"));
 
-        // ✅ 1. Approve the KYC
+        //  1. Approve the KYC
         kyc.setStatus(KycStatus.APPROVED);
         kycRepository.save(kyc);
 
-        // ✅ 2. Activate the customer
+        //  2. Activate the customer
         customer.setStatus(UserStatus.ACTIVE);
         customer.setUpdatedAt(LocalDateTime.now());
         customerRepository.save(customer);
 
-        // ✅ 3. Trigger Account Activation via Feign
+        //  3. Trigger Account Activation via Feign
         try {
             accountClient.activateAccountByCif(customer.getCifNumber());
         } catch (Exception e) {
