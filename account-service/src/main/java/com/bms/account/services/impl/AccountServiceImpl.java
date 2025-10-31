@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j // ✅ ADD THIS
+@Slf4j // ADD THIS
 public class AccountServiceImpl implements AccountService {
 
     private final AccountRepository accountRepository;
@@ -78,7 +78,7 @@ public class AccountServiceImpl implements AccountService {
         return builder.build();
     }
 
-    // ✅ SAVINGS ACCOUNT CREATION
+    //  SAVINGS ACCOUNT CREATION
     @Override
     public AccountResponseDTO createSavingsAccount(SavingsAccountRequestDTO dto) {
         CustomerResponseDTO customer = customerClient.getByCif(dto.getCifNumber());
@@ -122,7 +122,7 @@ public class AccountServiceImpl implements AccountService {
 
         SavingsAccount saved = savingsAccountRepository.save(account);
 
-        // ✅ Send notification email
+        //  Send notification email
         try {
             notificationClient.sendAccountCreationEmail(new AccountCreationNotificationRequest(
                     customer.getFirstName() + " " + customer.getLastName(),
@@ -139,7 +139,7 @@ public class AccountServiceImpl implements AccountService {
         return mapToResponse(saved);
     }
 
-    // ✅ CURRENT ACCOUNT CREATION
+    //  CURRENT ACCOUNT CREATION
     @Override
     public AccountResponseDTO createCurrentAccount(CurrentAccountRequestDTO dto) {
         CustomerResponseDTO customer = customerClient.getByCif(dto.getCifNumber());
@@ -200,7 +200,7 @@ public class AccountServiceImpl implements AccountService {
         return mapToResponse(saved);
     }
 
-    // ✅ other methods unchanged
+    //  other methods unchanged
     @Override
     public List<AccountResponseDTO> getAccountsByCif(String cifNumber) {
         List<Account> accounts = accountRepository.findByCifNumber(cifNumber);

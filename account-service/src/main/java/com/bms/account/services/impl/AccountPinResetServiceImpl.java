@@ -29,7 +29,7 @@ public class AccountPinResetServiceImpl implements AccountPinResetService {
     private final NotificationClient notificationClient;
     private final CustomerClient customerClient;
 
-    // 1️⃣ Request OTP
+    // 1️ Request OTP
     @Override
     public String requestOtp(PinResetRequestDTO request) {
         // Find customer details via CIF
@@ -49,7 +49,7 @@ public class AccountPinResetServiceImpl implements AccountPinResetService {
         accountOtp.setExpiryTime(expiry);
         otpRepository.save(accountOtp);
 
-        // ✅ Send OTP via email using Notification Service
+        //  Send OTP via email using Notification Service
         OtpEmailRequest otpRequest = new OtpEmailRequest();
         otpRequest.setCifNumber(request.getCifNumber());
         otpRequest.setEmail(customer.getEmail()); // from verified customer service
@@ -59,7 +59,7 @@ public class AccountPinResetServiceImpl implements AccountPinResetService {
         return "OTP sent to your registered email (" + customer.getEmail() + ")";
     }
 
-    // 2️⃣ Verify OTP
+    // 2️ Verify OTP
     @Override
     public String verifyOtp(OtpVerificationDTO dto) {
         Optional<AccountOtp> otpOptional = otpRepository.findByCifNumber(dto.getCifNumber());
@@ -78,7 +78,7 @@ public class AccountPinResetServiceImpl implements AccountPinResetService {
         return "OTP verified successfully";
     }
 
-    // 3️⃣ Reset PIN
+    // 3️ Reset PIN
     @Override
     public String resetPin(PinResetDTO dto) {
         Optional<AccountOtp> otpOptional = otpRepository.findByCifNumber(dto.getCifNumber());

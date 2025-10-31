@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 @FeignClient(name = "customer-service", url = "http://localhost:8082/api/v1")
 public interface CustomerClient {
 
-    // ✅ Calls CustomerController -> /api/v1/customers/cif/{cifNumber}
+    //  Calls CustomerController -> /api/v1/customers/cif/{cifNumber}
     @GetMapping("/customers/cif/{cifNumber}")
     CustomerResponseDTO getByCif(@PathVariable String cifNumber);
 
