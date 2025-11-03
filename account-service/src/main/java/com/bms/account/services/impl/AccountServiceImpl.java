@@ -21,7 +21,7 @@ import com.bms.account.repositories.accountType.CurrentAccountRepository;
 import com.bms.account.repositories.accountType.SavingsAccountRepository;
 import com.bms.account.services.AccountService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j; // ✅ ADD THIS
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j // ADD THIS
+@Slf4j
 public class AccountServiceImpl implements AccountService {
 
     private final AccountRepository accountRepository;
@@ -56,8 +56,17 @@ public class AccountServiceImpl implements AccountService {
                 .kycId(account.getKycId())
                 .createdAt(account.getCreatedAt())
                 .updatedAt(account.getUpdatedAt())
-                .accountPin(account.getAccountPin());
+                .accountPin(account.getAccountPin())
+                //New fields added
+                .occupation(account.getOccupation() != null ? account.getOccupation().name() : null)
+                .sourceOfIncome(account.getSourceOfIncome() != null ? account.getSourceOfIncome().name() : null)
+                .grossAnnualIncome(account.getGrossAnnualIncome())
+                .nomineeName(account.getNomineeName())
+                .nomineeRelation(account.getNomineeRelation())
+                .nomineeAge(account.getNomineeAge())
+                .nomineeContact(account.getNomineeContact());
 
+        // Include subtype details
         if (account instanceof SavingsAccount sa) {
             builder.savingsDetails(SavingsAccountDetailsDTO.builder()
                     .minimumBalance(sa.getMinimumBalance())
@@ -78,7 +87,8 @@ public class AccountServiceImpl implements AccountService {
         return builder.build();
     }
 
-    //  SAVINGS ACCOUNT CREATION
+
+    // ----------------- CREATE SAVINGS ACCOUNT -----------------
     @Override
     public AccountResponseDTO createSavingsAccount(SavingsAccountRequestDTO dto) {
         CustomerResponseDTO customer = customerClient.getByCif(dto.getCifNumber());
@@ -107,6 +117,7 @@ public class AccountServiceImpl implements AccountService {
             kycId = uploadedKyc.getId();
         }
 
+        //  Create Savings Account with new fields
         SavingsAccount account = SavingsAccount.builder()
                 .cifNumber(dto.getCifNumber())
                 .accountType(accountType)
@@ -118,11 +129,18 @@ public class AccountServiceImpl implements AccountService {
                 .chequeBookAvailable(true)
                 .interestRate(BigDecimal.valueOf(3.5))
                 .accountPin(generateAccountPin())
+                .occupation(dto.getOccupationType())
+                .sourceOfIncome(dto.getIncomeSourceType())
+                .grossAnnualIncome(dto.getGrossAnnualIncome())
+                .nomineeName(dto.getNominee().getNomineeName())
+                .nomineeRelation(dto.getNominee().getRelationship())
+                .nomineeAge(dto.getNominee().getAge())
+                .nomineeContact(dto.getNominee().getContactNumber())
                 .build();
 
         SavingsAccount saved = savingsAccountRepository.save(account);
 
-        //  Send notification email
+        // send email notification
         try {
             notificationClient.sendAccountCreationEmail(new AccountCreationNotificationRequest(
                     customer.getFirstName() + " " + customer.getLastName(),
@@ -139,7 +157,7 @@ public class AccountServiceImpl implements AccountService {
         return mapToResponse(saved);
     }
 
-    //  CURRENT ACCOUNT CREATION
+    // ----------------- CREATE CURRENT ACCOUNT -----------------
     @Override
     public AccountResponseDTO createCurrentAccount(CurrentAccountRequestDTO dto) {
         CustomerResponseDTO customer = customerClient.getByCif(dto.getCifNumber());
@@ -168,6 +186,7 @@ public class AccountServiceImpl implements AccountService {
             kycId = uploadedKyc.getId();
         }
 
+        //  Create Current Account with new fields
         CurrentAccount account = CurrentAccount.builder()
                 .cifNumber(dto.getCifNumber())
                 .accountType(accountType)
@@ -180,10 +199,18 @@ public class AccountServiceImpl implements AccountService {
                 .hasOverdraftFacility(true)
                 .chequeBookAvailable(true)
                 .accountPin(generateAccountPin())
+                .occupation(dto.getOccupationType())
+                .sourceOfIncome(dto.getIncomeSourceType())
+                .grossAnnualIncome(dto.getGrossAnnualIncome())
+                .nomineeName(dto.getNominee().getNomineeName())
+                .nomineeRelation(dto.getNominee().getRelationship())
+                .nomineeAge(dto.getNominee().getAge())
+                .nomineeContact(dto.getNominee().getContactNumber())
                 .build();
 
         CurrentAccount saved = currentAccountRepository.save(account);
 
+        // send email notification
         try {
             notificationClient.sendAccountCreationEmail(new AccountCreationNotificationRequest(
                     customer.getFirstName() + " " + customer.getLastName(),
@@ -200,7 +227,7 @@ public class AccountServiceImpl implements AccountService {
         return mapToResponse(saved);
     }
 
-    //  other methods unchanged
+    // ----------------- OTHER METHODS -----------------
     @Override
     public List<AccountResponseDTO> getAccountsByCif(String cifNumber) {
         List<Account> accounts = accountRepository.findByCifNumber(cifNumber);
@@ -293,17 +320,14 @@ public class AccountServiceImpl implements AccountService {
         Account account = accountRepository.findByAccountNumber(accountNumber)
                 .orElseThrow(() -> new ResourceNotFoundException("Account not found with number: " + accountNumber));
 
-        // Verify old pin
         if (!account.getAccountPin().equals(request.getOldPin())) {
             throw new IllegalArgumentException("Incorrect old PIN");
         }
 
-        // Validate new pin
         if (request.getNewPin() == null || request.getNewPin() < 1000 || request.getNewPin() > 9999) {
             throw new IllegalArgumentException("PIN must be a 4-digit number");
         }
 
-        // Update pin
         account.setAccountPin(request.getNewPin());
         account.setUpdatedAt(LocalDateTime.now());
         accountRepository.save(account);

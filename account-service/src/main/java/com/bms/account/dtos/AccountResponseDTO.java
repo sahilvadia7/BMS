@@ -1,8 +1,5 @@
 package com.bms.account.dtos;
 
-import com.bms.account.constant.AccountStatus;
-//import com.bms.account.enums.AccountTypeEnum;
-import com.bms.account.constant.AccountTypeEnum;
 import com.bms.account.dtos.accountType.CurrentAccountDetailsDTO;
 import com.bms.account.dtos.accountType.SavingsAccountDetailsDTO;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -28,6 +25,16 @@ public class AccountResponseDTO {
     private LocalDateTime updatedAt;
 
     private Integer accountPin;
+
+    //  New fields
+    private String occupation;
+    private String sourceOfIncome;
+    private BigDecimal grossAnnualIncome;
+
+    private String nomineeName;
+    private String nomineeRelation;
+    private Integer nomineeAge;
+    private String nomineeContact;
 
     private SavingsAccountDetailsDTO savingsDetails;
     private CurrentAccountDetailsDTO currentDetails;

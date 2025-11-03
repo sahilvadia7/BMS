@@ -1,6 +1,8 @@
 package com.bms.account.entities;
 
 import com.bms.account.constant.AccountStatus;
+import com.bms.account.constant.IncomeSourceType;
+import com.bms.account.constant.OccupationType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -38,6 +40,29 @@ public class Account {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private AccountStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "occupation", length = 50)
+    private OccupationType occupation;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "source_of_income", length = 50)
+    private IncomeSourceType sourceOfIncome;
+
+    @Column(name = "gross_annual_income")
+    private BigDecimal grossAnnualIncome;
+
+    @Column(name = "nominee_name", length = 100)
+    private String nomineeName;
+
+    @Column(name = "nominee_relation", length = 50)
+    private String nomineeRelation;
+
+    @Column(name = "nominee_age")
+    private Integer nomineeAge;
+
+    @Column(name = "nominee_contact", length = 15)
+    private String nomineeContact;
 
     @Column(nullable = false, length = 4)
     private Integer accountPin; //  PIN saved in DB
