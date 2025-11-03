@@ -1,6 +1,7 @@
 package com.bms.loan.service.impl;
 
 import com.bms.loan.Repository.*;
+import com.bms.loan.Repository.education.EducationLoanRepository;
 import com.bms.loan.Repository.education.EducationVerificationReportRepository;
 import com.bms.loan.Repository.home.HomeLoanRepository;
 import com.bms.loan.dto.email.ApplyLoanEmailDTO;
@@ -23,9 +24,11 @@ import com.bms.loan.entity.education.EducationLoanDetails;
 import com.bms.loan.entity.education.EducationVerificationReport;
 import com.bms.loan.entity.home.HomeLoanDetails;
 import com.bms.loan.entity.loan.LoanEmiSchedule;
+import com.bms.loan.entity.loan.LoanPrepayment;
 import com.bms.loan.entity.loan.Loans;
 import com.bms.loan.enums.EmiStatus;
 import com.bms.loan.enums.LoanStatus;
+import com.bms.loan.enums.PrepaymentOption;
 import com.bms.loan.exception.InvalidLoanStatusException;
 import com.bms.loan.exception.ResourceNotFoundException;
 import com.bms.loan.feign.CustomerClient;
@@ -42,6 +45,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.Period;
 import java.time.Year;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
@@ -61,6 +65,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     private final LoanEmiScheduleRepository loanEmiScheduleRepository;
     private final InterestRateRepository interestRateRepository;
     private final EducationVerificationReportRepository educationVerificationRepository;
+    private final LoanPrepaymentRepository loanPrepaymentRepo;
 
     private final HomeLoanService homeLoanService;
     private final EducationLoanService educationLoanService;
@@ -345,35 +350,13 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         return loanEvaluationResponse;
     }
 
-//    @Override
-//    public LoanSanctionResponseDTO sanctionLoan(Long loanId) {
-//        Loans loan = loansRepository.findById(loanId)
-//                .orElseThrow(() -> new EntityNotFoundException("Loan not found"));
-//
-//        if (loan.getStatus() != LoanStatus.EVALUATED) {
-//            throw new IllegalStateException("Loan must be evaluated before sanctioning");
-//        }
-//
-//        loan.setStatus(LoanStatus.APPROVED);
-//        loansRepository.save(loan);
-//
-//        return LoanSanctionResponseDTO.builder()
-//                .loanId(loanId)
-//                .sanctionedAmount(loan.getApprovedAmount())
-//                .interestRate(loan.getInterestRate())
-//                .tenureMonths(loan.getRequestedTenureMonths())
-//                .sanctionDate(LocalDate.now())
-//                .sanctionedBy("PENIL")
-//                .remarks("Loan sanctioned successfully")
-//                .build();
-//    }
 
 
     public LoanDisbursementResponse disburseLoan(Long loanId) {
         Loans loan = loansRepository.findById(loanId)
                 .orElseThrow(() -> new ResourceNotFoundException("Loan not found"));
 
-        if (!loan.isESign()){
+        if (!loan.isESign()) {
             throw new IllegalStateException("eSign is not completed");
         }
 
@@ -381,12 +364,10 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
             throw new IllegalStateException("Loan is not sanctioned by eSign for disbursement");
         }
 
-        // Update status & disbursement date
+        // Update loan status and dates
         loan.setStatus(LoanStatus.DISBURSED);
         loan.setOutstandingAmount(loan.getApprovedAmount());
         loan.setDisbursementDate(LocalDate.now());
-        loan.setDisbursementDate(LocalDate.now());
-
 
         loansRepository.save(loan);
 
@@ -397,25 +378,49 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 loan.getRequestedTenureMonths()
         );
 
-        BigDecimal principalComponent = loan.getApprovedAmount()
-                .divide(BigDecimal.valueOf(loan.getRequestedTenureMonths()), 2, RoundingMode.HALF_UP);
+        BigDecimal remainingBalance = loan.getApprovedAmount();
+        BigDecimal monthlyRate = loan.getInterestRate()
+                .divide(BigDecimal.valueOf(12 * 100), 10, RoundingMode.HALF_UP);
 
         LocalDate dueDate = LocalDate.now().plusMonths(1);
+
         for (int i = 1; i <= loan.getRequestedTenureMonths(); i++) {
+
+            // interest = remaining balance × monthly rate
+            BigDecimal interestComponent = remainingBalance.multiply(monthlyRate)
+                    .setScale(2, RoundingMode.HALF_UP);
+
+            // principal = emi − interest
+            BigDecimal principalComponent = emi.subtract(interestComponent)
+                    .setScale(2, RoundingMode.HALF_UP);
+
+            // update remaining balance
+            remainingBalance = remainingBalance.subtract(principalComponent)
+                    .setScale(2, RoundingMode.HALF_UP);
+
+            // Adjust rounding on last month
+            if (i == loan.getRequestedTenureMonths() && remainingBalance.compareTo(BigDecimal.ZERO) != 0) {
+                principalComponent = principalComponent.add(remainingBalance);
+                remainingBalance = BigDecimal.ZERO;
+            }
+
+            // Save EMI schedule
             LoanEmiSchedule schedule = LoanEmiSchedule.builder()
                     .loan(loan)
                     .installmentNumber(i)
                     .dueDate(dueDate)
                     .emiAmount(emi)
                     .principalComponent(principalComponent)
-                    .interestComponent(emi.subtract(principalComponent))
+                    .interestComponent(interestComponent)
                     .status(EmiStatus.UNPAID)
                     .build();
+
             loanEmiScheduleRepository.save(schedule);
             dueDate = dueDate.plusMonths(1);
+
         }
 
-        // Fetch first 3 EMIs for preview
+        // Fetch first 3 EMIs for email preview
         List<LoanEmiSchedule> firstFewEmis = loanEmiScheduleRepository
                 .findTop3ByLoanOrderByInstallmentNumberAsc(loan);
 
@@ -429,13 +434,13 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                         .build())
                 .toList();
 
+        // Fetch customer details
         CustomerDetailsResponseDTO customer = customerClient.getByCif(loan.getCifNumber());
 
-
-        // Prepare email payload
+        // Prepare email
         DisbursementEmailDTO emailDTO = DisbursementEmailDTO.builder()
                 .toEmail(customer.getEmail())
-                .customerName(customer.getFirstName()+" "+customer.getLastName())
+                .customerName(customer.getFirstName() + " " + customer.getLastName())
                 .loanType(loan.getLoanType().name())
                 .sanctionedAmount(loan.getApprovedAmount())
                 .interestRate(loan.getInterestRate())
@@ -445,27 +450,15 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 .firstFewEmis(emiPreview)
                 .build();
 
-        // Send email
         notificationClient.sendDisbursementEmail(emailDTO);
 
-        // Build response
         return LoanDisbursementResponse.builder()
                 .loanId(loan.getLoanId())
                 .status(String.valueOf(loan.getStatus()))
                 .emi(emi)
                 .message("Loan disbursed successfully and EMI schedule created")
                 .build();
-
     }
-
-
-    public BigDecimal calculateEmi(BigDecimal principal, BigDecimal annualRatePercent, int months) {
-        double monthlyRate = annualRatePercent.doubleValue() / 12 / 100;
-        double emi = principal.doubleValue() * monthlyRate * Math.pow(1 + monthlyRate, months)
-                / (Math.pow(1 + monthlyRate, months) - 1);
-        return BigDecimal.valueOf(emi).setScale(2, RoundingMode.HALF_UP);
-    }
-
 
 
     @Override
@@ -476,19 +469,6 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 .collect(Collectors.toList());
     }
 
-    private LoanEmiScheduleResponse mapToResponse(LoanEmiSchedule emi) {
-        return LoanEmiScheduleResponse.builder()
-                .id(emi.getId())
-                .installmentNumber(emi.getInstallmentNumber())
-                .dueDate(emi.getDueDate())
-                .emiAmount(emi.getEmiAmount())
-                .principalComponent(emi.getPrincipalComponent())
-                .interestComponent(emi.getInterestComponent())
-                .status(emi.getStatus())
-                .paymentDate(emi.getPaymentDate())
-                .lateFee(emi.getLateFee())
-                .build();
-    }
 
     @Transactional
     @Override
@@ -602,10 +582,218 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         return mapper.toEmiSummary(emi);
     }
 
+    @Override
+    @Transactional
+    public LoanPrepaymentResponse makePrepayment(Long loanId, LoanPrepaymentRequest request) {
+
+        Loans loan = loansRepository.findById(loanId)
+                .orElseThrow(() -> new ResourceNotFoundException("Loan not found"));
+
+        BigDecimal prepaymentAmount = request.getPrepaymentAmount();
+
+        if (prepaymentAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Invalid prepayment amount");
+        }
+
+        // Reduce principal
+        BigDecimal newPrincipal = loan.getOutstandingAmount().subtract(prepaymentAmount);
+        if (newPrincipal.compareTo(BigDecimal.ZERO) < 0) {
+            newPrincipal = BigDecimal.ZERO;
+        }
+
+        // Update loan outstanding amount
+        loan.setOutstandingAmount(newPrincipal);
+
+        int monthsSinceDisbursement = Period.between(loan.getDisbursementDate(), LocalDate.now()).getMonths();
+        BigDecimal foreclosureCharge = BigDecimal.ZERO;
+
+        switch (loan.getLoanType()) {
+            case CAR -> {
+                if (monthsSinceDisbursement < 6) {
+                    throw new IllegalStateException("Full prepayment allowed only after 6 months for Car Loan.");
+                }
+            }
+            case HOME -> {
+                if (monthsSinceDisbursement < 6) {
+                    throw new IllegalStateException("Full prepayment allowed only after 6 months for Home Loan.");
+                }
+
+            }
+        }
+
+        if (loan.getDisbursementDate().plusMonths(6).isAfter(LocalDate.now())) {
+            throw new IllegalStateException("Full repayment not allowed within first 6 months of loan disbursement.");
+        }
+
+        // Handle FULL PREPAYMENT (Loan Closure)
+        if (newPrincipal.compareTo(BigDecimal.ZERO) == 0) {
+            loan.setStatus(LoanStatus.CLOSED);
+            loanEmiScheduleRepository.deleteAll(
+                    loanEmiScheduleRepository.findByLoanAndStatus(loan, EmiStatus.UNPAID)
+            );
+
+            LoanPrepayment record = LoanPrepayment.builder()
+                    .loans(loan)
+                    .prepaymentAmount(prepaymentAmount)
+                    .prepaymentOption(request.getOption())
+                    .prepaymentDate(LocalDate.now())
+                    .newOutstandingPrincipal(BigDecimal.ZERO)
+                    .newEmi(BigDecimal.ZERO)
+                    .newTenureMonths(0)
+                    .remarks("Full prepayment done. Loan closed successfully.")
+                    .build();
+
+            loanPrepaymentRepo.save(record);
+            loansRepository.save(loan);
+
+            return LoanPrepaymentResponse.builder()
+                    .loanId(loanId)
+                    .newPrincipal(BigDecimal.ZERO)
+                    .newEmi(BigDecimal.ZERO)
+                    .newTenureMonths(0)
+                    .message("Loan fully repaid and closed. No further EMIs required.")
+                    .build();
+        }
+
+
+        // Partial prepayment — adjust EMI or tenure
+        List<LoanEmiSchedule> remainingEmis =
+                loanEmiScheduleRepository.findByLoanAndStatus(loan, EmiStatus.UNPAID);
+
+        int remainingMonths = remainingEmis.size();
+        BigDecimal annualRate = loan.getInterestRate();
+
+        BigDecimal newEmi;
+        int newTenureMonths = remainingMonths;
+
+        if (request.getOption() == PrepaymentOption.REDUCE_TENURE) {
+            // keep EMI same, reduce tenure
+            newEmi = remainingEmis.get(0).getEmiAmount();
+            newTenureMonths = calculateNewTenure(newPrincipal, annualRate, newEmi);
+        } else {
+            // keep tenure same, reduce EMI
+            newEmi = calculateEmi(newPrincipal, annualRate, remainingMonths);
+        }
+
+        // Record prepayment
+        LoanPrepayment record = LoanPrepayment.builder()
+                .loans(loan)
+                .prepaymentAmount(prepaymentAmount)
+                .prepaymentOption(request.getOption())
+                .prepaymentDate(LocalDate.now())
+                .newOutstandingPrincipal(newPrincipal)
+                .newEmi(newEmi)
+                .newTenureMonths(newTenureMonths)
+                .remarks("Prepayment processed successfully")
+                .build();
+
+        loanPrepaymentRepo.save(record);
+
+
+        // Delete old unpaid EMIs
+        loanEmiScheduleRepository.deleteAll(remainingEmis);
+
+        // Generate new EMI schedule
+        generateNewEmiSchedule(loan, newPrincipal, annualRate, newTenureMonths, newEmi);
+
+        loansRepository.save(loan);
+
+        return LoanPrepaymentResponse.builder()
+                .loanId(loanId)
+                .newPrincipal(newPrincipal)
+                .newEmi(newEmi)
+                .newTenureMonths(newTenureMonths)
+                .message("Prepayment processed successfully with option: " + request.getOption())
+                .build();
+    }
+
+
+    private BigDecimal calculateEmi(BigDecimal principal, BigDecimal annualRate, int months) {
+        if (principal == null || principal.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Principal must be greater than zero");
+        }
+        if (annualRate == null || annualRate.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Interest rate must be greater than zero");
+        }
+        if (months <= 0) {
+            throw new IllegalArgumentException("Tenure months must be greater than zero");
+        }
+
+        // Convert annual interest rate to monthly decimal rate
+        BigDecimal monthlyRate = annualRate.divide(BigDecimal.valueOf(12 * 100), 10, RoundingMode.HALF_UP);
+
+        // If monthly rate is zero (edge case), just return principal / months
+        if (monthlyRate.compareTo(BigDecimal.ZERO) == 0) {
+            return principal.divide(BigDecimal.valueOf(months), 2, RoundingMode.HALF_UP);
+        }
+
+        // EMI formula: [P × r × (1 + r)^n] / [(1 + r)^n – 1]
+        BigDecimal onePlusRPowerN = BigDecimal.ONE.add(monthlyRate).pow(months);
+        BigDecimal numerator = principal.multiply(monthlyRate).multiply(onePlusRPowerN);
+        BigDecimal denominator = onePlusRPowerN.subtract(BigDecimal.ONE);
+
+        if (denominator.compareTo(BigDecimal.ZERO) == 0) {
+            throw new ArithmeticException("Invalid EMI calculation: denominator became zero");
+        }
+
+        return numerator.divide(denominator, 2, RoundingMode.HALF_UP);
+    }
+
     private BigDecimal calculateLateFee(BigDecimal emiAmount, long daysLate) {
         BigDecimal dailyRate = new BigDecimal("0.001"); // 0.1% per day on EMI
         return emiAmount.multiply(dailyRate)
                 .multiply(BigDecimal.valueOf(daysLate))
                 .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private LoanEmiScheduleResponse mapToResponse(LoanEmiSchedule emi) {
+        return LoanEmiScheduleResponse.builder()
+                .id(emi.getId())
+                .installmentNumber(emi.getInstallmentNumber())
+                .dueDate(emi.getDueDate())
+                .emiAmount(emi.getEmiAmount())
+                .principalComponent(emi.getPrincipalComponent())
+                .interestComponent(emi.getInterestComponent())
+                .status(emi.getStatus())
+                .paymentDate(emi.getPaymentDate())
+                .lateFee(emi.getLateFee())
+                .build();
+    }
+
+    private int calculateNewTenure(BigDecimal principal, BigDecimal annualRate, BigDecimal emi) {
+        double P = principal.doubleValue();
+        double R = annualRate.doubleValue() / 12 / 100;
+        double E = emi.doubleValue();
+
+        // formula: n = log(E / (E - P*R)) / log(1 + R)
+        double n = Math.log(E / (E - P * R)) / Math.log(1 + R);
+        return (int) Math.ceil(n);
+    }
+
+
+    private void generateNewEmiSchedule(Loans loan, BigDecimal principal, BigDecimal annualRate, int months, BigDecimal emi) {
+        double remainingPrincipal = principal.doubleValue();
+        double R = annualRate.doubleValue() / 12 / 100;
+        LocalDate nextDue = LocalDate.now().plusMonths(1);
+
+        for (int i = 1; i <= months; i++) {
+            double interest = remainingPrincipal * R;
+            double principalComponent = emi.doubleValue() - interest;
+            remainingPrincipal -= principalComponent;
+            if (remainingPrincipal < 0) remainingPrincipal = 0;
+
+            LoanEmiSchedule schedule = LoanEmiSchedule.builder()
+                    .loan(loan)
+                    .installmentNumber(i)
+                    .dueDate(nextDue)
+                    .emiAmount(emi)
+                    .interestComponent(BigDecimal.valueOf(interest).setScale(2, RoundingMode.HALF_UP))
+                    .principalComponent(BigDecimal.valueOf(principalComponent).setScale(2, RoundingMode.HALF_UP))
+                    .status(EmiStatus.UNPAID)
+                    .build();
+
+            loanEmiScheduleRepository.save(schedule);
+            nextDue = nextDue.plusMonths(1);
+        }
     }
 }

@@ -9,7 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/loans/home")
+@RequestMapping("/api/v1/loans/home")
 @RequiredArgsConstructor
 public class HomeLoanController {
 

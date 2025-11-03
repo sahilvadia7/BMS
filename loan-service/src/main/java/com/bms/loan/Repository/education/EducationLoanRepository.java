@@ -1,4 +1,4 @@
-package com.bms.loan.Repository;
+package com.bms.loan.Repository.education;
 
 import com.bms.loan.entity.education.EducationLoanDetails;
 import org.springframework.data.jpa.repository.JpaRepository;

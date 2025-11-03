@@ -1,5 +1,6 @@
 package com.bms.loan.controller;
 
+import com.bms.loan.dto.request.LoanPrepaymentRequest;
 import com.bms.loan.dto.request.car.CarLoanEvaluationRequestDto;
 import com.bms.loan.dto.request.LoanApplicationRequest;
 import com.bms.loan.dto.request.education.EducationVerificationRequestDto;
@@ -7,10 +8,7 @@ import com.bms.loan.dto.response.car.CarLoanEvaluationByBankResponse;
 import com.bms.loan.dto.response.education.EducationEvaluationResponse;
 import com.bms.loan.dto.response.emi.EmiSummary;
 import com.bms.loan.dto.response.emi.LoanEmiScheduleResponse;
-import com.bms.loan.dto.response.loan.LoanApplicationResponse;
-import com.bms.loan.dto.response.loan.LoanDetailsResponse;
-import com.bms.loan.dto.response.loan.LoanDisbursementResponse;
-import com.bms.loan.dto.response.loan.LoanEvaluationResponse;
+import com.bms.loan.dto.response.loan.*;
 import com.bms.loan.enums.DocumentType;
 import com.bms.loan.enums.LoanType;
 import com.bms.loan.service.LoanApplicationService;
@@ -111,6 +109,13 @@ public class LoanApplicationController {
     @GetMapping("/required/{loanType}")
     public ResponseEntity<List<DocumentType>> getRequiredDocuments(@PathVariable LoanType loanType) {
         return ResponseEntity.ok(DocumentType.getRequiredForLoan(loanType));
+    }
+
+    @PostMapping("/{loanId}/prepayment")
+    public ResponseEntity<LoanPrepaymentResponse> makePrepayment(
+            @PathVariable Long loanId,
+            @RequestBody LoanPrepaymentRequest request) {
+        return ResponseEntity.ok(loanService.makePrepayment(loanId, request));
     }
 
 }
