@@ -25,7 +25,7 @@ public enum DocumentType {
             case PERSONAL:
                 return Arrays.asList(AADHAAR, PAN, SALARY_SLIP, BANK_STATEMENT);
             case HOME:
-                return Arrays.asList(AADHAAR, PAN, ADDRESS_PROOF, PROPERTY_PAPER ,SALARY_SLIP ,BANK_STATEMENT, PHOTO);
+                return Arrays.asList(AADHAAR, PAN, ADDRESS_PROOF,INCOME_TAX_RETURN, PROPERTY_PAPER ,SALARY_SLIP ,BANK_STATEMENT, PHOTO);
             case EDUCATION:
                 return Arrays.asList(AADHAAR, PAN, BANK_STATEMENT,MARK_SHEETS,FEE_STRUCTURE, EDUCATION_ADMISSION_LETTER);
             case CAR:

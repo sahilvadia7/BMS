@@ -1,6 +1,6 @@
 package com.bms.loan.service.impl;
 
-import com.bms.loan.Repository.EducationLoanRepository;
+import com.bms.loan.Repository.education.EducationLoanRepository;
 import com.bms.loan.Repository.InterestRateRepository;
 import com.bms.loan.Repository.LoanRepository;
 import com.bms.loan.dto.response.loan.LoanEvaluationResponse;

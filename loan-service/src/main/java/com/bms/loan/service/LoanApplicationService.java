@@ -1,5 +1,6 @@
 package com.bms.loan.service;
 
+import com.bms.loan.dto.request.LoanPrepaymentRequest;
 import com.bms.loan.dto.request.car.CarLoanEvaluationRequestDto;
 import com.bms.loan.dto.request.LoanApplicationRequest;
 import com.bms.loan.dto.request.education.EducationVerificationRequestDto;
@@ -8,10 +9,7 @@ import com.bms.loan.dto.response.education.EducationEvaluationResponse;
 import com.bms.loan.dto.response.emi.EmiSummary;
 import com.bms.loan.dto.response.emi.LoanEmiScheduleResponse;
 import com.bms.loan.dto.response.home.LoanSanctionResponseDTO;
-import com.bms.loan.dto.response.loan.LoanApplicationResponse;
-import com.bms.loan.dto.response.loan.LoanDetailsResponse;
-import com.bms.loan.dto.response.loan.LoanDisbursementResponse;
-import com.bms.loan.dto.response.loan.LoanEvaluationResponse;
+import com.bms.loan.dto.response.loan.*;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -38,6 +36,8 @@ public interface LoanApplicationService {
     List<EmiSummary> getAllEmisByLoanId(Long loanId);
 
     EmiSummary getEmiById(Long loanId, Long emiId);
+
+    LoanPrepaymentResponse makePrepayment(Long loanId, LoanPrepaymentRequest request);
 
     // Sanction/approve loan based on evaluation
 //    LoanSanctionResponseDTO sanctionLoan(Long loanId);
