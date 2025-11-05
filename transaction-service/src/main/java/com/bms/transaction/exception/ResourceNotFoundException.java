@@ -1,4 +1,4 @@
-package com.bms.transaction.advice.customexception;
+package com.bms.transaction.exception;
 
 public class ResourceNotFoundException extends RuntimeException {
     public ResourceNotFoundException(String message) {
