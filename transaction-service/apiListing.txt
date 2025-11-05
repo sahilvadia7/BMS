@@ -1,0 +1,43 @@
+| Method   | Endpoint                                               | Purpose                                    |
+| -------- | ------------------------------------------------------ | ------------------------------------------ |
+| **POST** | `/transactions/deposit`                                | Deposit money into an account              |
+| **POST** | `/transactions/withdraw`                               | Withdraw money from an account             |
+| **POST** | `/transactions/transfer`                               | Transfer money between accounts            |
+| **GET**  | `/transactions/{transactionId}`                        | Get transaction details by ID              |
+| **GET**  | `/transactions/account/{accountNumber}`                | Get all transactions of a specific account |
+| **GET**  | `/transactions/account/{accountNumber}/mini-statement` | Get last N transactions (e.g., last 10)    |
+
+
+
+
+
+| Method  | Endpoint                                        | Purpose                                                       |
+| ------- | ----------------------------------------------- | ------------------------------------------------------------- |
+| **GET** | `/transactions`                                 | Get all transactions (with filters: date range, status, type) |
+| **GET** | `/transactions/status/{status}`                 | Get transactions by status (e.g., `PENDING`, `FAILED`)        |
+| **PUT** | `/transactions/{transactionId}/reverse`         | Reverse or refund a failed transaction                        |
+| **PUT** | `/transactions/{transactionId}/cancel`          | Cancel a pending transaction (before processing)              |
+| **GET** | `/transactions/summary/daily`                   | Get total deposits, withdrawals, transfers per day            |
+| **GET** | `/transactions/summary/account/{accountNumber}` | Get aggregated transaction summary for an account             |
+| **GET** | `/transactions/charges/{transactionId}`         | Get breakdown of transaction fees or service charges          |
+
+
+
+
+| Method   | Endpoint                               | Purpose                                                                          |
+| -------- | -------------------------------------- | -------------------------------------------------------------------------------- |
+| **POST** | `/transactions/internal/update-status` | Update status from another service (e.g., Account Service confirms debit/credit) |
+| **POST** | `/transactions/events/payment-success` | Receive payment gateway success event                                            |
+| **POST** | `/transactions/events/payment-failed`  | Receive payment failure event                                                    |
+| **POST** | `/transactions/ledger/log`             | Forward transaction details to Ledger Service                                    |
+| **POST** | `/transactions/notify`                 | Trigger notification after transaction completion                                |
+
+
+
+| Method  | Endpoint                                             | Purpose                                         |                                              |
+| ------- | ---------------------------------------------------- | ----------------------------------------------- | -------------------------------------------- |
+| **GET** | `/transactions/report?from=2025-11-01&to=2025-11-04` | Get transactions in a date range                |                                              |
+| **GET** | `/transactions/report/top-users`                     | Get top 10 users with most transactions         |                                              |
+| **GET** | `/transactions/report/volume`                        | Get total transaction volume per day/week/month |                                              |
+| **GET** | `/transactions/report/failures`                      | Get failed transactions summary                 |                                              |
+| **GET** | `/transactions/export?format=pdf                     | excel`                                          | Export transactions for compliance/reporting |

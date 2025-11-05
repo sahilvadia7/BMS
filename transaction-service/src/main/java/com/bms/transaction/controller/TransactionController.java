@@ -1,7 +1,7 @@
 package com.bms.transaction.controller;
 
-import com.bms.transaction.dto.request.CreateTransactionRequest;
 import com.bms.transaction.dto.request.SearchTransactionsRequest;
+import com.bms.transaction.dto.request.TransactionRequest;
 import com.bms.transaction.dto.request.TransferRequest;
 import com.bms.transaction.dto.response.TransactionResponseDto;
 import com.bms.transaction.dto.response.TransactionSummaryDto;
@@ -29,7 +29,7 @@ public class TransactionController {
     })
     @PostMapping
     public ResponseEntity<TransactionResponseDto> createTransaction(
-            @Valid @RequestBody CreateTransactionRequest request) {
+            @Valid @RequestBody TransactionRequest request) {
         return ResponseEntity.ok(transactionService.createTransaction(request));
     }
 
@@ -41,13 +41,15 @@ public class TransactionController {
     @PostMapping("/transfer")
     public ResponseEntity<TransactionResponseDto> createTransfer(
             @Valid @RequestBody TransferRequest request) {
-        return ResponseEntity.ok(transactionService.createTransfer(request));
+        return ResponseEntity.ok(transactionService.transfer(request));
     }
 
     @Operation(summary = "Get transaction by ID", responses = {
             @ApiResponse(responseCode = "200", description = "Transaction found"),
             @ApiResponse(responseCode = "404", description = "Transaction not found")
     })
+
+
     @GetMapping("/{transactionId}")
     public ResponseEntity<TransactionResponseDto> getTransactionById(
             @PathVariable Long transactionId) {
