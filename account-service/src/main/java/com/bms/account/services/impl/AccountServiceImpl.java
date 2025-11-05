@@ -195,9 +195,9 @@ public class AccountServiceImpl implements AccountService {
                 .kycId(kycId)
                 .businessName(dto.getBusinessName())
                 .overdraftLimit(BigDecimal.valueOf(50000))
-                .monthlyServiceCharge(BigDecimal.valueOf(250))
-                .hasOverdraftFacility(true)
-                .chequeBookAvailable(true)
+                .monthlyServiceCharge(BigDecimal.valueOf(80))
+                .hasOverdraftFacility(false)
+                .chequeBookAvailable(false)
                 .accountPin(generateAccountPin())
                 .occupation(dto.getOccupationType())
                 .sourceOfIncome(dto.getIncomeSourceType())
@@ -304,15 +304,27 @@ public class AccountServiceImpl implements AccountService {
     @Override
     public String activateAccountsByCif(String cifNumber) {
         List<Account> accounts = accountRepository.findByCifNumber(cifNumber);
-        if (accounts.isEmpty()) throw new RuntimeException("No accounts found for CIF: " + cifNumber);
+        if (accounts.isEmpty())
+            throw new RuntimeException("No accounts found for CIF: " + cifNumber);
 
-        accounts.forEach(acc -> {
+        for (Account acc : accounts) {
             acc.setStatus(AccountStatus.ACTIVE);
             acc.setUpdatedAt(LocalDateTime.now());
-        });
+
+            // ---- Apply account-type-specific logic ----
+            if (acc instanceof SavingsAccount savings) {
+                savings.setChequeBookAvailable(true);
+//                savings.setWithdrawalLimitPerMonth(10); // enable full withdrawal limit
+            }
+            else if (acc instanceof CurrentAccount current) {
+                current.setHasOverdraftFacility(true);
+                current.setChequeBookAvailable(true); // current accounts usually get checkbook
+            }
+        }
 
         accountRepository.saveAll(accounts);
-        return "All accounts for CIF " + cifNumber + " are now ACTIVE.";
+
+        return "All accounts for CIF " + cifNumber + " have been ACTIVATED with applicable facilities.";
     }
 
     @Override
