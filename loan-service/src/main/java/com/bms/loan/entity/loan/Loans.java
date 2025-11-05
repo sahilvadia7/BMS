@@ -106,6 +106,6 @@ public class Loans {
 
     private LocalDate nextDueDate;
 
-    @Column(nullable = false)
+//    @Column(nullable = false)
     private boolean eSign = false;
 }

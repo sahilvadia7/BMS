@@ -16,7 +16,7 @@ public enum DocumentType {
     PHOTO,
     MARK_SHEETS,
     FEE_STRUCTURE,
-    BANK_STATEMENT;
+    BANK_STATEMENT, UNKNOWN;
 
 
     // This method tells which documents are required based on LoanType
