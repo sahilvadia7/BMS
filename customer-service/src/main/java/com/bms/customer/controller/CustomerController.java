@@ -10,6 +10,7 @@ import com.bms.customer.services.CustomerService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/customers")
 @RequiredArgsConstructor
@@ -24,6 +26,13 @@ public class CustomerController {
 
     private final CustomerService customerService;
     private final JwtService jwtService;
+
+
+    @GetMapping("/greet")
+    public String greet(){
+        log.info("greet called it here in customer service");
+        return "Greetings from Spring Boot!";
+    }
 
     @Operation(summary = "Register a new customer")
     @PostMapping("/register")
