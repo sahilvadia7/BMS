@@ -20,7 +20,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/accounts")
 @RequiredArgsConstructor
-@Tag(name = "Account APIs", description = "CRUD operations for bank accounts")
+@Tag(name = "Account APIs", description = "operations for bank accounts")
 @Validated
 public class AccountController {
 
@@ -36,10 +36,13 @@ public class AccountController {
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    @Operation(summary = "Get account balance by 4-digit PIN")
-    @GetMapping("/pin/{accountPin}/balance")
-    public ResponseEntity<BigDecimal> getBalanceByPin(@PathVariable int accountPin) {
-        BigDecimal balance = accountService.getBalanceByPin(accountPin);
+    @Operation(summary = "Get account balance using Account Number and 4-digit PIN")
+    @GetMapping("/{accountNumber}/pin/{accountPin}/balance")
+    public ResponseEntity<BigDecimal> getBalanceByPin(
+            @PathVariable String accountNumber,
+            @PathVariable String accountPin) {
+
+        BigDecimal balance = accountService.getBalanceByPin(accountNumber, accountPin);
         return ResponseEntity.ok(balance);
     }
 
@@ -129,5 +132,14 @@ public class AccountController {
             @RequestBody ChangePinRequest request) {
         String result = accountService.changeAccountPin(accountNumber, request);
         return ResponseEntity.ok(result);
+    }
+
+    @Operation(summary = "Verify if the entered account PIN is correct or not")
+    @PostMapping("/verify-pin")
+    public ResponseEntity<Boolean> verifyAccountPin(
+            @RequestParam String accountNumber,
+            @RequestParam int accountPin) {
+        boolean isValid = accountService.verifyAccountPin(accountNumber, accountPin);
+        return ResponseEntity.ok(isValid);
     }
 }

@@ -14,5 +14,5 @@ public class AccountCreationNotificationRequest {
     private String accountNumber;
     private String accountType;
 //    private String accountPin;
-    private Integer accountPin;
+    private String accountPin;
 }

@@ -27,9 +27,11 @@ public interface AccountService {
 
     List<AccountResponseDTO> getAccountsByCif(String cifNumber);
 
-    BigDecimal getBalanceByPin(int accountPin);
+    BigDecimal getBalanceByPin(String accountNumber, String enteredPin);
 
     String activateAccountsByCif(String cifNumber);
 
     String changeAccountPin(String accountNumber, ChangePinRequest request);
+
+    boolean verifyAccountPin(String accountNumber, int accountPin);
 }

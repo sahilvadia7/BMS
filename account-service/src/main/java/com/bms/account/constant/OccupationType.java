@@ -10,5 +10,5 @@ public enum OccupationType {
     BUSINESS_OWNER,
 //    PROFESSIONAL,
 //    FARMER,
-    OTHER
+    OTHERq
 }
