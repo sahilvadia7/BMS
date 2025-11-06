@@ -64,8 +64,8 @@ public class Account {
     @Column(name = "nominee_contact", length = 15)
     private String nomineeContact;
 
-    @Column(nullable = false, length = 4)
-    private Integer accountPin; //  PIN saved in DB
+    @Column(nullable = false, length = 100)
+    private String accountPin; //  PIN saved in DB
 
     @Column(name = "kyc_id")
     private Long kycId;
@@ -88,9 +88,9 @@ public class Account {
         if (balance == null) {
             balance = BigDecimal.ZERO;
         }
-        if (accountPin == null) {
-            accountPin = (int) (Math.random() * 9000) + 1000; //  generate 4-digit PIN automatically
-        }
+//        if (accountPin == null) {
+//            accountPin = (int) (Math.random() * 9000) + 1000; //  generate 4-digit PIN automatically
+//        }
     }
 
     @PreUpdate

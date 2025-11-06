@@ -12,11 +12,11 @@ import com.bms.account.feign.NotificationClient;
 import com.bms.account.repositories.AccountOtpRepository;
 import com.bms.account.repositories.AccountRepository;
 import com.bms.account.services.AccountPinResetService;
+import com.bms.account.utility.PinEncoder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 
@@ -28,17 +28,13 @@ public class AccountPinResetServiceImpl implements AccountPinResetService {
     private final AccountOtpRepository otpRepository;
     private final NotificationClient notificationClient;
     private final CustomerClient customerClient;
+    private final PinEncoder pinEncoder;
 
-    // 1️ Request OTP
     @Override
     public String requestOtp(PinResetRequestDTO request) {
-        // Find customer details via CIF
         CustomerResponseDTO customer = customerClient.getByCif(request.getCifNumber());
-        if (customer == null) {
-            return "Customer not found for CIF: " + request.getCifNumber();
-        }
+        if (customer == null) return "Customer not found for CIF: " + request.getCifNumber();
 
-        // Generate OTP
         String otp = String.format("%06d", new Random().nextInt(999999));
         LocalDateTime expiry = LocalDateTime.now().plusMinutes(5);
 
@@ -49,67 +45,47 @@ public class AccountPinResetServiceImpl implements AccountPinResetService {
         accountOtp.setExpiryTime(expiry);
         otpRepository.save(accountOtp);
 
-        //  Send OTP via email using Notification Service
         OtpEmailRequest otpRequest = new OtpEmailRequest();
         otpRequest.setCifNumber(request.getCifNumber());
-        otpRequest.setEmail(customer.getEmail()); // from verified customer service
+        otpRequest.setEmail(customer.getEmail());
         otpRequest.setOtp(otp);
         notificationClient.sendOtpEmailPin(otpRequest);
 
         return "OTP sent to your registered email (" + customer.getEmail() + ")";
     }
 
-    // 2️ Verify OTP
     @Override
     public String verifyOtp(OtpVerificationDTO dto) {
-        Optional<AccountOtp> otpOptional = otpRepository.findByCifNumber(dto.getCifNumber());
-        if (otpOptional.isEmpty()) return "No OTP request found";
+        Optional<AccountOtp> otpOpt = otpRepository.findByCifNumber(dto.getCifNumber());
+        if (otpOpt.isEmpty()) return "No OTP request found";
 
-        AccountOtp storedOtp = otpOptional.get();
-
-        if (storedOtp.getExpiryTime().isBefore(LocalDateTime.now())) {
-            return "OTP expired";
-        }
-
-        if (!storedOtp.getOtp().equals(dto.getOtp())) {
-            return "Invalid OTP";
-        }
+        AccountOtp otp = otpOpt.get();
+        if (otp.getExpiryTime().isBefore(LocalDateTime.now())) return "OTP expired";
+        if (!otp.getOtp().equals(dto.getOtp())) return "Invalid OTP";
 
         return "OTP verified successfully";
     }
 
-    // 3️ Reset PIN
     @Override
     public String resetPin(PinResetDTO dto) {
-        Optional<AccountOtp> otpOptional = otpRepository.findByCifNumber(dto.getCifNumber());
-        if (otpOptional.isEmpty()) return "No OTP request found";
+        Optional<AccountOtp> otpOpt = otpRepository.findByCifNumber(dto.getCifNumber());
+        if (otpOpt.isEmpty()) return "No OTP request found";
 
-        AccountOtp storedOtp = otpOptional.get();
+        AccountOtp otp = otpOpt.get();
+        if (otp.getExpiryTime().isBefore(LocalDateTime.now())) return "OTP expired";
+        if (!otp.getOtp().equals(dto.getOtp())) return "Invalid OTP";
 
-        if (storedOtp.getExpiryTime().isBefore(LocalDateTime.now())) {
-            return "OTP expired";
-        }
+        Account account = accountRepository.findByAccountNumber(dto.getAccountNumber())
+                .orElseThrow(() -> new RuntimeException("Account not found for number: " + dto.getAccountNumber()));
 
-        if (!storedOtp.getOtp().equals(dto.getOtp())) {
-            return "Invalid OTP";
-        }
-
-        // Fetch  accounts for that CIF
-        Optional<Account> accountOptional = accountRepository.findByAccountNumber(dto.getAccountNumber());
-        if (accountOptional.isEmpty()) {
-            return "Account not found for account number: " + dto.getAccountNumber();
-        }
-
-        Account account = accountOptional.get();
-
-// Extra security check: verify this account belongs to same CIF
         if (!account.getCifNumber().equals(dto.getCifNumber())) {
             return "CIF number does not match account owner!";
         }
 
-        account.setAccountPin(dto.getNewPin());
+        String encodedNewPin = pinEncoder.encode(String.valueOf(dto.getNewPin())); //  encode
+        account.setAccountPin(encodedNewPin);
         accountRepository.save(account);
-        otpRepository.delete(storedOtp);
+        otpRepository.delete(otp);
 
         return "PIN reset successfully for account: " + dto.getAccountNumber();
     }

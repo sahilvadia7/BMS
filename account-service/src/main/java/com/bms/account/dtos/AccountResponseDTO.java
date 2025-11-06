@@ -24,7 +24,7 @@ public class AccountResponseDTO {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    private Integer accountPin;
+    private String accountPin;
 
     //  New fields
     private String occupation;
