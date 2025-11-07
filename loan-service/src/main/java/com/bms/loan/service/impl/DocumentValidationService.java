@@ -24,12 +24,20 @@ public class DocumentValidationService {
     }
 
     private DocumentType detectDocumentType(String text) {
-        text = text.toUpperCase();
+        text = text.toUpperCase()
+                  .replaceAll("\\u00A0", " ")   // normalize non-breaking spaces
+                  .replaceAll("\\s+", " ");     // normalize all whitespace
 
-        if (text.contains("AADHAAR") || text.matches(".*\\d{4}\\s\\d{4}\\s\\d{4}.*")) {
+        if (text.contains("AADHAAR") ||
+                text.contains("UNIQUE IDENTIFICATION AUTHORITY OF INDIA") ||
+                text.matches(".*\\d{4}\\s\\d{4}\\s\\d{4}.*") ||
+                text.contains("GOVERNMENT OF INDIA")) {
             return DocumentType.AADHAAR;
         }
-        if (text.contains("INCOME TAX") || text.matches(".*[A-Z]{5}[0-9]{4}[A-Z]{1}.*")) {
+        if (text.contains("INCOME TAX") ||
+                text.matches("(?s).*[A-Z]{5}[0-9]{4}[A-Z]{1}.*") ||
+                text.matches("GOVT. OF INDIA") ||
+                text.contains("INCOMETAX")) {
             return DocumentType.PAN;
         }
         return DocumentType.UNKNOWN;

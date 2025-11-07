@@ -32,15 +32,15 @@ public class OcrService {
             throw new RuntimeException("Could not load tessdata folder", e);
         }
         tesseract.setLanguage("eng+hin"); // use English
-        tesseract.setOcrEngineMode(1);
+        tesseract.setOcrEngineMode(3);
         // auto layout analysis
-        tesseract.setPageSegMode(3);
+        tesseract.setPageSegMode(6);
     }
 
     /**
      * Extract text from any type of PDF (text or image)
      */
-    public String extractTextFromPdf(MultipartFile file) throws Exception {
+    public String   extractTextFromPdf(MultipartFile file) throws Exception {
         try (PDDocument document = PDDocument.load(file.getInputStream())) {
             PDFTextStripper stripper = new PDFTextStripper();
             String text = stripper.getText(document);
@@ -67,7 +67,7 @@ public class OcrService {
             BufferedImage image = renderer.renderImageWithDPI(i, 400, ImageType.RGB);
             BufferedImage processed = preprocessImage(image);
 
-            String pageText = tesseract.doOCR(image);
+            String pageText = tesseract.doOCR(processed);
             extracted.append(pageText).append("\n");
         }
         return cleanText(extracted.toString());
@@ -88,9 +88,9 @@ public class OcrService {
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 int rgb = gray.getRGB(x, y) & 0xFF;
-                int threshold = (rgb > 160) ? 255 : 0;
-                int newPixel = (threshold << 16) | (threshold << 8) | threshold;
-                gray.setRGB(x, y, newPixel);
+                // Enhance contrast slightly
+                int adjusted = Math.min(255, Math.max(0, (int)((rgb - 128) * 1.5 + 128)));
+                gray.setRGB(x, y, (adjusted << 16) | (adjusted << 8) | adjusted);
             }
         }
         return gray;
