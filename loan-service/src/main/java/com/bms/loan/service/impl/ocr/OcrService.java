@@ -1,7 +1,7 @@
 package com.bms.loan.service.impl.ocr;
 
 import net.sourceforge.tess4j.Tesseract;
-import org.apache.commons.io.FileUtils;
+import net.sourceforge.tess4j.TesseractException;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.rendering.ImageType;
 import org.apache.pdfbox.rendering.PDFRenderer;
@@ -14,27 +14,43 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.*;
 
 @Service
 public class OcrService {
 
-    private final Tesseract tesseract;
+    private final String tessDataPath;
+    private final int ocrEngineMode;
+    private final int pageSegMode;
+    private final String language;
+
+    private static final int TARGET_DPI = 250; // 250 is a good compromise
+    private static final int MIN_THREADS = 4;  // ensure parallelism even for small page counts
+
 
     public OcrService() {
-        tesseract = new Tesseract();
+        Tesseract tesseract = new Tesseract();
         // Path where tesseract trained data (.traineddata) files are located
         // On Windows: point to tessdata folder in your project
         try {
             File tessDataFolder = new ClassPathResource("tessdata").getFile();
-            tesseract.setDatapath(tessDataFolder.getAbsolutePath());
+            tessDataPath = tessDataFolder.getAbsolutePath();
         } catch (IOException e) {
             throw new RuntimeException("Could not load tessdata folder", e);
         }
-        tesseract.setLanguage("eng+hin"); // use English
-        tesseract.setOcrEngineMode(3);
+
+        language = "eng+hin";
+        ocrEngineMode = 3; // OEM_DEFAULT
+        pageSegMode = 6;   // Assume a uniform block of text
+
+        tesseract.setDatapath(tessDataPath);
+        tesseract.setLanguage(language);
+        tesseract.setOcrEngineMode(ocrEngineMode);
         // auto layout analysis
-        tesseract.setPageSegMode(6);
+        tesseract.setPageSegMode(pageSegMode);
+
     }
 
     /**
@@ -56,22 +72,93 @@ public class OcrService {
     }
 
 
-    /**
-     * Convert each page of image PDF to image → OCR extract text
-     */
     private String extractTextFromScannedPdf(PDDocument document) throws Exception {
         PDFRenderer renderer = new PDFRenderer(document);
+        int pageCount = document.getNumberOfPages();
+
+        int threads = Math.max(MIN_THREADS, Math.min(pageCount, Runtime.getRuntime().availableProcessors()));
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
+
+        List<Future<String>> futures = new ArrayList<>();
+
+        for (int i = 0; i < pageCount; i++) {
+            final int pageIndex = i;
+            futures.add(executor.submit(() -> {
+                long pageStart = System.currentTimeMillis();
+                try {
+                    // Render smaller DPI -> big speed improvement
+                    BufferedImage image = renderer.renderImageWithDPI(pageIndex, TARGET_DPI, ImageType.RGB);
+
+                    // Quick scale-down if extremely large (keeps OCR accuracy but reduces processing)
+                    image = downscaleIfNeeded(image, 2000);
+
+                    BufferedImage processed = preprocessImage(image);
+
+                    // Create per-thread Tesseract instance (thread-safe)
+                    Tesseract localTess = createTesseractInstance();
+                    // prefer only English for speed; if you need Hindi, switch to "eng+hin"
+                    localTess.setLanguage("eng");
+                    localTess.setPageSegMode(1); // auto layout
+
+                    return localTess.doOCR(processed);
+                } catch (TesseractException te) {
+                    te.printStackTrace();
+                    return "";
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    return "";
+                }
+            }));
+        }
+
+        // collect results with a timeout to avoid indefinite blocking in edge cases
         StringBuilder extracted = new StringBuilder();
-
-        for (int i = 0; i < document.getNumberOfPages(); i++) {
-            BufferedImage image = renderer.renderImageWithDPI(i, 400, ImageType.RGB);
-            BufferedImage processed = preprocessImage(image);
-
-            String pageText = tesseract.doOCR(processed);
-            extracted.append(pageText).append("\n");
+        for (Future<String> f : futures) {
+            try {
+                // adjust timeout as appropriate; here 60s per page as a safe upper bound
+                extracted.append(f.get(60, TimeUnit.SECONDS)).append("\n");
+            } catch (TimeoutException te) {
+                f.cancel(true);
+                System.err.println("OCR task timed out and was cancelled");
+            } catch (ExecutionException ee) {
+                System.err.println("OCR task failed: " + ee.getMessage());
+            }
+        }
+        // graceful shutdown
+        executor.shutdown();
+        if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+            executor.shutdownNow();
         }
         return cleanText(extracted.toString());
     }
+
+    private Tesseract createTesseractInstance() {
+        Tesseract local = new Tesseract();
+        local.setDatapath(tessDataPath);
+        local.setOcrEngineMode(ocrEngineMode);
+        local.setLanguage(language);
+        local.setPageSegMode(pageSegMode);
+        return local;
+    }
+
+    private BufferedImage downscaleIfNeeded(BufferedImage src, int maxWidth) {
+        int w = src.getWidth();
+        if (w <= maxWidth) return src;
+
+        int h = src.getHeight();
+        double ratio = (double) maxWidth / w;
+        int newW = maxWidth;
+        int newH = (int) (h * ratio);
+
+        BufferedImage scaled = new BufferedImage(newW, newH, src.getType());
+        java.awt.Graphics2D g = scaled.createGraphics();
+        g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION,
+                java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g.drawImage(src, 0, 0, newW, newH, null);
+        g.dispose();
+        return scaled;
+    }
+
 
     // Basic image preprocessing: grayscale + contrast + threshold
     private BufferedImage preprocessImage(BufferedImage src) {

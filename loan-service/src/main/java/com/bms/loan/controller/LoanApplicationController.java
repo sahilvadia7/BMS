@@ -118,4 +118,9 @@ public class LoanApplicationController {
         return ResponseEntity.ok(loanService.makePrepayment(loanId, request));
     }
 
+    @PostMapping("/{cifNumber}/customer")
+    public ResponseEntity<?> customerTimelyPaidEmiDetails(@PathVariable String cifNumber) {
+        return ResponseEntity.ok(loanService.customerTimelyPaidEmiDetails(cifNumber));
+    }
+
 }

@@ -39,6 +39,6 @@ public interface LoanApplicationService {
 
     LoanPrepaymentResponse makePrepayment(Long loanId, LoanPrepaymentRequest request);
 
-    // Sanction/approve loan based on evaluation
-//    LoanSanctionResponseDTO sanctionLoan(Long loanId);
+    Object customerTimelyPaidEmiDetails(String cifNumber);
+
 }
