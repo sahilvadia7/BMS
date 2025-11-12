@@ -42,14 +42,15 @@ public class LoanDocumentServiceImpl implements LoanDocumentService {
             Loans loanApplication = loanRepository.findByLoanId(request.getLoanApplicationId())
                     .orElseThrow(() -> new ResourceNotFoundException("Loan Application not found with id: " + request.getLoanApplicationId()));
 
-            // Validate document type before saving
-            boolean validType = documentValidationService.validateDocumentType(file, request.getDocumentType());
+            boolean validType = documentValidationService.validateDocumentType(file, request.getDocumentType(),request.getDocumentNumber());
 
             System.out.println("Document Validated: " + validType);
             if (!validType) {
                 throw new InvalidDocumentTypeException("Uploaded document does not match the declared type: "
                         + request.getDocumentType());
             }
+
+            // Validate document type before saving
             LoanDocument document = LoanDocument.builder()
                     .loans(loanApplication)
                     .documentType(DocumentType.valueOf(request.getDocumentType()))
@@ -65,12 +66,12 @@ public class LoanDocumentServiceImpl implements LoanDocumentService {
             String docType = request.getDocumentType().toUpperCase();
             String docNumber = request.getDocumentNumber();
 
-            if (docType.equals("AADHAAR") && docNumber != null) {
+            if (docType.equals(DocumentType.AADHAAR) && docNumber != null) {
                 boolean isValid = aadhaarVerificationService.verifyAadhaar(docNumber);
                 document.setKycStatus(isValid ? KycStatus.VERIFIED : KycStatus.INVALID);
                 document.setRemarks(isValid ? "Aadhaar verified successfully" : "Aadhaar verification failed");
             }
-            else if (docType.equals("PAN") && docNumber != null) {
+            else if (docType.equals(DocumentType.PAN) && docNumber != null) {
                 boolean isValid = aadhaarVerificationService.verifyPan(docNumber);
                 document.setKycStatus(isValid ? KycStatus.VERIFIED : KycStatus.INVALID);
                 document.setRemarks(isValid ? "PAN verified successfully" : "PAN verification failed");

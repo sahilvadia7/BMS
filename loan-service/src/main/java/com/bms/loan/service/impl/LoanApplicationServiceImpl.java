@@ -48,8 +48,7 @@ import java.time.LocalDate;
 import java.time.Period;
 import java.time.Year;
 import java.time.temporal.ChronoUnit;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 
@@ -705,6 +704,92 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 .newTenureMonths(newTenureMonths)
                 .message("Prepayment processed successfully with option: " + request.getOption())
                 .build();
+    }
+
+    @Override
+    public Object customerTimelyPaidEmiDetails(String cifNumber) {
+        List<Loans> loansList = loansRepository.findByCifNumber(cifNumber);
+
+        int totalEmiCount = 0;
+        int timelyPaidCount = 0;
+        int latePaidCount = 0;
+
+        BigDecimal totalEmiAmount = BigDecimal.ZERO;
+        BigDecimal totalPaidAmount = BigDecimal.ZERO;
+        BigDecimal totalPendingAmount = BigDecimal.ZERO;
+
+        List<Map<String, Object>> loanWiseDetails = new ArrayList<>();
+
+
+        for(Loans loan : loansList){
+            List<LoanEmiSchedule> schedules  = loanEmiScheduleRepository.findByLoan_LoanId(loan.getLoanId());
+
+            if (schedules.isEmpty()) continue;
+
+            int loanEmiCount = schedules.size();
+            int timely = 0;
+            int late = 0;
+            BigDecimal emiTotal = BigDecimal.ZERO;
+            BigDecimal paidTotal = BigDecimal.ZERO;
+
+            for (LoanEmiSchedule emi : schedules) {
+                emiTotal = emiTotal.add(emi.getEmiAmount());
+                if (emi.getStatus() == EmiStatus.PAID) {
+                    paidTotal = paidTotal.add(emi.getPaidAmount() != null ? emi.getPaidAmount() : BigDecimal.ZERO);
+
+                    // Check if paid on or before due date
+                    if (emi.getPaymentDate() != null && !emi.getPaymentDate().isAfter(emi.getDueDate())) {
+                        timely++;
+                    } else {
+                        late++;
+                    }
+                } else if (emi.getStatus() == EmiStatus.LATE || emi.getStatus() == EmiStatus.MISSED) {
+                    late++;
+                }
+            }
+
+            // Update overall
+            totalEmiCount += loanEmiCount;
+            timelyPaidCount += timely;
+            latePaidCount += late;
+            totalEmiAmount = totalEmiAmount.add(emiTotal);
+            totalPaidAmount = totalPaidAmount.add(paidTotal);
+            totalPendingAmount = totalEmiAmount.subtract(totalPaidAmount);
+
+            // find current EMI (first unpaid or overdue EMI)
+            LoanEmiSchedule currentEmi = schedules.stream()
+                    .filter(e -> e.getStatus() != EmiStatus.PAID)
+                    .sorted(Comparator.comparing(LoanEmiSchedule::getDueDate))
+                    .findFirst()
+                    .orElse(null);
+
+            Map<String, Object> loanSummary = new LinkedHashMap<>();
+            loanSummary.put("loanId", loan.getLoanId());
+            loanSummary.put("totalEmi", loanEmiCount);
+            loanSummary.put("timelyPaid", timely);
+            loanSummary.put("latePaid", late);
+            loanSummary.put("emiTotalAmount", emiTotal);
+            loanSummary.put("paidAmount", paidTotal);
+            loanSummary.put("currentEmi", currentEmi != null ? currentEmi.getEmiAmount() : null);
+            loanSummary.put("currentEmiDueDate", currentEmi != null ? currentEmi.getDueDate() : null);
+            loanSummary.put("currentEmiStatus", currentEmi != null ? currentEmi.getStatus() : null);
+
+            loanWiseDetails.add(loanSummary);
+
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("totalLoans", loansList.size());
+        result.put("totalEmis", totalEmiCount);
+        result.put("timelyPaidEmis", timelyPaidCount);
+        result.put("lateOrMissedEmis", latePaidCount);
+        result.put("totalEmiAmount", totalEmiAmount);
+        result.put("totalPaidAmount", totalPaidAmount);
+        result.put("pendingAmount", totalPendingAmount);
+        result.put("loanWiseDetails", loanWiseDetails);
+
+        return result;
+
     }
 
 
