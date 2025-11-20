@@ -290,16 +290,16 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Override
-    public BigDecimal getBalance(Long accountId) {
-        Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new ResourceNotFoundException("Account not found with ID: " + accountId));
+    public BigDecimal getBalance(String accountNumber) {
+        Account account = accountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found with Number : " + accountNumber));
         return account.getBalance();
     }
 
     @Override
-    public void updateBalance(Long accountId, BigDecimal amount, String transactionType) {
-        Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new ResourceNotFoundException("Account not found with ID: " + accountId));
+    public void updateBalance(String accountNumber, BigDecimal amount, String transactionType) {
+        Account account = accountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found with Account NO : " + accountNumber));
 
         if ("DEPOSIT".equalsIgnoreCase(transactionType)) {
             account.setBalance(account.getBalance().add(amount));
@@ -356,5 +356,10 @@ public class AccountServiceImpl implements AccountService {
         Account account = accountRepository.findByAccountNumber(accountNumber)
                 .orElseThrow(() -> new ResourceNotFoundException("Account not found with number: " + accountNumber));
         return mapToResponse(account);
+    }
+
+    @Override
+    public boolean existsByAccountNumber(String accountNumber) {
+        return accountRepository.existsByAccountNumber(accountNumber);
     }
 }

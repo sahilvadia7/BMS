@@ -17,11 +17,11 @@ public class Transaction {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "account_id", nullable = false)
-    private Long accountId;
+    @Column(name = "account_number", nullable = false)
+    private String accountNumber;
 
-    @Column(name = "destination_account_id")
-    private Long destinationAccountId;
+    @Column(name = "destination_account_number")
+    private String destinationAccountNumber;
 
     @Column(name = "transaction_id", unique = true, nullable = false)
     private String transactionId;

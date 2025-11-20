@@ -5,11 +5,11 @@ import java.math.BigDecimal;
 
 public record TransactionRequest(
 
-        @NotNull(message = "Account ID is required")
-        @Positive(message = "Account ID must be positive")
-        Long accountId,
+        @NotNull(message = "Account Number is required")
+        String accountNumber,
 
-        Long destinationAccountId,
+        @NotNull(message = "Destination Account Number is required")
+        String destinationAccountNumber,
 
         @NotNull(message = "Transaction type is required")
         @Pattern(regexp = "DEPOSIT|WITHDRAWAL|TRANSFER", message = "Invalid transaction type")
