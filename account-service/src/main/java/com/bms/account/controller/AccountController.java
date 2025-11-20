@@ -95,21 +95,28 @@ public class AccountController {
         return ResponseEntity.ok(accountService.getAccountByNumber(accountNumber));
     }
 
+    @Operation(summary = "Check if account exists by account number")
+    @GetMapping("/exists/{accountNumber}")
+    public ResponseEntity<Boolean> accountExists(@PathVariable String accountNumber) {
+        boolean exists = accountService.existsByAccountNumber(accountNumber);
+        return ResponseEntity.ok(exists);
+    }
+
+
     //  Get Balance
-    @GetMapping("/{accountId}/balance")
-    public ResponseEntity<BigDecimal> getBalance(@PathVariable Long accountId) {
-        BigDecimal balance = accountService.getBalance(accountId);
+    @GetMapping("/{accountNumber}/balance")
+    public ResponseEntity<BigDecimal> getBalance(@PathVariable String accountNumber) {
+        BigDecimal balance = accountService.getBalance(accountNumber);
         return ResponseEntity.ok(balance);
     }
 
     //  Update Balance (Deposit / Withdraw)
-    @PostMapping("/{accountId}/balance")
-    public ResponseEntity<Void> updateBalance(
-            @PathVariable Long accountId,
+    @PostMapping("/{accountNumber}/balance")
+    public ResponseEntity<?> updateBalance(
+            @PathVariable String accountNumber,
             @RequestParam("amount") BigDecimal amount,
             @RequestParam("transactionType") String transactionType) {
-
-        accountService.updateBalance(accountId, amount, transactionType);
+        accountService.updateBalance(accountNumber, amount, transactionType);
         return ResponseEntity.ok().build();
     }
 

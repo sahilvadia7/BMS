@@ -71,13 +71,13 @@ public class TransactionRecoveryScheduler {
 
 	private TransactionRequest mapToRequest(Transaction txn) {
 		return new TransactionRequest(
-				txn.getAccountId(),
-				txn.getDestinationAccountId(),
+				txn.getAccountNumber(),
+				txn.getDestinationAccountNumber(),
 				txn.getTransactionType().name(),
 				txn.getAmount(),
 				txn.getCurrency().name(),
 				txn.getChannel().name(),
-				null,
+				"****",
 				txn.getDescription()
 		);
 	}

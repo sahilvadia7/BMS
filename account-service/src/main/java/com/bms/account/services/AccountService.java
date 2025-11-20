@@ -18,8 +18,9 @@ public interface AccountService {
     AccountResponseDTO getAccountById(Long id);
     List<AccountResponseDTO> getAllAccounts();
     AccountResponseDTO getAccountByNumber(String accountNumber);
-    BigDecimal getBalance(Long accountId);
-    void updateBalance(Long accountId, BigDecimal amount, String transactionType);
+    boolean existsByAccountNumber(String accountNumber);
+    BigDecimal getBalance(String accountNumber);
+    void updateBalance(String accountNumber, BigDecimal amount, String transactionType);
     String deleteAccount(Long id);
 
     //  Optional update (can handle both account types)

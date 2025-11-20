@@ -4,8 +4,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public record TransactionResponseDto(
-        Long accountId,
-		Long destinationAccountId,
+        String accountNumber,
+		String destinationAccountNumber,
         String transactionType,
         BigDecimal amount,
         LocalDateTime transactionDate,

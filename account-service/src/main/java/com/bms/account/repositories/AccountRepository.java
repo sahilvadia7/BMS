@@ -21,4 +21,5 @@ public interface AccountRepository extends JpaRepository<Account,Long> {
     List<Account> findByCifNumber(String cifNumber);
     Optional<Account> findByCifNumberAndAccountType_Type(String cifNumber, String type);
 
+	boolean existsByAccountNumber(String accountNumber);
 }

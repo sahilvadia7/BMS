@@ -3,7 +3,7 @@ package com.bms.transaction.dto.response;
 import java.math.BigDecimal;
 
 public record TransactionSummaryDto(
-        Long accountId,
+        String accountNumber,
         Long branchId,
         int transactionCount,
         BigDecimal totalDeposits,
