@@ -74,6 +74,12 @@ public class CustomerController {
         return ResponseEntity.ok(customerService.getCustomerByCifNumber(cifNumber));
     }
 
+    @Operation(summary = "Get limited customer info by CIF")
+    @GetMapping("/info/{cifNumber}")
+    public ResponseEntity<Map<String, Object>> getLimitedInfoByCif(@PathVariable String cifNumber) {
+        return ResponseEntity.ok(customerService.getLimitedCustomerInfo(cifNumber));
+    }
+
     @Operation(summary = "Get all customers")
     @GetMapping
     public ResponseEntity<List<CustomerResponseDTO>> getAll() {

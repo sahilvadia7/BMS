@@ -13,10 +13,12 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+
 
 @Service
 public class EmailServiceImpl implements EmailService {
@@ -303,4 +305,44 @@ public class EmailServiceImpl implements EmailService {
         mailSender.send(message);
     }
 
+    @Override
+    public void downloadTransactionStatement(String accountNumber, String name, String toEmail, byte[] file) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true);
+
+            helper.setFrom(fromEmail);
+            helper.setTo(toEmail);
+            helper.setSubject("BMS - Your Account Statement");
+
+            String content = """
+                <html>
+                <body style="font-family: Arial, sans-serif; color: #333;">
+                    <h3>Dear %s,</h3>
+                    <p>Your account statement for <b>Account Number: %s</b> is attached.</p>
+                    <p>This PDF may be password-protected.</p>
+                    <p>
+                        <b>Password Format:</b> Birth Year + Last 4 digits of Mobile Number
+                    </p>
+                    <br>
+                    <p>Regards,<br>
+                    <b>BMS Support Team</b></p>
+                </body>
+                </html>
+                """.formatted(name, accountNumber);
+
+            helper.setText(content, true);
+
+            helper.addAttachment(
+                    "Account_Statement_" + accountNumber + ".pdf",
+                    new ByteArrayResource(file)
+            );
+
+            mailSender.send(message);
+
+            System.out.println("Statement email sent successfully.");
+        } catch (Exception e) {
+            System.err.println("Failed to send statement email: " + e.getMessage());
+        }
+    }
 }

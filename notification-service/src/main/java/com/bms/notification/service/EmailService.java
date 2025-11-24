@@ -18,4 +18,6 @@ public interface EmailService {
     void sendAccountCreatedEmail(AccountCreationNotificationRequest request);
 
     void sendOtpEmailPin(OtpEmailRequest request);
+
+    void downloadTransactionStatement(String accountNumber,String name,String toEmail,byte[] file);
 }

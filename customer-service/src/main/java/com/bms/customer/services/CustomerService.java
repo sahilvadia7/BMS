@@ -8,6 +8,7 @@ import com.bms.customer.dtos.response.AuthResponseDTO;
 import com.bms.customer.dtos.response.CustomerRegistrationResponseDTO;
 import com.bms.customer.dtos.response.CustomerResponseDTO;
 import java.util.List;
+import java.util.Map;
 
 public interface CustomerService {
 
@@ -24,4 +25,6 @@ public interface CustomerService {
     CustomerResponseDTO getCustomerByCifNumber(String cifNumber);
 
     List<CustomerResponseDTO> getAllCustomers();
+
+    Map<String, Object> getLimitedCustomerInfo(String cifNumber);
 }

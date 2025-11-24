@@ -9,8 +9,12 @@ import com.bms.notification.dto.request.EmailRequestDTO;
 import com.bms.notification.dto.request.loan.SanctionEmailDTO;
 import com.bms.notification.service.EmailService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/v1/notifications")
@@ -46,7 +50,6 @@ public class NotificationController {
         return ResponseEntity.ok("disbursement email sent");
     }
 
-
     @PostMapping("/send-applyLoan")
     public ResponseEntity<String> sendApplyLoanEmail(@RequestBody ApplyLoanEmailDTO request) {
         emailService.sendApplyLoanEmail(request);
@@ -63,6 +66,29 @@ public class NotificationController {
         emailService.sendOtpEmailPin(request);
         return ResponseEntity.ok("OTP email sent successfully");
     }
+    @PostMapping(
+            value = "/send-transaction-statement",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
+    public void sendStatement(
+            @RequestPart("accountNumber") String accountNumber,
+            @RequestPart("name") String name,
+            @RequestPart("toEmail") String toEmail,
+            @RequestPart("file") MultipartFile file
+    ) throws IOException {
 
+        if (file.isEmpty()) {
+            throw new RuntimeException("PDF file is missing.");
+        }
+
+        byte[] pdfBytes = file.getBytes();
+
+        emailService.downloadTransactionStatement(
+                accountNumber,
+                name,
+                toEmail,
+                pdfBytes
+        );
+    }
 }
 

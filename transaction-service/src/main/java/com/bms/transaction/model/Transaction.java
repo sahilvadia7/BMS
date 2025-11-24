@@ -69,6 +69,13 @@ public class Transaction {
     @Column(name = "retry_count")
     private int retryCount = 0;
 
+    @Column(name = "is_chargeable")
+    private boolean isChargeable=false;
+
+    @Column(name = "linked_transaction_id")
+    private String linkedTransactionId;
+
+
     @PrePersist
     public void prePersist() {
         if (this.transactionDate == null)

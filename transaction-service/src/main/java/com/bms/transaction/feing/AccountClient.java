@@ -1,6 +1,6 @@
 package com.bms.transaction.feing;
 
-import io.swagger.v3.oas.annotations.Operation;
+import com.bms.transaction.dto.response.AccountResponseDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,4 +30,9 @@ public interface AccountClient {
 
     @GetMapping("/exists/{accountNumber}")
     ResponseEntity<Boolean> accountExists(@PathVariable String accountNumber);
+
+    @GetMapping("/number/{accountNumber}")
+    ResponseEntity<AccountResponseDTO> getAccountByNumber(@PathVariable String accountNumber);
+
+
 }

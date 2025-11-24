@@ -1,11 +1,12 @@
 package com.bms.transaction.repository;
 
 import com.bms.transaction.enums.TransactionStatus;
+import com.bms.transaction.enums.TransactionType;
 import com.bms.transaction.model.Transaction;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -41,4 +42,18 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 
 	List<Transaction> findByAccountNumber(String accountNumber);
 
+	@Query("""
+        SELECT COALESCE(SUM(t.amount), 0) 
+        FROM Transaction t 
+        WHERE t.accountNumber = :accountNumber
+          AND t.transactionType = :transactionType
+          AND t.transactionDate >= :weekStart
+          AND t.transactionDate <= :weekEnd
+        """)
+	Optional<BigDecimal> sumWeeklyAmount(
+			@Param("accountNumber") String accountNumber,
+			@Param("transactionType") TransactionType transactionType,
+			@Param("weekStart") LocalDateTime weekStart,
+			@Param("weekEnd") LocalDateTime weekEnd
+	);
 }

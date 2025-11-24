@@ -23,4 +23,5 @@ public interface TransactionService {
     List<Map<String, Object>> getDailyTransactionSummary();
     Map<String, BigDecimal> getAccountSummary(String accountNumber);
     Map<String, Object> getTransactionCharges(String transactionId);
+    String sendStatement(String accountNumber) throws Exception;
 }

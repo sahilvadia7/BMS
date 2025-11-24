@@ -2,6 +2,7 @@ package com.bms.transaction.service.impl;
 
 import com.bms.transaction.dto.request.TransactionRequest;
 import com.bms.transaction.dto.request.SearchTransactionsRequest;
+import com.bms.transaction.dto.response.AccountResponseDTO;
 import com.bms.transaction.dto.response.TransactionResponseDto;
 import com.bms.transaction.dto.response.TransactionSummaryDto;
 import com.bms.transaction.enums.Channel;
@@ -10,10 +11,18 @@ import com.bms.transaction.enums.TransactionStatus;
 import com.bms.transaction.enums.TransactionType;
 import com.bms.transaction.exception.ResourceNotFoundException;
 import com.bms.transaction.feing.AccountClient;
+import com.bms.transaction.feing.CustomerClient;
+import com.bms.transaction.feing.NotificationClient;
+import com.bms.transaction.model.StatementResult;
 import com.bms.transaction.model.Transaction;
 import com.bms.transaction.repository.TransactionRepository;
 import com.bms.transaction.service.TransactionService;
-import com.lowagie.text.*;
+import com.bms.transaction.util.ByteArrayMultipartFile;
+import com.lowagie.text.Document;
+import com.lowagie.text.Font;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.Phrase;
+import com.lowagie.text.Rectangle;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
@@ -22,6 +31,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
@@ -32,7 +43,7 @@ import java.util.*;
 import java.util.List;
 import java.util.stream.Stream;
 
-import static java.awt.Color.LIGHT_GRAY;
+
 
 @Service
 @Slf4j
@@ -40,12 +51,18 @@ public class TransactionServiceImpl implements TransactionService {
 
     private final TransactionRepository transactionRepository;
     private final AccountClient accountClient;
+    private final CustomerClient customerClient;
+    private final NotificationClient notificationClient;
 
     public TransactionServiceImpl(
             TransactionRepository transactionRepository,
-            AccountClient accountClient) {
+            AccountClient accountClient,
+            CustomerClient customerClient,
+            NotificationClient notificationClient) {
         this.transactionRepository = transactionRepository;
         this.accountClient = accountClient;
+        this.customerClient = customerClient;
+        this.notificationClient = notificationClient;
     }
 
     private static final Map<TransactionType, BigDecimal> WEEKLY_LIMITS = Map.of(
@@ -63,29 +80,38 @@ public class TransactionServiceImpl implements TransactionService {
         validateAccount(request.accountNumber());
 
         TransactionType type = validateTransactionType(request.transactionType());
-        if (type == TransactionType.TRANSFER &&
-                Objects.equals(request.accountNumber(), request.destinationAccountNumber())) {
+        if (Objects.equals(request.accountNumber(), request.destinationAccountNumber())) {
             throw new IllegalArgumentException("Source and destination accounts cannot be the same");
         }
 
-        boolean isValidPin = verifyPinWithAccountService(String.valueOf(request.accountNumber()), Integer.parseInt(request.pin()));
+        boolean isValidPin = verifyPinWithAccountService(
+                request.accountNumber(),
+                Integer.parseInt(request.pin())
+        );
         if (!isValidPin) {
             throw new IllegalArgumentException("Invalid account PIN");
         }
 
         validateTransactionLimits(request.accountNumber(), type, request.amount());
 
+        BigDecimal fee = calculateFee(request.accountNumber(), type, request.amount());
+
         Transaction txn = createPendingTransaction(request, type);
 
+        if (fee.compareTo(BigDecimal.ZERO) > 0) {
+            txn.setChargeable(true);
+            txn.setFee(fee);
+        }
+
         try {
-            executeTransactionSteps(type, request);
+            // 3️⃣ Execute money movements
+            executeTransactionSteps(type, request, fee, txn);
 
             txn.setStatus(TransactionStatus.COMPLETED);
             txn.setRemarks("Transaction successful");
             transactionRepository.save(txn);
 
         } catch (Exception e) {
-            log.error("Transaction failed, starting compensation: {}", e.getMessage());
 
             txn.setStatus(TransactionStatus.FAILED);
             txn.setRemarks(e.getMessage());
@@ -116,29 +142,48 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
 
-    private void executeTransactionSteps(TransactionType type, TransactionRequest request) {
-        switch (type) {
-            case WITHDRAWAL, EMI_DEDUCTION -> {
-                accountClient.updateBalance(request.accountNumber(), request.amount(), "WITHDRAW");
-            }
+    private void executeTransactionSteps(
+            TransactionType type,
+            TransactionRequest request,
+            BigDecimal fee,
+            Transaction mainTxn
+    ) {
 
-            case DEPOSIT, LOAN_DISBURSEMENT, REFUND -> {
-                if (request.destinationAccountNumber() != null) {
-                    validateAccount(request.destinationAccountNumber());
-                    accountClient.updateBalance(request.destinationAccountNumber(), request.amount(), "DEPOSIT");
+        BigDecimal principalAmount = request.amount();
+        BigDecimal totalDeduct = principalAmount.add(fee);
+
+        switch (type) {
+
+            case WITHDRAWAL, EMI_DEDUCTION -> {
+
+                // Deduct principal + fee
+                accountClient.updateBalance(request.accountNumber(), totalDeduct, "WITHDRAW");
+
+                // Deposit principal into nothing (just withdrawal)
+
+                // Handle fee
+                if (fee.compareTo(BigDecimal.ZERO) > 0) {
+                    accountClient.updateBalance("AC0000000001", fee, "DEPOSIT");
+                    createFeeTransaction(request.accountNumber(), fee, mainTxn.getTransactionId());
                 }
             }
 
             case TRANSFER -> {
-                accountClient.updateBalance(request.accountNumber(), request.amount(), "WITHDRAW");
+                accountClient.updateBalance(request.accountNumber(), totalDeduct, "WITHDRAW");
 
-                if (request.destinationAccountNumber() != null) {
-                    validateAccount(request.destinationAccountNumber());
-                    accountClient.updateBalance(request.destinationAccountNumber(), request.amount(), "DEPOSIT");
+                validateAccount(request.destinationAccountNumber());
+                accountClient.updateBalance(request.destinationAccountNumber(), principalAmount, "DEPOSIT");
+
+                if (fee.compareTo(BigDecimal.ZERO) > 0) {
+                    accountClient.updateBalance("AC3631614340", fee, "DEPOSIT");
+                    createFeeTransaction(request.accountNumber(), fee, mainTxn.getTransactionId());
                 }
             }
 
-            default -> throw new IllegalArgumentException("Unsupported transaction type: " + type);
+            case DEPOSIT, LOAN_DISBURSEMENT, REFUND -> {
+                validateAccount(request.destinationAccountNumber());
+                accountClient.updateBalance(request.destinationAccountNumber(), principalAmount, "DEPOSIT");
+            }
         }
     }
 
@@ -189,6 +234,45 @@ public class TransactionServiceImpl implements TransactionService {
             throw new IllegalStateException("Weekly " + type + " limit exceeded. Allowed: " + limit);
         }
     }
+
+    private BigDecimal calculateFee(String accountNumber, TransactionType type, BigDecimal amount) {
+
+        LocalDateTime weekStart = getWeekStart();
+        LocalDateTime weekEnd = getWeekEnd();
+
+        BigDecimal weeklyUsed = transactionRepository
+                .sumWeeklyAmount(accountNumber, type, weekStart, weekEnd)
+                .orElse(BigDecimal.ZERO);
+
+        BigDecimal limit = WEEKLY_LIMITS.get(type);
+
+        // If weekly boundary crossed → 1% fee applies
+        if (weeklyUsed.add(amount).compareTo(limit) > 0) {
+            return amount.multiply(new BigDecimal("0.01"));
+        }
+
+        return BigDecimal.ZERO;
+    }
+
+
+    private Transaction createFeeTransaction(String accountNumber, BigDecimal feeAmount, String originalTxnId) {
+
+        Transaction feeTxn = new Transaction();
+        feeTxn.setAccountNumber(accountNumber);
+        feeTxn.setDestinationAccountNumber("AC0000000001");
+        feeTxn.setTransactionType(TransactionType.FEE);
+        feeTxn.setAmount(feeAmount);
+        feeTxn.setCurrency(Currency.INR);
+        feeTxn.setStatus(TransactionStatus.COMPLETED);
+        feeTxn.setDescription("Fee for exceeding weekly limit");
+        feeTxn.setChargeable(true);
+        feeTxn.setLinkedTransactionId(originalTxnId);
+        feeTxn.setTransactionDate(LocalDateTime.now());
+        feeTxn.setReferenceId(UUID.randomUUID().toString());
+
+        return transactionRepository.save(feeTxn);
+    }
+
 
     public TransactionResponseDto getTransactionById(Long transactionId) {
         Transaction transaction = transactionRepository.findById(transactionId)
@@ -268,62 +352,171 @@ public class TransactionServiceImpl implements TransactionService {
         return charges;
     }
 
+    @Override
+    public String sendStatement(String accountNumber) throws Exception {
 
-    public byte[] generateStatement(String accountNumber, String customerName, String branchName) throws Exception {
-        List<Transaction> transactions = transactionRepository.findByAccountNumber(accountNumber);
+        StatementResult result = generateStatement(accountNumber);
 
-        Document document = new Document(PageSize.A4);
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        PdfWriter.getInstance(document, out);
+        AccountResponseDTO account = accountClient.getAccountByNumber(accountNumber).getBody();
+        if (account == null) {
+            throw new RuntimeException("Account not found: " + accountNumber);
+        }
+
+        Map<String, Object> customer = customerClient
+                .getLimitedInfoByCif(account.getCifNumber())
+                .getBody();
+
+        if (customer == null) {
+            throw new RuntimeException("Customer not found for CIF: " + account.getCifNumber());
+        }
+
+
+        MultipartFile file = new ByteArrayMultipartFile(
+                result.getPdfBytes(),
+                "statement"+"_" + accountNumber + ".pdf",
+                "application/pdf"
+        );
+
+        ResponseEntity<String> response =  notificationClient.sendStatement(
+                accountNumber,
+                result.getCustomerName(),
+                result.getEmail(),
+                file
+        );
+
+        return response.getBody();
+    }
+
+
+    public StatementResult generateStatement(String accountNumber) throws Exception {
+
+        AccountResponseDTO account = accountClient
+                .getAccountByNumber(accountNumber)
+                .getBody();
+
+        if (account == null) {
+            throw new RuntimeException("Account not found for number: " + accountNumber);
+        }
+
+        Map<String, Object> customer =
+                customerClient.getLimitedInfoByCif(account.getCifNumber()).getBody();
+
+        if (customer == null) {
+            throw new RuntimeException("Customer not found for CIF: " + account.getCifNumber());
+        }
+
+        List<Transaction> transactions =
+                transactionRepository.findByAccountNumber(accountNumber);
+
+        // ---------- BUILD PASSWORD ----------
+        String dob = String.valueOf(customer.get("dob"));
+        if (dob == null || dob.length() < 10) {
+            throw new RuntimeException("Invalid DOB for PDF password");
+        }
+        String birthYear = dob.substring(0, 4);
+
+        String phone = String.valueOf(customer.get("phoneNo"));
+        if (phone == null || phone.length() < 4) {
+            throw new RuntimeException("Invalid phone number for PDF password");
+        }
+        String last4 = phone.substring(phone.length() - 4);
+
+        String password = birthYear + last4;
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+        // ---------- OPENPDF PDF + ENCRYPTION ----------
+        Document document = new Document();
+        PdfWriter writer = PdfWriter.getInstance(document, baos);
+
+        writer.setEncryption(
+                password.getBytes(),
+                password.getBytes(),
+                PdfWriter.ALLOW_PRINTING,
+                PdfWriter.ENCRYPTION_AES_128  // AES-128 (fully supported)
+        );
 
         document.open();
 
-        Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18);
-        Font normalFont = FontFactory.getFont(FontFactory.HELVETICA, 12);
+        // ---------- TITLE ----------
+        Font titleFont = new Font(Font.HELVETICA, 18, Font.BOLD);
+        document.add(new Paragraph("Account Statement", titleFont));
+        document.add(new Paragraph("\n"));
 
-        Paragraph title = new Paragraph("Account Statement", titleFont);
-        title.setAlignment(Element.ALIGN_CENTER);
-        document.add(title);
+        // ---------- DETAILS TABLE ----------
+        PdfPTable details = new PdfPTable(2);
+        details.setWidthPercentage(100);
 
-        document.add(new Paragraph(" "));
-        document.add(new Paragraph("Customer Name: " + customerName, normalFont));
-        document.add(new Paragraph("Account Number: " + accountNumber, normalFont));
-        document.add(new Paragraph("Branch: " + branchName, normalFont));
-        document.add(new Paragraph("Generated On: " + java.time.LocalDate.now(), normalFont));
-        document.add(new Paragraph(" "));
+        details.addCell(makeCell("Customer Name:", true));
+        details.addCell(makeCell(customer.get("firstName") + " " + customer.get("lastName"), false));
 
+        details.addCell(makeCell("Email:", true));
+        details.addCell(makeCell(String.valueOf(customer.get("email")), false));
+
+        details.addCell(makeCell("Phone:", true));
+        details.addCell(makeCell(String.valueOf(customer.get("phoneNo")), false));
+
+        details.addCell(makeCell("Address:", true));
+        details.addCell(makeCell(String.valueOf(customer.get("address")), false));
+
+        details.addCell(makeCell("DOB:", true));
+        details.addCell(makeCell(String.valueOf(customer.get("dob")), false));
+
+        details.addCell(makeCell("CIF Number:", true));
+        details.addCell(makeCell(account.getCifNumber(), false));
+
+        details.addCell(makeCell("Account Number:", true));
+        details.addCell(makeCell(accountNumber, false));
+
+        details.addCell(makeCell("Generated On:", true));
+        details.addCell(makeCell(LocalDate.now().toString(), false));
+
+        document.add(details);
+
+        document.add(new Paragraph("\n\n"));
+
+        // ---------- TRANSACTION TABLE ----------
         PdfPTable table = new PdfPTable(6);
         table.setWidthPercentage(100);
-        table.setWidths(new float[]{1.5f, 2f, 2f, 2f, 2f, 3f});
 
         Stream.of("Date", "Txn ID", "Type", "Amount", "Status", "Description")
-                .forEach(headerTitle -> {
-                    PdfPCell header = new PdfPCell();
-                    Font headFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD);
-                    header.setBackgroundColor(LIGHT_GRAY);
-                    header.setPhrase(new Phrase(headerTitle, headFont));
-                    header.setHorizontalAlignment(Element.ALIGN_CENTER);
-                    table.addCell(header);
-                });
+                .forEach(col -> table.addCell(makeCell(col, true)));
 
         for (Transaction txn : transactions) {
-            table.addCell(txn.getTransactionDate().toString());
-            table.addCell(txn.getTransactionId());
-            table.addCell(txn.getTransactionType().name());
-            table.addCell(String.valueOf(txn.getAmount()));
-            table.addCell(txn.getStatus().name());
-            table.addCell(txn.getDescription() != null ? txn.getDescription() : "-");
+            table.addCell(makeCell(txn.getTransactionDate().toString(), false));
+            table.addCell(makeCell(txn.getTransactionId(), false));
+            table.addCell(makeCell(txn.getTransactionType().name(), false));
+            table.addCell(makeCell(txn.getAmount().toString(), false));
+            table.addCell(makeCell(txn.getStatus().name(), false));
+            table.addCell(makeCell(
+                    txn.getDescription() != null ? txn.getDescription() : "-", false
+            ));
         }
 
         document.add(table);
         document.close();
 
-        return out.toByteArray();
+        return new StatementResult(
+                baos.toByteArray(),
+                customer.get("firstName") + " " + customer.get("lastName"),
+                String.valueOf(customer.get("email"))
+        );
     }
 
+
+    // ---------- CELL HELPER ----------
+    private PdfPCell makeCell(String text, boolean bold) {
+        Font font = new Font(Font.HELVETICA, 12, bold ? Font.BOLD : Font.NORMAL);
+
+        PdfPCell cell = new PdfPCell(new Phrase(text, font));
+        cell.setBorder(Rectangle.NO_BORDER); // correct border
+        return cell;
+    }
+
+
     private void validateAccount(String accountNumber) {
-        if (!accountClient.accountExists(accountNumber).getBody()) {
-            throw new ResourceNotFoundException("Account not found with ID: " + accountNumber);
+        if (Boolean.FALSE.equals(accountClient.accountExists(accountNumber).getBody())) {
+            throw new ResourceNotFoundException("Account not found with Number: " + accountNumber);
         }
     }
 
@@ -339,14 +532,6 @@ public class TransactionServiceImpl implements TransactionService {
         }
     }
 
-
-    private void validatePin(String accountNumber) {
-        if (!accountClient.accountExists(accountNumber).getBody()) {
-            throw new ResourceNotFoundException("Account not found with Number: " + accountNumber);
-        }
-    }
-
-
     private TransactionType validateTransactionType(String type) {
         try {
             return TransactionType.valueOf(type.toUpperCase());
@@ -355,6 +540,13 @@ public class TransactionServiceImpl implements TransactionService {
         }
     }
 
+    private LocalDateTime getWeekStart() {
+        return LocalDate.now().with(DayOfWeek.MONDAY).atStartOfDay();
+    }
+
+    private LocalDateTime getWeekEnd() {
+        return LocalDate.now().with(DayOfWeek.SUNDAY).atTime(23, 59, 59);
+    }
 
     private String generateReferenceId() {
         return "TXN-" + System.currentTimeMillis();
