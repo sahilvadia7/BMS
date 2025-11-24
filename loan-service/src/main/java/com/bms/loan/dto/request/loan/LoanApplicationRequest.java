@@ -1,8 +1,10 @@
-package com.bms.loan.dto.request;
+package com.bms.loan.dto.request.loan;
 
+import com.bms.loan.dto.request.CustomerRegisterRequest;
 import com.bms.loan.dto.request.car.CarLoanDetailsDto;
 import com.bms.loan.dto.request.education.EducationLoanDetailsDto;
 import com.bms.loan.dto.request.home.HomeLoanDetailsDto;
+import com.bms.loan.dto.request.loan.LoanHistory.LoanHistoryDetailsDto;
 import com.bms.loan.enums.EmploymentType;
 import com.bms.loan.enums.LoanType;
 import jakarta.validation.Valid;
@@ -65,4 +67,7 @@ public class LoanApplicationRequest {
 
     @Valid
     private EducationLoanDetailsDto educationDetails;
+
+    @Valid
+    private LoanHistoryDetailsDto loanHistoryDetailsDto;
 }

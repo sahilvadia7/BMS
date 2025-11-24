@@ -1,9 +1,9 @@
 package com.bms.loan.Repository;
 
-import com.bms.loan.entity.Repayment;
+import com.bms.loan.entity.loan.ClosedLoan;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface RepaymentRepository extends JpaRepository<Repayment , Long> {
+public interface CloseLoansRepository extends JpaRepository<ClosedLoan, Long> {
 }

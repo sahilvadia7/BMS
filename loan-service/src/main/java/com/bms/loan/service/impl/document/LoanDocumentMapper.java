@@ -1,6 +1,6 @@
 package com.bms.loan.service.impl.document;
 
-import com.bms.loan.dto.request.LoanDocumentRequest;
+import com.bms.loan.dto.request.loan.LoanDocumentRequest;
 import com.bms.loan.dto.response.loan.LoanDocumentResponse;
 import com.bms.loan.entity.LoanDocument;
 import com.bms.loan.entity.loan.Loans;

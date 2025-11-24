@@ -1,9 +1,7 @@
 package com.bms.loan.controller;
 
-import com.bms.loan.dto.request.LoanDocumentRequest;
+import com.bms.loan.dto.request.loan.LoanDocumentRequest;
 import com.bms.loan.dto.response.loan.LoanDocumentResponse;
-import com.bms.loan.entity.LoanDocument;
-import com.bms.loan.enums.KycStatus;
 import com.bms.loan.service.LoanDocumentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;

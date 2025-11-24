@@ -6,26 +6,28 @@ import com.bms.loan.Repository.education.EducationVerificationReportRepository;
 import com.bms.loan.Repository.home.HomeLoanRepository;
 import com.bms.loan.dto.email.ApplyLoanEmailDTO;
 import com.bms.loan.dto.email.DisbursementEmailDTO;
-import com.bms.loan.dto.request.*;
 import com.bms.loan.dto.request.car.CarLoanDetailsDto;
 import com.bms.loan.dto.request.car.CarLoanEvaluationRequestDto;
 import com.bms.loan.dto.request.education.EducationLoanDetailsDto;
 import com.bms.loan.dto.request.education.EducationVerificationRequestDto;
 import com.bms.loan.dto.request.home.HomeLoanDetailsDto;
+import com.bms.loan.dto.request.loan.LoanApplicationRequest;
+import com.bms.loan.dto.request.loan.LoanHistory.LoanHistoryDetailsDto;
+import com.bms.loan.dto.request.loan.LoanPrepaymentRequest;
 import com.bms.loan.dto.response.*;
 import com.bms.loan.dto.response.car.CarLoanEvaluationByBankResponse;
 import com.bms.loan.dto.response.education.EducationEvaluationResponse;
+import com.bms.loan.dto.response.emi.CustomerTimelyPaidEmiResponseDTO;
 import com.bms.loan.dto.response.emi.EmiSummary;
 import com.bms.loan.dto.response.emi.LoanEmiScheduleResponse;
+import com.bms.loan.dto.response.emi.LoanWiseEmiDetailsDTO;
 import com.bms.loan.dto.response.loan.*;
 import com.bms.loan.entity.*;
 import com.bms.loan.entity.car.CarLoanDetails;
 import com.bms.loan.entity.education.EducationLoanDetails;
 import com.bms.loan.entity.education.EducationVerificationReport;
 import com.bms.loan.entity.home.HomeLoanDetails;
-import com.bms.loan.entity.loan.LoanEmiSchedule;
-import com.bms.loan.entity.loan.LoanPrepayment;
-import com.bms.loan.entity.loan.Loans;
+import com.bms.loan.entity.loan.*;
 import com.bms.loan.enums.EmiStatus;
 import com.bms.loan.enums.LoanStatus;
 import com.bms.loan.enums.PrepaymentOption;
@@ -65,6 +67,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     private final InterestRateRepository interestRateRepository;
     private final EducationVerificationReportRepository educationVerificationRepository;
     private final LoanPrepaymentRepository loanPrepaymentRepo;
+    private final LoanHistoryDetailsRepository loanHistoryDetailsRepo;
 
     private final HomeLoanService homeLoanService;
     private final EducationLoanService educationLoanService;
@@ -124,6 +127,64 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 .build();
 
         Loans savedLoan = loansRepository.save(loan);
+
+
+        if (request.getLoanHistoryDetailsDto() != null) {
+            LoanHistoryDetailsDto loanHistoryDto = request.getLoanHistoryDetailsDto();
+
+            LoanHistoryDetails loanHistory = LoanHistoryDetails.builder()
+                    .haveExistingLoans(loanHistoryDto.isHaveExistingLoans())
+                    .totalOutstandingAmount(loanHistoryDto.getTotalOutstandingAmount())
+                    .totalMonthlyEmi(loanHistoryDto.getTotalMonthlyEmi())
+                    .totalClosedLoans(loanHistoryDto.getTotalClosedLoans())
+                    .totalActiveLoans(loanHistoryDto.getTotalActiveLoans())
+                    .loans(savedLoan)
+                    .build();
+
+
+            // Active Loans
+            if (loanHistoryDto.getActiveLoans() != null) {
+                List<ActiveLoan> activeLoanEntities = loanHistoryDto.getActiveLoans().stream()
+                        .map(a -> ActiveLoan.builder()
+                                .loanType(a.getLoanType())
+                                .loanAmount(a.getLoanAmount())
+                                .tenureMonths(a.getTenureMonths())
+                                .remainingAmount(a.getRemainingAmount())
+                                .emiAmount(a.getEmiAmount())
+                                .startDate(a.getStartDate())
+                                .endDate(a.getEndDate())
+                                .bankOrLenderName(a.getBankOrLenderName())
+                                .totalEmis(a.getTotalEmis())
+                                .timelyPaidEmis(a.getTimelyPaidEmis())
+                                .lateOrMissedEmis(a.getLateOrMissedEmis())
+                                .loanHistoryDetails(loanHistory)
+                                .build())
+                        .toList();
+
+                loanHistory.setActiveLoans(activeLoanEntities);
+            }
+
+
+            // Closed Loans
+            if (loanHistoryDto.getClosedLoans() != null) {
+                List<ClosedLoan> closedLoanEntities = loanHistoryDto.getClosedLoans().stream()
+                        .map(c -> ClosedLoan.builder()
+                                .loanType(c.getLoanType())
+                                .loanAmount(c.getLoanAmount())
+                                .startDate(c.getStartDate())
+                                .endDate(c.getEndDate())
+                                .bankOrLenderName(c.getBankOrLenderName())
+                                .closedOnTime(c.isClosedOnTime())
+                                .closureReason(c.getClosureReason())
+                                .loanHistoryDetails(loanHistory)
+                                .build())
+                        .toList();
+
+                loanHistory.setClosedLoans(closedLoanEntities);
+            }
+
+            loanHistoryDetailsRepo.save(loanHistory);
+        }
 
         // Save specific details based on loan type
         switch (request.getLoanType()) {
@@ -707,7 +768,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     }
 
     @Override
-    public Object customerTimelyPaidEmiDetails(String cifNumber) {
+    public CustomerTimelyPaidEmiResponseDTO customerTimelyPaidEmiDetails(String cifNumber) {
         List<Loans> loansList = loansRepository.findByCifNumber(cifNumber);
 
         int totalEmiCount = 0;
@@ -716,14 +777,11 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
         BigDecimal totalEmiAmount = BigDecimal.ZERO;
         BigDecimal totalPaidAmount = BigDecimal.ZERO;
-        BigDecimal totalPendingAmount = BigDecimal.ZERO;
 
-        List<Map<String, Object>> loanWiseDetails = new ArrayList<>();
+        List<LoanWiseEmiDetailsDTO> loanWiseDetails = new ArrayList<>();
 
-
-        for(Loans loan : loansList){
-            List<LoanEmiSchedule> schedules  = loanEmiScheduleRepository.findByLoan_LoanId(loan.getLoanId());
-
+        for (Loans loan : loansList) {
+            List<LoanEmiSchedule> schedules = loanEmiScheduleRepository.findByLoan_LoanId(loan.getLoanId());
             if (schedules.isEmpty()) continue;
 
             int loanEmiCount = schedules.size();
@@ -736,8 +794,6 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 emiTotal = emiTotal.add(emi.getEmiAmount());
                 if (emi.getStatus() == EmiStatus.PAID) {
                     paidTotal = paidTotal.add(emi.getPaidAmount() != null ? emi.getPaidAmount() : BigDecimal.ZERO);
-
-                    // Check if paid on or before due date
                     if (emi.getPaymentDate() != null && !emi.getPaymentDate().isAfter(emi.getDueDate())) {
                         timely++;
                     } else {
@@ -748,49 +804,47 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 }
             }
 
-            // Update overall
             totalEmiCount += loanEmiCount;
             timelyPaidCount += timely;
             latePaidCount += late;
             totalEmiAmount = totalEmiAmount.add(emiTotal);
             totalPaidAmount = totalPaidAmount.add(paidTotal);
-            totalPendingAmount = totalEmiAmount.subtract(totalPaidAmount);
 
-            // find current EMI (first unpaid or overdue EMI)
             LoanEmiSchedule currentEmi = schedules.stream()
                     .filter(e -> e.getStatus() != EmiStatus.PAID)
                     .sorted(Comparator.comparing(LoanEmiSchedule::getDueDate))
                     .findFirst()
                     .orElse(null);
 
-            Map<String, Object> loanSummary = new LinkedHashMap<>();
-            loanSummary.put("loanId", loan.getLoanId());
-            loanSummary.put("totalEmi", loanEmiCount);
-            loanSummary.put("timelyPaid", timely);
-            loanSummary.put("latePaid", late);
-            loanSummary.put("emiTotalAmount", emiTotal);
-            loanSummary.put("paidAmount", paidTotal);
-            loanSummary.put("currentEmi", currentEmi != null ? currentEmi.getEmiAmount() : null);
-            loanSummary.put("currentEmiDueDate", currentEmi != null ? currentEmi.getDueDate() : null);
-            loanSummary.put("currentEmiStatus", currentEmi != null ? currentEmi.getStatus() : null);
+            LoanWiseEmiDetailsDTO loanSummary = LoanWiseEmiDetailsDTO.builder()
+                    .loanId(loan.getLoanId())
+                    .totalEmi(loanEmiCount)
+                    .timelyPaid(timely)
+                    .latePaid(late)
+                    .emiTotalAmount(emiTotal)
+                    .paidAmount(paidTotal)
+                    .currentEmi(currentEmi != null ? currentEmi.getEmiAmount() : null)
+                    .currentEmiDueDate(currentEmi != null ? currentEmi.getDueDate() : null)
+                    .currentEmiStatus(currentEmi != null ? currentEmi.getStatus().name() : null)
+                    .build();
 
             loanWiseDetails.add(loanSummary);
-
         }
 
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("totalLoans", loansList.size());
-        result.put("totalEmis", totalEmiCount);
-        result.put("timelyPaidEmis", timelyPaidCount);
-        result.put("lateOrMissedEmis", latePaidCount);
-        result.put("totalEmiAmount", totalEmiAmount);
-        result.put("totalPaidAmount", totalPaidAmount);
-        result.put("pendingAmount", totalPendingAmount);
-        result.put("loanWiseDetails", loanWiseDetails);
+        BigDecimal totalPendingAmount = totalEmiAmount.subtract(totalPaidAmount);
 
-        return result;
-
+        return CustomerTimelyPaidEmiResponseDTO.builder()
+                .totalLoans(loansList.size())
+                .totalEmis(totalEmiCount)
+                .timelyPaidEmis(timelyPaidCount)
+                .lateOrMissedEmis(latePaidCount)
+                .totalEmiAmount(totalEmiAmount)
+                .totalPaidAmount(totalPaidAmount)
+                .pendingAmount(totalPendingAmount)
+                .loanWiseDetails(loanWiseDetails)
+                .build();
     }
+
 
 
     private BigDecimal calculateEmi(BigDecimal principal, BigDecimal annualRate, int months) {

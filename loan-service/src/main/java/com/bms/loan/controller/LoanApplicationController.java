@@ -1,11 +1,12 @@
 package com.bms.loan.controller;
 
-import com.bms.loan.dto.request.LoanPrepaymentRequest;
+import com.bms.loan.dto.request.loan.LoanPrepaymentRequest;
 import com.bms.loan.dto.request.car.CarLoanEvaluationRequestDto;
-import com.bms.loan.dto.request.LoanApplicationRequest;
+import com.bms.loan.dto.request.loan.LoanApplicationRequest;
 import com.bms.loan.dto.request.education.EducationVerificationRequestDto;
 import com.bms.loan.dto.response.car.CarLoanEvaluationByBankResponse;
 import com.bms.loan.dto.response.education.EducationEvaluationResponse;
+import com.bms.loan.dto.response.emi.CustomerTimelyPaidEmiResponseDTO;
 import com.bms.loan.dto.response.emi.EmiSummary;
 import com.bms.loan.dto.response.emi.LoanEmiScheduleResponse;
 import com.bms.loan.dto.response.loan.*;
@@ -118,8 +119,8 @@ public class LoanApplicationController {
         return ResponseEntity.ok(loanService.makePrepayment(loanId, request));
     }
 
-    @PostMapping("/{cifNumber}/customer")
-    public ResponseEntity<?> customerTimelyPaidEmiDetails(@PathVariable String cifNumber) {
+    @GetMapping("/{cifNumber}/customer")
+    public ResponseEntity<CustomerTimelyPaidEmiResponseDTO> customerTimelyPaidEmiDetails(@PathVariable String cifNumber) {
         return ResponseEntity.ok(loanService.customerTimelyPaidEmiDetails(cifNumber));
     }
 
