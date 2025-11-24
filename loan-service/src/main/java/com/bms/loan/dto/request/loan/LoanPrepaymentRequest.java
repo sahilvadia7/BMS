@@ -1,4 +1,4 @@
-package com.bms.loan.dto.request;
+package com.bms.loan.dto.request.loan;
 
 import com.bms.loan.enums.PrepaymentOption;
 import lombok.*;

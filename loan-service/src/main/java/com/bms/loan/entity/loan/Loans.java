@@ -3,6 +3,7 @@ package com.bms.loan.entity.loan;
 import com.bms.loan.enums.EmploymentType;
 import com.bms.loan.enums.LoanStatus;
 import com.bms.loan.enums.LoanType;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -108,4 +109,8 @@ public class Loans {
 
 //    @Column(nullable = false)
     private boolean eSign = false;
+
+    @JsonIgnore
+    @OneToOne(mappedBy = "loans", cascade = CascadeType.ALL)
+    private LoanHistoryDetails loanHistoryDetails;
 }
