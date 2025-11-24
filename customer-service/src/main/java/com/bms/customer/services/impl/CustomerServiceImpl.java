@@ -16,7 +16,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -133,6 +135,21 @@ public class CustomerServiceImpl implements CustomerService {
         Customer customer = customerRepository.findByCifNumber(cifNumber)
                 .orElseThrow(() -> new CustomerNotFoundException("Customer not found for CIF: " + cifNumber));
         return mapToResponse(customer);
+    }
+    @Override
+    public Map<String, Object> getLimitedCustomerInfo(String cifNumber) {
+        Customer customer = customerRepository.findByCifNumber(cifNumber)
+                .orElseThrow(() -> new CustomerNotFoundException("Customer not found for CIF: " + cifNumber));
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("firstName", customer.getFirstName());
+        data.put("lastName", customer.getLastName());
+        data.put("email", customer.getEmail());
+        data.put("phoneNo", customer.getPhoneNo());
+        data.put("address", customer.getAddress());
+        data.put("dob", customer.getDob());
+
+        return data;
     }
 
     @Override

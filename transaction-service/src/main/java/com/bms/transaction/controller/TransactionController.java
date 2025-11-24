@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -110,4 +111,14 @@ public class TransactionController {
         return ResponseEntity.ok(transactionService.getTransactionCharges(transactionId));
     }
 
+    @PostMapping("/statements/send-transaction-statement")
+    public ResponseEntity<String> sendStatement(@RequestParam String accountNumber) {
+        try {
+            transactionService.sendStatement(accountNumber);
+            return ResponseEntity.ok("Statement email request sent.");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed: " + e.getMessage());
+        }
+    }
 }

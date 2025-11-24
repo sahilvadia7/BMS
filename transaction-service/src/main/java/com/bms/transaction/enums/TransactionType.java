@@ -6,5 +6,6 @@ public enum TransactionType {
     TRANSFER,
     LOAN_DISBURSEMENT,
     EMI_DEDUCTION,
-    REFUND
+    REFUND,
+    FEE
 }
