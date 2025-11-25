@@ -1,4 +1,5 @@
 package com.bms.transaction.model;
+
 import com.bms.transaction.enums.Channel;
 import com.bms.transaction.enums.Currency;
 import com.bms.transaction.enums.TransactionStatus;
@@ -9,7 +10,12 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "transactions")
+@Table(name = "transactions",
+        indexes = {
+                @Index(name = "idx_txn_reference", columnList = "reference_id"),
+                @Index(name = "idx_provider_reference", columnList = "provider_reference"),
+                @Index(name = "idx_account_number", columnList = "account_number")
+        })
 @Data
 public class Transaction {
 
@@ -53,7 +59,15 @@ public class Transaction {
     @Column(name = "reference_id", unique = true)
     private String referenceId;
 
-    @Column(name = "channel")
+    @Column(name = "provider_reference", unique = true)
+    private String providerReference;
+
+    @Lob
+    private String providerRawResponse;
+
+    @Column(name = "provider_status")
+    private String providerStatus;
+
     @Enumerated(EnumType.STRING)
     private Channel channel;
 
@@ -70,11 +84,19 @@ public class Transaction {
     private int retryCount = 0;
 
     @Column(name = "is_chargeable")
-    private boolean isChargeable=false;
+    private boolean isChargeable = false;
 
     @Column(name = "linked_transaction_id")
     private String linkedTransactionId;
 
+    @Column(name = "webhook_received")
+    private boolean webhookReceived = false;
+
+    @Column(name = "webhook_signature_valid")
+    private boolean webhookSignatureValid = false;
+
+    @Lob
+    private String metadataJson;
 
     @PrePersist
     public void prePersist() {
@@ -82,6 +104,6 @@ public class Transaction {
             this.transactionDate = LocalDateTime.now();
 
         if (this.transactionId == null)
-            this.transactionId = "TXN" + System.currentTimeMillis();
+            this.transactionId = "TXN-" + System.currentTimeMillis();
     }
 }

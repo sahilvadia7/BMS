@@ -18,7 +18,6 @@ public interface TransactionService {
     List<TransactionResponseDto> getTransactionsByStatus(TransactionStatus status);
     TransactionResponseDto getTransactionById(Long transactionId);
     List<TransactionResponseDto> searchTransactions(SearchTransactionsRequest request);
-    TransactionSummaryDto getTransactionSummary(String accountNumber, Long branchId);
     void handleCompensation(TransactionType type, TransactionRequest request, Transaction txn);
     List<Map<String, Object>> getDailyTransactionSummary();
     Map<String, BigDecimal> getAccountSummary(String accountNumber);

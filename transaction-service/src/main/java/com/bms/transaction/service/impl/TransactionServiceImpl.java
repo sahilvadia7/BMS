@@ -104,7 +104,6 @@ public class TransactionServiceImpl implements TransactionService {
         }
 
         try {
-            // 3️⃣ Execute money movements
             executeTransactionSteps(type, request, fee, txn);
 
             txn.setStatus(TransactionStatus.COMPLETED);
@@ -156,12 +155,9 @@ public class TransactionServiceImpl implements TransactionService {
 
             case WITHDRAWAL, EMI_DEDUCTION -> {
 
-                // Deduct principal + fee
                 accountClient.updateBalance(request.accountNumber(), totalDeduct, "WITHDRAW");
 
-                // Deposit principal into nothing (just withdrawal)
 
-                // Handle fee
                 if (fee.compareTo(BigDecimal.ZERO) > 0) {
                     accountClient.updateBalance("AC0000000001", fee, "DEPOSIT");
                     createFeeTransaction(request.accountNumber(), fee, mainTxn.getTransactionId());
@@ -408,7 +404,6 @@ public class TransactionServiceImpl implements TransactionService {
         List<Transaction> transactions =
                 transactionRepository.findByAccountNumber(accountNumber);
 
-        // ---------- BUILD PASSWORD ----------
         String dob = String.valueOf(customer.get("dob"));
         if (dob == null || dob.length() < 10) {
             throw new RuntimeException("Invalid DOB for PDF password");
@@ -425,7 +420,6 @@ public class TransactionServiceImpl implements TransactionService {
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
-        // ---------- OPENPDF PDF + ENCRYPTION ----------
         Document document = new Document();
         PdfWriter writer = PdfWriter.getInstance(document, baos);
 
@@ -433,17 +427,15 @@ public class TransactionServiceImpl implements TransactionService {
                 password.getBytes(),
                 password.getBytes(),
                 PdfWriter.ALLOW_PRINTING,
-                PdfWriter.ENCRYPTION_AES_128  // AES-128 (fully supported)
+                PdfWriter.ENCRYPTION_AES_128
         );
 
         document.open();
 
-        // ---------- TITLE ----------
         Font titleFont = new Font(Font.HELVETICA, 18, Font.BOLD);
         document.add(new Paragraph("Account Statement", titleFont));
         document.add(new Paragraph("\n"));
 
-        // ---------- DETAILS TABLE ----------
         PdfPTable details = new PdfPTable(2);
         details.setWidthPercentage(100);
 
@@ -475,7 +467,6 @@ public class TransactionServiceImpl implements TransactionService {
 
         document.add(new Paragraph("\n\n"));
 
-        // ---------- TRANSACTION TABLE ----------
         PdfPTable table = new PdfPTable(6);
         table.setWidthPercentage(100);
 
@@ -504,12 +495,11 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
 
-    // ---------- CELL HELPER ----------
     private PdfPCell makeCell(String text, boolean bold) {
         Font font = new Font(Font.HELVETICA, 12, bold ? Font.BOLD : Font.NORMAL);
 
         PdfPCell cell = new PdfPCell(new Phrase(text, font));
-        cell.setBorder(Rectangle.NO_BORDER); // correct border
+        cell.setBorder(Rectangle.NO_BORDER);
         return cell;
     }
 
