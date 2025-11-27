@@ -13,7 +13,7 @@ import com.bms.gateway.repository.PaymentRepository;
 import com.bms.gateway.repository.RefundRepository;
 import com.bms.gateway.service.PaymentService;
 import com.bms.gateway.service.RefundService;
-import lombok.RequiredArgsConstructor;
+
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.coyote.BadRequestException;
@@ -28,11 +28,16 @@ import java.util.Optional;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class PaymentServiceImpl implements PaymentService {
 
 	private final PaymentRepository paymentRepository;
 	private final PaymentProvider paymentProvider;
+
+	public PaymentServiceImpl(PaymentRepository paymentRepository,
+			PaymentProvider paymentProvider) {
+		this.paymentRepository = paymentRepository;
+		this.paymentProvider = paymentProvider;
+	}
 
 	@Override
 	@Transactional
@@ -165,8 +170,7 @@ public class PaymentServiceImpl implements PaymentService {
 		}
 
 		// Create new attempt inside provider
-		ProviderRetryResponse retry =
-				paymentProvider.retry(payment);
+		ProviderRetryResponse retry = paymentProvider.retry(payment);
 
 		payment.setProviderReference(retry.getProviderReference());
 		payment.setProviderResponse(retry.getRawResponse());
@@ -266,4 +270,3 @@ public class PaymentServiceImpl implements PaymentService {
 	}
 
 }
-

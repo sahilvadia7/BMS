@@ -8,7 +8,7 @@ import com.bms.customer.services.KycService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,17 +20,22 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/kyc")
-@RequiredArgsConstructor
 @Tag(name = "KYC APIs", description = "Endpoints for KYC document management and linking")
 public class KycController {
 
     private final KycService kycService;
 
-//    @Operation(summary = "Submit new KYC document details")
-//    @PostMapping
-//    public ResponseEntity<KycResponseDTO> submitKycDocument(@Valid @RequestBody KycRequestDTO requestDTO) {
-//        return new ResponseEntity<>(kycService.createKycDocument(requestDTO), HttpStatus.CREATED);
-//    }
+    public KycController(KycService kycService) {
+        this.kycService = kycService;
+    }
+
+    // @Operation(summary = "Submit new KYC document details")
+    // @PostMapping
+    // public ResponseEntity<KycResponseDTO> submitKycDocument(@Valid @RequestBody
+    // KycRequestDTO requestDTO) {
+    // return new ResponseEntity<>(kycService.createKycDocument(requestDTO),
+    // HttpStatus.CREATED);
+    // }
 
     @Operation(summary = "Admin: Get all KYC documents")
     @GetMapping
@@ -51,10 +56,10 @@ public class KycController {
         return ResponseEntity.ok(kycId);
     }
 
-
     @Operation(summary = "Admin: Update KYC document details (e.g., correct document number)")
     @PutMapping("/{id}")
-    public ResponseEntity<KycResponseDTO> updateKyc(@PathVariable Long id, @Valid @RequestBody KycRequestDTO requestDTO) {
+    public ResponseEntity<KycResponseDTO> updateKyc(@PathVariable Long id,
+            @Valid @RequestBody KycRequestDTO requestDTO) {
         return ResponseEntity.ok(kycService.updateKyc(id, requestDTO));
     }
 
@@ -82,7 +87,7 @@ public class KycController {
     }
 
     @Operation(summary = "Branch Manager: Approve KYC and activate customer")
-//    @PreAuthorize("hasRole('BRANCH_MANAGER')")
+    // @PreAuthorize("hasRole('BRANCH_MANAGER')")
     @PatchMapping("/{kycId}/approve")
     public ResponseEntity<CustomerResponseDTO> approveKyc(
             @PathVariable Long kycId,
@@ -93,7 +98,7 @@ public class KycController {
     }
 
     @Operation(summary = "Branch Manager: Reject KYC")
-//    @PreAuthorize("hasRole('BRANCH_MANAGER')")
+    // @PreAuthorize("hasRole('BRANCH_MANAGER')")
     @PatchMapping("/{kycId}/reject")
     public ResponseEntity<Void> rejectKyc(
             @PathVariable Long kycId,

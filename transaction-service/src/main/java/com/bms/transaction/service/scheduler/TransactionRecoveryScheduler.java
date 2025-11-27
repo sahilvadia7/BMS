@@ -2,12 +2,11 @@ package com.bms.transaction.service.scheduler;
 
 import com.bms.transaction.dto.request.TransactionRequest;
 import com.bms.transaction.enums.TransactionStatus;
-import com.bms.transaction.enums.TransactionType;
 import com.bms.transaction.model.Transaction;
 import com.bms.transaction.repository.TransactionRepository;
 import com.bms.transaction.service.TransactionService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -20,11 +19,14 @@ import java.util.List;
 @EnableScheduling
 public class TransactionRecoveryScheduler {
 
-	@Autowired
-	private TransactionRepository transactionRepository;
+	private final TransactionRepository transactionRepository;
+	private final TransactionService transactionService;
 
-	@Autowired
-	private TransactionService transactionService;
+	public TransactionRecoveryScheduler(TransactionRepository transactionRepository,
+			TransactionService transactionService) {
+		this.transactionRepository = transactionRepository;
+		this.transactionService = transactionService;
+	}
 
 	@Scheduled(fixedDelay = 300000)
 	public void retryFailedCompensations() {
@@ -39,8 +41,7 @@ public class TransactionRecoveryScheduler {
 				transactionService.handleCompensation(
 						txn.getTransactionType(),
 						mapToRequest(txn),
-						txn
-				);
+						txn);
 
 				txn.setStatus(TransactionStatus.REFUND);
 				txn.setRemarks("Compensation retried successfully");
@@ -68,7 +69,6 @@ public class TransactionRecoveryScheduler {
 		}
 	}
 
-
 	private TransactionRequest mapToRequest(Transaction txn) {
 		return new TransactionRequest(
 				txn.getAccountNumber(),
@@ -78,7 +78,6 @@ public class TransactionRecoveryScheduler {
 				txn.getCurrency().name(),
 				txn.getChannel().name(),
 				"****",
-				txn.getDescription()
-		);
+				txn.getDescription());
 	}
 }

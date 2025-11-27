@@ -1,6 +1,5 @@
 package com.bms.gateway.service.impl;
 
-
 import com.bms.gateway.dto.request.RefundRequest;
 import com.bms.gateway.dto.response.RefundResponse;
 import com.bms.gateway.exception.ResourceNotFoundException;
@@ -12,7 +11,6 @@ import com.bms.gateway.repository.PaymentRepository;
 import com.bms.gateway.repository.RefundRepository;
 import com.bms.gateway.service.RefundService;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,11 +22,16 @@ import java.time.LocalDateTime;
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class RefundServiceImpl implements RefundService {
 
 	private final RefundRepository refundRepository;
 	private final PaymentRepository paymentRepository;
+
+	public RefundServiceImpl(RefundRepository refundRepository,
+			PaymentRepository paymentRepository) {
+		this.refundRepository = refundRepository;
+		this.paymentRepository = paymentRepository;
+	}
 
 	/**
 	 * CREATE / INITIATE A REFUND (Dummy internal logic only)
@@ -122,7 +125,6 @@ public class RefundServiceImpl implements RefundService {
 			refund.setProviderResponse(payload);
 			refund.setUpdatedAt(LocalDateTime.now());
 			refundRepository.save(refund);
-
 
 			Payment payment = refund.getPayment();
 

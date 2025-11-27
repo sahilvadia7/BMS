@@ -12,7 +12,7 @@ import com.bms.customer.feign.NotificationClient;
 import com.bms.customer.repositories.CustomerOtpRepository;
 import com.bms.customer.repositories.CustomerRepository;
 import com.bms.customer.services.ForgotPasswordService;
-import lombok.RequiredArgsConstructor;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -21,7 +21,6 @@ import java.time.LocalDateTime;
 import java.util.Random;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class ForgotPasswordServiceImpl implements ForgotPasswordService {
 
@@ -30,11 +29,22 @@ public class ForgotPasswordServiceImpl implements ForgotPasswordService {
     private final NotificationClient notificationClient;
     private final PasswordEncoder passwordEncoder;
 
+    public ForgotPasswordServiceImpl(CustomerRepository customerRepository,
+            CustomerOtpRepository customerOtpRepository,
+            NotificationClient notificationClient,
+            PasswordEncoder passwordEncoder) {
+        this.customerRepository = customerRepository;
+        this.customerOtpRepository = customerOtpRepository;
+        this.notificationClient = notificationClient;
+        this.passwordEncoder = passwordEncoder;
+    }
+
     @Override
     public void requestOtp(OtpRequestDTO request) {
         Customer customer = customerRepository
                 .findByCifNumberAndEmail(request.getCifId(), request.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundException("Customer not found with the provided CIF ID and email."));
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Customer not found with the provided CIF ID and email."));
 
         String otp = String.valueOf(new Random().nextInt(900000) + 100000);
 
@@ -59,7 +69,8 @@ public class ForgotPasswordServiceImpl implements ForgotPasswordService {
         try {
             notificationClient.sendOtpEmail(emailDTO);
         } catch (Exception e) {
-            log.error("Failed to send OTP email via notification service for CIF: {}. Reason: {}", request.getCifId(), e.getMessage());
+            log.error("Failed to send OTP email via notification service for CIF: {}. Reason: {}", request.getCifId(),
+                    e.getMessage());
         }
     }
 
@@ -91,7 +102,8 @@ public class ForgotPasswordServiceImpl implements ForgotPasswordService {
                 .orElseThrow(() -> new ResourceNotFoundException("Invalid CIF ID."));
 
         CustomerOtp otpEntity = customerOtpRepository.findTopByCustomerOrderByCreatedAtDesc(customer)
-                .orElseThrow(() -> new ResourceNotFoundException("No valid OTP found. Please request and verify a new OTP first."));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No valid OTP found. Please request and verify a new OTP first."));
 
         if (!otpEntity.isVerified()) {
             throw new OtpValidationException("OTP has not been verified. Please complete the verification step first.");

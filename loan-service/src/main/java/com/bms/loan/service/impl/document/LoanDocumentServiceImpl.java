@@ -13,7 +13,7 @@ import com.bms.loan.exception.InvalidDocumentTypeException;
 import com.bms.loan.exception.ResourceNotFoundException;
 import com.bms.loan.service.LoanDocumentService;
 import com.bms.loan.service.impl.DocumentValidationService;
-import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class LoanDocumentServiceImpl implements LoanDocumentService {
 
     private final LoanDocumentRepository loanDocumentRepository;
@@ -35,13 +34,27 @@ public class LoanDocumentServiceImpl implements LoanDocumentService {
     private final AadhaarVerificationService aadhaarVerificationService;
     private final LoanDocumentMapper mapper;
 
+    public LoanDocumentServiceImpl(LoanDocumentRepository loanDocumentRepository,
+            LoanRepository loanRepository,
+            DocumentValidationService documentValidationService,
+            AadhaarVerificationService aadhaarVerificationService,
+            LoanDocumentMapper mapper) {
+        this.loanDocumentRepository = loanDocumentRepository;
+        this.loanRepository = loanRepository;
+        this.documentValidationService = documentValidationService;
+        this.aadhaarVerificationService = aadhaarVerificationService;
+        this.mapper = mapper;
+    }
+
     public LoanDocumentResponse uploadDocument(MultipartFile file, LoanDocumentRequest request) {
         try {
             // the loan application
             Loans loanApplication = loanRepository.findByLoanId(request.getLoanApplicationId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Loan Application not found with id: " + request.getLoanApplicationId()));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Loan Application not found with id: " + request.getLoanApplicationId()));
 
-            boolean validType = documentValidationService.validateDocumentType(file, request.getDocumentType(),request.getDocumentNumber());
+            boolean validType = documentValidationService.validateDocumentType(file, request.getDocumentType(),
+                    request.getDocumentNumber());
 
             System.out.println("Document Validated: " + validType);
             if (!validType) {
@@ -69,8 +82,7 @@ public class LoanDocumentServiceImpl implements LoanDocumentService {
                 boolean isValid = aadhaarVerificationService.verifyAadhaar(docNumber);
                 document.setKycStatus(isValid ? KycStatus.VERIFIED : KycStatus.INVALID);
                 document.setRemarks(isValid ? "Aadhaar verified successfully" : "Aadhaar verification failed");
-            }
-            else if (docType.equals(DocumentType.PAN) && docNumber != null) {
+            } else if (docType.equals(DocumentType.PAN) && docNumber != null) {
                 boolean isValid = aadhaarVerificationService.verifyPan(docNumber);
                 document.setKycStatus(isValid ? KycStatus.VERIFIED : KycStatus.INVALID);
                 document.setRemarks(isValid ? "PAN verified successfully" : "PAN verification failed");
@@ -122,9 +134,12 @@ public class LoanDocumentServiceImpl implements LoanDocumentService {
     }
 
     private String detectContentType(String fileName) {
-        if (fileName.endsWith(".png")) return "image/png";
-        if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")) return "image/jpeg";
-        if (fileName.endsWith(".pdf")) return "application/pdf";
+        if (fileName.endsWith(".png"))
+            return "image/png";
+        if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg"))
+            return "image/jpeg";
+        if (fileName.endsWith(".pdf"))
+            return "application/pdf";
         return "application/octet-stream";
     }
 }

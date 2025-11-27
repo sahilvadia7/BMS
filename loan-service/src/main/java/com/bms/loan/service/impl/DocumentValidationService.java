@@ -2,7 +2,7 @@ package com.bms.loan.service.impl;
 
 import com.bms.loan.enums.DocumentType;
 import com.bms.loan.service.impl.ocr.OcrService;
-import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -10,27 +10,30 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
-@RequiredArgsConstructor
 public class DocumentValidationService {
 
     private final OcrService ocrService;
 
-    public boolean validateDocumentType(MultipartFile file, String declaredType,String documentNumber) {
+    public DocumentValidationService(OcrService ocrService) {
+        this.ocrService = ocrService;
+    }
+
+    public boolean validateDocumentType(MultipartFile file, String declaredType, String documentNumber) {
         try {
 
             String extractedText = ocrService.extractTextFromPdf(file);
             System.out.println("Extracted Text from PDF: " + extractedText);
-            DocumentType detected = detectDocumentType(extractedText , documentNumber);
+            DocumentType detected = detectDocumentType(extractedText, documentNumber);
             return detected.name().equalsIgnoreCase(declaredType);
         } catch (Exception e) {
             throw new RuntimeException("Document validation failed: " + e.getMessage());
         }
     }
 
-    private DocumentType detectDocumentType(String text , String documentNumber) {
+    private DocumentType detectDocumentType(String text, String documentNumber) {
         text = text.toUpperCase()
-                  .replaceAll("\\u00A0", " ")   // normalize non-breaking spaces
-                  .replaceAll("\\s+", " ");     // normalize all whitespace
+                .replaceAll("\\u00A0", " ") // normalize non-breaking spaces
+                .replaceAll("\\s+", " "); // normalize all whitespace
 
         if (text.contains("AADHAAR") ||
                 text.contains("UNIQUE IDENTIFICATION AUTHORITY OF INDIA") ||
@@ -70,6 +73,5 @@ public class DocumentValidationService {
         }
         return DocumentType.UNKNOWN;
     }
-
 
 }

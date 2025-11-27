@@ -11,7 +11,6 @@ import com.bms.customer.repositories.CustomerRepository;
 import com.bms.customer.security.JwtService;
 import com.bms.customer.services.CustomerService;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -23,13 +22,23 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
+@org.springframework.transaction.annotation.Transactional
 public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepository customerRepository;
     private final PasswordEncoder passwordEncoder;
     private final NotificationClient notificationClient;
     private final JwtService jwtService;
+
+    public CustomerServiceImpl(CustomerRepository customerRepository,
+            PasswordEncoder passwordEncoder,
+            NotificationClient notificationClient,
+            JwtService jwtService) {
+        this.customerRepository = customerRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.notificationClient = notificationClient;
+        this.jwtService = jwtService;
+    }
 
     // ✅ 1️⃣ Register new customer
     @Override
@@ -74,18 +83,20 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     public AuthResponseDTO login(LoginRequest loginRequest) {
         Customer customer = customerRepository.findByCifNumber(loginRequest.getLoginId())
-                                .orElseThrow(() -> new CustomerNotFoundException("User not found or invalid login ID."));
+                .orElseThrow(() -> new CustomerNotFoundException("User not found or invalid login ID."));
 
         if (!passwordEncoder.matches(loginRequest.getPassword(), customer.getPassword())) {
             throw new InvalidCredentialsException("Invalid credentials. Please try again.");
         }
 
         // Optional check
-//        if (customer.getStatus() != UserStatus.ACTIVE) {
-//            throw new AccountNotActiveException("Account not active. Please complete KYC.");
-//        if (customer.getStatus() != UserStatus.ACTIVE) {
-//            throw new AccountNotActiveException("Account is not active. Status: " + customer.getStatus().name() + ". Please complete KYC.");
-//        }
+        // if (customer.getStatus() != UserStatus.ACTIVE) {
+        // throw new AccountNotActiveException("Account not active. Please complete
+        // KYC.");
+        // if (customer.getStatus() != UserStatus.ACTIVE) {
+        // throw new AccountNotActiveException("Account is not active. Status: " +
+        // customer.getStatus().name() + ". Please complete KYC.");
+        // }
 
         String accessToken = jwtService.generateToken(customer.getCifNumber());
         String refreshToken = jwtService.generateRefreshToken(customer.getCifNumber());
@@ -136,6 +147,7 @@ public class CustomerServiceImpl implements CustomerService {
                 .orElseThrow(() -> new CustomerNotFoundException("Customer not found for CIF: " + cifNumber));
         return mapToResponse(customer);
     }
+
     @Override
     public Map<String, Object> getLimitedCustomerInfo(String cifNumber) {
         Customer customer = customerRepository.findByCifNumber(cifNumber)

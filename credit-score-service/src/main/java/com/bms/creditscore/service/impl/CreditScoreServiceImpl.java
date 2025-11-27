@@ -30,6 +30,7 @@ public class CreditScoreServiceImpl implements CreditScoreService {
     private final CustomerClient customerClient;
     private final AccountClient accountClient;
     private final TransactionClient transactionClient;
+    private final com.bms.creditscore.feign.LoanClient loanClient;
     private final CreditProfileRepository repository;
 
     @Value("${repo.rate:6.5}")
@@ -43,12 +44,14 @@ public class CreditScoreServiceImpl implements CreditScoreService {
     private final double wInq = 0.10;
 
     public CreditScoreServiceImpl(CustomerClient customerClient,
-                                  AccountClient accountClient,
-                                  TransactionClient transactionClient,
-                                  CreditProfileRepository repository) {
+            AccountClient accountClient,
+            TransactionClient transactionClient,
+            com.bms.creditscore.feign.LoanClient loanClient,
+            CreditProfileRepository repository) {
         this.customerClient = customerClient;
         this.accountClient = accountClient;
         this.transactionClient = transactionClient;
+        this.loanClient = loanClient;
         this.repository = repository;
     }
 
@@ -141,8 +144,7 @@ public class CreditScoreServiceImpl implements CreditScoreService {
                 p.getScoreStatus(),
                 p.getSource(),
                 p.getCalculatedAt(),
-                breakdown
-        );
+                breakdown);
     }
 
     /**
@@ -180,8 +182,21 @@ public class CreditScoreServiceImpl implements CreditScoreService {
             AccountSummaryDTO acc = fetchAccountSummary(customerId);
             TransactionSummaryDTO tx = fetchTransactionSummary(customerId);
 
+            // Fetch Loan Data
+            com.bms.creditscore.dto.extrenal.CustomerTimelyPaidEmiResponseDTO loanData = null;
+            if (customer.getCifNumber() != null) {
+                try {
+                    loanData = loanClient.customerTimelyPaidEmiDetails(customer.getCifNumber());
+                } catch (Exception e) {
+                    log.warn("Failed to fetch loan data for cifNumber {}: {}", customer.getCifNumber(), e.getMessage());
+                }
+            }
+
             // Derive payment history
-            if (tx != null && tx.getTotalPayments() > 0) {
+            if (loanData != null && loanData.getTotalEmis() > 0) {
+                // Use loan data for payment history if available
+                factors.paymentHistory = ((double) loanData.getTimelyPaidEmis() / loanData.getTotalEmis()) * 100.0;
+            } else if (tx != null && tx.getTotalPayments() > 0) {
                 factors.paymentHistory = (tx.getOnTimePayments() / (double) tx.getTotalPayments()) * 100.0;
             } else {
                 factors.paymentHistory = getOrDefault(request.getPaymentHistory(), 50.0);
@@ -348,10 +363,14 @@ public class CreditScoreServiceImpl implements CreditScoreService {
      * Classify score into categories
      */
     private String classify(int score) {
-        if (score >= 750) return "EXCELLENT";
-        if (score >= 700) return "GOOD";
-        if (score >= 650) return "FAIR";
-        if (score >= 600) return "AVERAGE";
+        if (score >= 750)
+            return "EXCELLENT";
+        if (score >= 700)
+            return "GOOD";
+        if (score >= 650)
+            return "FAIR";
+        if (score >= 600)
+            return "AVERAGE";
         return "POOR";
     }
 
@@ -380,7 +399,7 @@ public class CreditScoreServiceImpl implements CreditScoreService {
     }
 
     private CreditProfile buildCreditProfile(Long customerId, CreditFactors factors,
-                                             int finalScore, String status, String source) {
+            int finalScore, String status, String source) {
         return CreditProfile.builder()
                 .customerId(customerId)
                 .paymentHistory(factors.paymentHistory)
@@ -466,8 +485,7 @@ public class CreditScoreServiceImpl implements CreditScoreService {
                         p.getScoreStatus(),
                         p.getSource(),
                         p.getCalculatedAt(),
-                        buildBreakdownFromProfile(p)
-                ))
+                        buildBreakdownFromProfile(p)))
                 .toList();
     }
 
@@ -485,8 +503,7 @@ public class CreditScoreServiceImpl implements CreditScoreService {
                         p.getScoreStatus(),
                         p.getSource(),
                         p.getCalculatedAt(),
-                        buildBreakdownFromProfile(p)
-                ))
+                        buildBreakdownFromProfile(p)))
                 .toList();
     }
 

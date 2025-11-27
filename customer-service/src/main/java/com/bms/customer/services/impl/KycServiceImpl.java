@@ -11,7 +11,7 @@ import com.bms.customer.feign.AccountClient;
 import com.bms.customer.repositories.*;
 import com.bms.customer.services.KycService;
 import jakarta.transaction.Transactional;
-import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -20,13 +20,22 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class KycServiceImpl implements KycService {
 
     private final KycRepository kycRepository;
     private final CustomerRepository customerRepository;
     private final CustomerKycMappingRepository mappingRepository;
     private final AccountClient accountClient;
+
+    public KycServiceImpl(KycRepository kycRepository,
+            CustomerRepository customerRepository,
+            CustomerKycMappingRepository mappingRepository,
+            AccountClient accountClient) {
+        this.kycRepository = kycRepository;
+        this.customerRepository = customerRepository;
+        this.mappingRepository = mappingRepository;
+        this.accountClient = accountClient;
+    }
 
     private KycResponseDTO mapToKycResponse(Kyc kyc) {
         return new KycResponseDTO(
@@ -35,8 +44,7 @@ public class KycServiceImpl implements KycService {
                 kyc.getDocumentNumber(),
                 kyc.getStatus(),
                 kyc.getCreatedAt(),
-                kyc.getUpdatedAt()
-        );
+                kyc.getUpdatedAt());
     }
 
     private CustomerResponseDTO mapToCustomerResponse(Customer customer) {
@@ -53,12 +61,10 @@ public class KycServiceImpl implements KycService {
     public KycResponseDTO createKycDocument(KycRequestDTO requestDTO) {
         if (kycRepository.findByDocumentTypeAndDocumentNumber(
                 requestDTO.documentType(),
-                requestDTO.documentNumber()
-        ).isPresent()) {
+                requestDTO.documentNumber()).isPresent()) {
             throw new BadRequestException(
                     "A KYC document of type '" + requestDTO.documentType() +
-                            "' with this number already exists."
-            );
+                            "' with this number already exists.");
         }
 
         Kyc kyc = Kyc.builder()
@@ -69,7 +75,6 @@ public class KycServiceImpl implements KycService {
 
         return mapToKycResponse(kycRepository.save(kyc));
     }
-
 
     @Override
     public KycResponseDTO getKycById(Long id) {
@@ -96,11 +101,9 @@ public class KycServiceImpl implements KycService {
 
             if (kycRepository.findByDocumentTypeAndDocumentNumber(
                     requestDTO.documentType(),
-                    requestDTO.documentNumber()
-            ).isPresent()) {
+                    requestDTO.documentNumber()).isPresent()) {
                 throw new BadRequestException(
-                        "Another KYC document with this type and number already exists."
-                );
+                        "Another KYC document with this type and number already exists.");
             }
         }
 
@@ -122,7 +125,7 @@ public class KycServiceImpl implements KycService {
         return null;
     }
 
-    //  branch manager only
+    // branch manager only
     @Override
     @Transactional
     public CustomerResponseDTO approveKyc(Long kycId, String approvedBy) {
@@ -136,16 +139,16 @@ public class KycServiceImpl implements KycService {
         Customer customer = customerRepository.findCustomerByKycId(kycId)
                 .orElseThrow(() -> new ResourceNotFoundException("No customer linked to this KYC"));
 
-        //  1. Approve the KYC
+        // 1. Approve the KYC
         kyc.setStatus(KycStatus.APPROVED);
         kycRepository.save(kyc);
 
-        //  2. Activate the customer
+        // 2. Activate the customer
         customer.setStatus(UserStatus.ACTIVE);
         customer.setUpdatedAt(LocalDateTime.now());
         customerRepository.save(customer);
 
-        //  3. Trigger Account Activation via Feign
+        // 3. Trigger Account Activation via Feign
         try {
             accountClient.activateAccountByCif(customer.getCifNumber());
         } catch (Exception e) {
@@ -156,7 +159,7 @@ public class KycServiceImpl implements KycService {
         return mapToCustomerResponse(customer);
     }
 
-    //  branch manager only
+    // branch manager only
     @Override
     @Transactional
     public void rejectKyc(Long kycId, String reason) {
@@ -189,19 +192,16 @@ public class KycServiceImpl implements KycService {
         if (existingOwner.isPresent() && !existingOwner.get().getCustomerId().equals(customerId)) {
             throw new BadRequestException(
                     "This KYC document is already linked to another customer (CIF: " +
-                            existingOwner.get().getCifNumber() + ")."
-            );
+                            existingOwner.get().getCifNumber() + ").");
         }
 
         Optional<Customer> duplicateCustomer = customerRepository.findCustomerByKycDocument(
                 kyc.getDocumentType(),
-                kyc.getDocumentNumber()
-        );
+                kyc.getDocumentNumber());
         if (duplicateCustomer.isPresent() && !duplicateCustomer.get().getCustomerId().equals(customerId)) {
             throw new BadRequestException(
                     "A customer with this " + kyc.getDocumentType() +
-                            " already exists (CIF: " + duplicateCustomer.get().getCifNumber() + ")."
-            );
+                            " already exists (CIF: " + duplicateCustomer.get().getCifNumber() + ").");
         }
 
         kyc.setStatus(KycStatus.PENDING);
@@ -223,6 +223,7 @@ public class KycServiceImpl implements KycService {
 
         return mapToCustomerResponse(customer);
     }
+
     @Override
     public KycResponseDTO getKycByCustomerId(Long customerId) {
         Optional<CustomerKycMapping> mapping = mappingRepository.findByCustomer_CustomerId(customerId);
@@ -239,8 +240,7 @@ public class KycServiceImpl implements KycService {
                 kyc.getDocumentNumber(),
                 kyc.getStatus(),
                 kyc.getCreatedAt(),
-                kyc.getUpdatedAt()
-        );
+                kyc.getUpdatedAt());
     }
 
     @Override
@@ -267,11 +267,9 @@ public class KycServiceImpl implements KycService {
 
         if (kycRepository.findByDocumentTypeAndDocumentNumber(
                 requestDTO.documentType(),
-                requestDTO.documentNumber()
-        ).isPresent()) {
+                requestDTO.documentNumber()).isPresent()) {
             throw new BadRequestException(
-                    "This " + requestDTO.documentType() + " is already registered to another customer."
-            );
+                    "This " + requestDTO.documentType() + " is already registered to another customer.");
         }
 
         Kyc kyc = Kyc.builder()

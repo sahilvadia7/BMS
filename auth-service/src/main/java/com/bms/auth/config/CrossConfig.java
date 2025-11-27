@@ -13,10 +13,9 @@ public class CrossConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins("http://localhost:5173", "http://localhost:3000") // your frontend url
-                        .allowedMethods("GET","POST","PUT", "PATCH","DELETE","OPTIONS")
-                        .allowCredentials(true);;
-//                        .allowedHeaders("*");
+                        .allowedOrigins("*") // Allow all origins for development
+                        .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+                        .allowedHeaders("*");
             }
         };
     }
