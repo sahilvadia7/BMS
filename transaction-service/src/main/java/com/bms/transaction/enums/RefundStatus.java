@@ -1,4 +1,4 @@
-package com.bms.gateway.enums;
+package com.bms.transaction.enums;
 
 public enum RefundStatus {
 	INITIATED,
