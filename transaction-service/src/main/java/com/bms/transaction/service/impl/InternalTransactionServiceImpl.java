@@ -167,10 +167,22 @@ public class InternalTransactionServiceImpl implements com.bms.transaction.servi
 	private Transaction createPendingTransaction(TransactionRequest request, BigDecimal fee) {
 		String requestHash = generateRequestHash(request);
 
+		String destinationAcc = switch (request.getTransactionType()) {
+			case TRANSFER -> request.getDestinationAccountNumber();
+			case EMI_DEDUCTION -> null;
+			case WITHDRAWAL, DEPOSIT, LOAN_DISBURSEMENT, REFUND -> null;
+			case CASH_DEPOSIT -> null;
+			case CASH_WITHDRAWAL -> null;
+			case PENALTY -> null;
+			case REVERSAL -> null;
+			case EXTERNAL_TRANSFER -> request.getDestinationAccountNumber();
+			case FEE -> "BANK_ACCOUNT";
+		};
+
 		Transaction txn = Transaction.builder()
 				.transactionId(UUID.randomUUID().toString())
 				.accountNumber(request.getAccountNumber())
-				.destinationAccountNumber(request.getDestinationAccountNumber())
+				.destinationAccountNumber(destinationAcc)
 				.transactionType(request.getTransactionType())
 				.amount(request.getAmount())
 				.currency(request.getCurrency())
