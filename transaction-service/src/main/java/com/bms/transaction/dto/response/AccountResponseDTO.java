@@ -32,4 +32,6 @@ public class AccountResponseDTO {
     private String nomineeRelation;
     private Integer nomineeAge;
     private String nomineeContact;
+
+	public boolean isActive;
 }

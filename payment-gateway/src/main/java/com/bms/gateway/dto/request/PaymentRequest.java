@@ -1,29 +1,40 @@
 package com.bms.gateway.dto.request;
 
-import com.bms.gateway.enums.PaymentMethod;
-import lombok.Data;
+
+import com.bms.gateway.enums.Currency;
+import jakarta.validation.constraints.*;
+import lombok.*;
 
 import java.math.BigDecimal;
 
-import jakarta.validation.constraints.*;
-
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class PaymentRequest {
 
-	@NotBlank(message = "Transaction ID is required")
-	private String transactionId;
+	@NotBlank(message = "Source account is required")
+	@Size(min = 10, max = 20, message = "Source account must be 10–20 digits")
+	private String sourceAccount;
+
+	@NotBlank(message = "Destination account is required")
+	@Size(min = 10, max = 20, message = "Destination account must be 10–20 digits")
+	private String destinationAccount;
+
+	@NotBlank(message = "Destination bank code is required")
+	@Pattern(regexp = "^[A-Z0-9]{4,11}$", message = "Bank code must be SWIFT/IFSC format")
+	private String destinationBankCode;
 
 	@NotNull(message = "Amount is required")
-	@DecimalMin(value = "0.01", message = "Amount must be greater than zero")
+	@Positive(message = "Amount must be greater than 0")
 	private BigDecimal amount;
 
-	@NotNull(message = "Payment method is required")
-	private PaymentMethod method;
+	@NotNull(message = "Currency is required")
+	private Currency currency;
 
-	@NotBlank(message = "Idempotency Key is required")
-	@Size(max = 50, message = "Idempotency Key cannot exceed 50 characters")
-	private String idempotencyKey;
+	@NotBlank(message = "Transaction ID is missing")
+	private String transactionId;
 
-	@Size(max = 500, message = "Metadata JSON cannot exceed 500 characters")
-	private String metadataJson; // Optional field
+	@Size(max = 255, message = "Description max length is 255 characters")
+	private String description;
 }

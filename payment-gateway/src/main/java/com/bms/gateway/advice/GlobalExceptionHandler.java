@@ -1,5 +1,6 @@
 package com.bms.gateway.advice;
 
+import com.bms.gateway.exception.*;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -66,6 +67,7 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.CONFLICT, "Duplicate or conflicting data detected. " +
                 "Please check if the KYC or mapping already exists.");
     }
+
 
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {
         Map<String, Object> error = new HashMap<>();
