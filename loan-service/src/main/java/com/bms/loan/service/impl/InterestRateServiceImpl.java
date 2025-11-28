@@ -6,7 +6,7 @@ import com.bms.loan.dto.response.InterestRateResponse;
 import com.bms.loan.entity.InterestRate;
 import com.bms.loan.exception.ResourceNotFoundException;
 import com.bms.loan.service.InterestRateService;
-import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,12 +15,13 @@ import java.util.stream.Collectors;
 @Service
 public class InterestRateServiceImpl implements InterestRateService {
 
-    @Autowired
-    private InterestRateRepository repository;
+    private final InterestRateRepository repository;
+    private final Mapper mapper;
 
-    @Autowired
-    private Mapper mapper;
-
+    public InterestRateServiceImpl(InterestRateRepository repository, Mapper mapper) {
+        this.repository = repository;
+        this.mapper = mapper;
+    }
 
     public List<InterestRateResponse> getAllRates() {
         return repository.findAll()
@@ -28,7 +29,6 @@ public class InterestRateServiceImpl implements InterestRateService {
                 .map(mapper::toResponse)
                 .collect(Collectors.toList());
     }
-
 
     public InterestRateResponse getRateById(Long id) {
         InterestRate rate = repository.findById(id)
@@ -43,7 +43,6 @@ public class InterestRateServiceImpl implements InterestRateService {
             throw new RuntimeException("Interest rate not found for loan type: " + loanType);
         return mapper.toResponse(rate);
     }
-
 
     public InterestRateResponse createRate(InterestRateRequest request) {
         InterestRate entity = mapper.toEntity(request);

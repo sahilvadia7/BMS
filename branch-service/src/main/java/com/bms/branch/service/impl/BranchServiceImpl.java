@@ -11,7 +11,7 @@ import com.bms.branch.model.*;
 import com.bms.branch.repository.BranchEmployeeMappingRepository;
 import com.bms.branch.repository.BranchRepository;
 import com.bms.branch.service.BranchService;
-import lombok.RequiredArgsConstructor;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,13 +25,20 @@ import static java.rmi.server.LogStream.log;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional
 public class BranchServiceImpl implements BranchService {
 
     private final BranchRepository branchRepository;
     private final BranchEmployeeMappingRepository mappingRepository;
     private final EmployeeClient employeeClient;
+
+    public BranchServiceImpl(BranchRepository branchRepository,
+            BranchEmployeeMappingRepository mappingRepository,
+            EmployeeClient employeeClient) {
+        this.branchRepository = branchRepository;
+        this.mappingRepository = mappingRepository;
+        this.employeeClient = employeeClient;
+    }
 
     @Override
     public BranchResponseDto createBranch(BranchRequestDto branchRequestDto) {
@@ -45,11 +52,11 @@ public class BranchServiceImpl implements BranchService {
                 .openingDate(branchRequestDto.openingDate())
                 .address(branchRequestDto.address() != null
                         ? new Address(
-                        branchRequestDto.address().street(),
-                        branchRequestDto.address().city(),
-                        branchRequestDto.address().state(),
-                        branchRequestDto.address().country(),
-                        branchRequestDto.address().zipCode())
+                                branchRequestDto.address().street(),
+                                branchRequestDto.address().city(),
+                                branchRequestDto.address().state(),
+                                branchRequestDto.address().country(),
+                                branchRequestDto.address().zipCode())
                         : null)
                 .createdAt(LocalDate.now())
                 .updatedAt(LocalDate.now())
@@ -75,11 +82,11 @@ public class BranchServiceImpl implements BranchService {
         branch.setUpdatedAt(LocalDate.now());
         branch.setAddress(branchRequestDto.address() != null
                 ? new Address(
-                branchRequestDto.address().street(),
-                branchRequestDto.address().city(),
-                branchRequestDto.address().state(),
-                branchRequestDto.address().country(),
-                branchRequestDto.address().zipCode())
+                        branchRequestDto.address().street(),
+                        branchRequestDto.address().city(),
+                        branchRequestDto.address().state(),
+                        branchRequestDto.address().country(),
+                        branchRequestDto.address().zipCode())
                 : null);
 
         Branch updatedBranch = branchRepository.save(branch);
@@ -149,8 +156,7 @@ public class BranchServiceImpl implements BranchService {
         branch.setEmployees(
                 branch.getEmployees().stream()
                         .filter(e -> !e.getEmployeeId().equals(employeeId))
-                        .collect(Collectors.toSet())
-        );
+                        .collect(Collectors.toSet()));
 
         return convertToResponseDto(branch);
     }
@@ -209,6 +215,7 @@ public class BranchServiceImpl implements BranchService {
                 .map(employeeClient::getEmployeeById)
                 .collect(Collectors.toList());
     }
+
     private BranchResponseDto convertToResponseDto(Branch branch) {
         AddressResponseDto addressDto = null;
         if (branch.getAddress() != null) {
@@ -217,12 +224,11 @@ public class BranchServiceImpl implements BranchService {
                     branch.getAddress().getCity(),
                     branch.getAddress().getState(),
                     branch.getAddress().getCountry(),
-                    branch.getAddress().getPostalCode()
-            );
+                    branch.getAddress().getPostalCode());
         }
 
         List<EmployeeDto> employees = branch.getEmployees().stream()
-                .map(e -> new EmployeeDto(e.getEmployeeId(),null,e.getAssignedDate(),null))
+                .map(e -> new EmployeeDto(e.getEmployeeId(), null, e.getAssignedDate(), null))
                 .collect(Collectors.toList());
 
         return new BranchResponseDto(
@@ -238,7 +244,6 @@ public class BranchServiceImpl implements BranchService {
                 employees,
                 branch.getCreatedAt(),
                 branch.getUpdatedAt(),
-                branch.isActive()
-        );
+                branch.isActive());
     }
 }

@@ -6,7 +6,7 @@ import com.bms.auth.repository.OtpVerificationRepository;
 import com.bms.auth.service.EmailService;
 import com.bms.auth.service.OtpService;
 import com.twilio.rest.api.v2010.account.Message;
-import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import com.twilio.type.PhoneNumber;
@@ -39,11 +39,13 @@ public class OtpServiceImpl implements OtpService {
     @Value("${twilio.phone.number}")
     private String fromPhoneNumber; // your Twilio number
 
-    @Autowired
-    private OtpVerificationRepository otpRepo;
+    private final OtpVerificationRepository otpRepo;
+    private final EmailService emailService;
 
-    @Autowired
-    private EmailService emailService;
+    public OtpServiceImpl(OtpVerificationRepository otpRepo, EmailService emailService) {
+        this.otpRepo = otpRepo;
+        this.emailService = emailService;
+    }
 
     @Override
     public String generateOtp() {
@@ -51,7 +53,6 @@ public class OtpServiceImpl implements OtpService {
         int otp = 100000 + random.nextInt(900000);
         return String.valueOf(otp);
     }
-
 
     // Save and send OTP
     public void sendOtp(MailRequest mailRequest) {
@@ -65,7 +66,7 @@ public class OtpServiceImpl implements OtpService {
         otpRepo.save(otpEntity);
 
         // Send email
-        emailService.sendSimpleEmail(mailRequest.getTo(),mailRequest.getSubject() ,"Your verification OTP is: " + otp);
+        emailService.sendSimpleEmail(mailRequest.getTo(), mailRequest.getSubject(), "Your verification OTP is: " + otp);
     }
 
     @Override
@@ -92,46 +93,46 @@ public class OtpServiceImpl implements OtpService {
         return "OTP verified successfully!";
     }
 
-//        @Override
-//    public void generateOtp(String mobileNo) {
-//        // Generate 6-digit OTP
-//        String otp = String.format("%06d", random.nextInt(999999));
-//
-//        otpStorage.put(mobileNo, otp);
-//        expiryStorage.put(mobileNo, System.currentTimeMillis() + OTP_EXPIRY_MS);
-//
-//        // Initialize Twilio
-//        init(accountSid, authToken);
-//
-//        // Send SMS
-//        try {
-//            Message.creator(
-//                    new PhoneNumber("+91" + mobileNo),  // Destination (India example)
-//                    new PhoneNumber(fromPhoneNumber),   // Twilio number
-//                    "Your OTP for login is: " + otp + " (valid for 1 minute)"
-//            ).create();
-//
-//            System.out.println("OTP sent successfully to " + mobileNo);
-//        } catch (Exception e) {
-//            System.err.println("Failed to send OTP: " + e.getMessage());
-//        }
-//    }
-//    @Override
-//    public boolean verifyOtp(String mobileNo, String otp) {
-//        if (!otpStorage.containsKey(mobileNo)) return false;
-//
-//        long expiry = expiryStorage.get(mobileNo);
-//        if (System.currentTimeMillis() > expiry) {
-//            otpStorage.remove(mobileNo);
-//            expiryStorage.remove(mobileNo);
-//            return false;
-//        }
-//
-//        boolean isValid = otpStorage.get(mobileNo).equals(otp);
-//        if (isValid) {
-//            otpStorage.remove(mobileNo);
-//            expiryStorage.remove(mobileNo);
-//        }
-//        return isValid;
-//    }
+    // @Override
+    // public void generateOtp(String mobileNo) {
+    // // Generate 6-digit OTP
+    // String otp = String.format("%06d", random.nextInt(999999));
+    //
+    // otpStorage.put(mobileNo, otp);
+    // expiryStorage.put(mobileNo, System.currentTimeMillis() + OTP_EXPIRY_MS);
+    //
+    // // Initialize Twilio
+    // init(accountSid, authToken);
+    //
+    // // Send SMS
+    // try {
+    // Message.creator(
+    // new PhoneNumber("+91" + mobileNo), // Destination (India example)
+    // new PhoneNumber(fromPhoneNumber), // Twilio number
+    // "Your OTP for login is: " + otp + " (valid for 1 minute)"
+    // ).create();
+    //
+    // System.out.println("OTP sent successfully to " + mobileNo);
+    // } catch (Exception e) {
+    // System.err.println("Failed to send OTP: " + e.getMessage());
+    // }
+    // }
+    // @Override
+    // public boolean verifyOtp(String mobileNo, String otp) {
+    // if (!otpStorage.containsKey(mobileNo)) return false;
+    //
+    // long expiry = expiryStorage.get(mobileNo);
+    // if (System.currentTimeMillis() > expiry) {
+    // otpStorage.remove(mobileNo);
+    // expiryStorage.remove(mobileNo);
+    // return false;
+    // }
+    //
+    // boolean isValid = otpStorage.get(mobileNo).equals(otp);
+    // if (isValid) {
+    // otpStorage.remove(mobileNo);
+    // expiryStorage.remove(mobileNo);
+    // }
+    // return isValid;
+    // }
 }

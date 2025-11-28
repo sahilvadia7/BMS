@@ -6,7 +6,7 @@ import com.bms.loan.entity.loan.LoanEmiSchedule;
 import com.bms.loan.entity.loan.Loans;
 import com.bms.loan.enums.EmiStatus;
 import com.bms.loan.enums.LoanStatus;
-import lombok.RequiredArgsConstructor;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -19,11 +19,16 @@ import java.util.List;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class EmiOverdueScheduler {
 
     private final LoanEmiScheduleRepository emiRepository;
     private final LoanRepository loanRepository;
+
+    public EmiOverdueScheduler(LoanEmiScheduleRepository emiRepository,
+            LoanRepository loanRepository) {
+        this.emiRepository = emiRepository;
+        this.loanRepository = loanRepository;
+    }
 
     // Runs every day at 1 AM
     @Scheduled(cron = "0 0 1 * * *")

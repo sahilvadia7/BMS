@@ -7,7 +7,6 @@ import com.bms.gateway.service.WebhookService;
 import com.bms.gateway.service.PaymentService;
 import com.bms.gateway.service.RefundService;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.stereotype.Service;
@@ -17,12 +16,19 @@ import tools.jackson.databind.ObjectMapper;
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class WebhookServiceImpl implements WebhookService {
 
 	private final WebhookEventRepository webhookEventRepository;
 	private final PaymentService paymentService;
 	private final RefundService refundService;
+
+	public WebhookServiceImpl(WebhookEventRepository webhookEventRepository,
+			PaymentService paymentService,
+			RefundService refundService) {
+		this.webhookEventRepository = webhookEventRepository;
+		this.paymentService = paymentService;
+		this.refundService = refundService;
+	}
 
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -56,7 +62,6 @@ public class WebhookServiceImpl implements WebhookService {
 		log.info("Webhook stored with id={}", event.getId());
 	}
 
-
 	/**
 	 * STEP 2: PROCESS UNPROCESSED WEBHOOKS (CRON JOB OR INVOKED MANUALLY)
 	 */
@@ -82,7 +87,6 @@ public class WebhookServiceImpl implements WebhookService {
 			} catch (Exception e) {
 				log.error("Webhook processing failed for id={} : {}", event.getId(), e.getMessage());
 				event.setRetryCount(event.getRetryCount() + 1);
-
 
 				if (event.getRetryCount() > 5) {
 					log.error("Webhook id={} exceeded max retry attempts", event.getId());

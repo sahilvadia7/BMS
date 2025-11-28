@@ -40,7 +40,7 @@ import com.bms.loan.service.HomeLoanService;
 import com.bms.loan.service.LoanApplicationService;
 import feign.FeignException;
 import jakarta.transaction.Transactional;
-import lombok.RequiredArgsConstructor;
+
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
@@ -53,9 +53,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
-
 @Service
-@RequiredArgsConstructor
 @Primary
 public class LoanApplicationServiceImpl implements LoanApplicationService {
 
@@ -76,22 +74,55 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     private final NotificationClient notificationClient;
     private final Mapper mapper;
 
+    public LoanApplicationServiceImpl(LoanRepository loansRepository,
+            CarLoanRepository carLoanRepo,
+            HomeLoanRepository homeLoanRepo,
+            EducationLoanRepository educationLoanRepo,
+            LoanEmiScheduleRepository loanEmiScheduleRepository,
+            InterestRateRepository interestRateRepository,
+            EducationVerificationReportRepository educationVerificationRepository,
+            LoanPrepaymentRepository loanPrepaymentRepo,
+            LoanHistoryDetailsRepository loanHistoryDetailsRepo,
+            HomeLoanService homeLoanService,
+            EducationLoanService educationLoanService,
+            CarLoanEvaluator carLoanEvaluator,
+            CustomerClient customerClient,
+            NotificationClient notificationClient,
+            Mapper mapper) {
+        this.loansRepository = loansRepository;
+        this.carLoanRepo = carLoanRepo;
+        this.homeLoanRepo = homeLoanRepo;
+        this.educationLoanRepo = educationLoanRepo;
+        this.loanEmiScheduleRepository = loanEmiScheduleRepository;
+        this.interestRateRepository = interestRateRepository;
+        this.educationVerificationRepository = educationVerificationRepository;
+        this.loanPrepaymentRepo = loanPrepaymentRepo;
+        this.loanHistoryDetailsRepo = loanHistoryDetailsRepo;
+        this.homeLoanService = homeLoanService;
+        this.educationLoanService = educationLoanService;
+        this.carLoanEvaluator = carLoanEvaluator;
+        this.customerClient = customerClient;
+        this.notificationClient = notificationClient;
+        this.mapper = mapper;
+    }
+
     @Override
     public LoanApplicationResponse applyLoan(LoanApplicationRequest request) {
 
         InterestRate interestRate = interestRateRepository.findByLoanType(String.valueOf(request.getLoanType()))
-                .orElseThrow(() -> new ResourceNotFoundException("Interest Rate not found with Type: " + request.getLoanType()));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Interest Rate not found with Type: " + request.getLoanType()));
 
         if (interestRate == null) {
             throw new ResourceNotFoundException("Interest rate not found with id: ");
         }
-        if (request.getRequestedTenureMonths() > interestRate.getMaxTenure()){
+        if (request.getRequestedTenureMonths() > interestRate.getMaxTenure()) {
             throw new RuntimeException("Tenure months cannot be greater than interest rate maximum");
         }
 
         CustomerResponseDTO customer = new CustomerResponseDTO();
         try {
-            if(request.getCifNumber()==null || request.getCifNumber().isEmpty()){
+            if (request.getCifNumber() == null || request.getCifNumber().isEmpty()) {
                 request.setCifNumber("0000");
             }
 
@@ -128,7 +159,6 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
         Loans savedLoan = loansRepository.save(loan);
 
-
         if (request.getLoanHistoryDetailsDto() != null) {
             LoanHistoryDetailsDto loanHistoryDto = request.getLoanHistoryDetailsDto();
 
@@ -140,7 +170,6 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                     .totalActiveLoans(loanHistoryDto.getTotalActiveLoans())
                     .loans(savedLoan)
                     .build();
-
 
             // Active Loans
             if (loanHistoryDto.getActiveLoans() != null) {
@@ -163,7 +192,6 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
                 loanHistory.setActiveLoans(activeLoanEntities);
             }
-
 
             // Closed Loans
             if (loanHistoryDto.getClosedLoans() != null) {
@@ -224,9 +252,12 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 EducationLoanDetailsDto ed = request.getEducationDetails();
                 // Calculate total course cost
                 BigDecimal totalCourseCost = BigDecimal.ZERO;
-                if (ed.getTuitionFees() != null) totalCourseCost = totalCourseCost.add(ed.getTuitionFees());
-                if (ed.getLivingExpenses() != null) totalCourseCost = totalCourseCost.add(ed.getLivingExpenses());
-                if (ed.getOtherExpenses() != null) totalCourseCost = totalCourseCost.add(ed.getOtherExpenses());
+                if (ed.getTuitionFees() != null)
+                    totalCourseCost = totalCourseCost.add(ed.getTuitionFees());
+                if (ed.getLivingExpenses() != null)
+                    totalCourseCost = totalCourseCost.add(ed.getLivingExpenses());
+                if (ed.getOtherExpenses() != null)
+                    totalCourseCost = totalCourseCost.add(ed.getOtherExpenses());
 
                 educationLoanRepo.save(EducationLoanDetails.builder()
                         .loans(savedLoan)
@@ -253,7 +284,8 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
         ApplyLoanEmailDTO applyLoanEmailDTO = ApplyLoanEmailDTO.builder()
                 .email(request.getCustomerDetails().getEmail())
-                .customerName(request.getCustomerDetails().getFirstName()+" "+request.getCustomerDetails().getLastName())
+                .customerName(
+                        request.getCustomerDetails().getFirstName() + " " + request.getCustomerDetails().getLastName())
                 .loanId(savedLoan.getLoanId())
                 .cifNumber(savedLoan.getCifNumber())
                 .build();
@@ -261,7 +293,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         // Send notification email
         notificationClient.sendApplyLoanEmail(applyLoanEmailDTO);
 
-        //Build and return response
+        // Build and return response
         return LoanApplicationResponse.builder()
                 .loanId(savedLoan.getLoanId())
                 .cifNumber(customer.getCifNumber())
@@ -334,7 +366,6 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         report.setOfficerRemarks(request.getOfficerRemarks());
         report.setVerificationDate(request.getVerificationDate());
 
-
         boolean verified = request.isAdmissionVerified()
                 && request.isCollegeRecognized()
                 && request.isFeeStructureVerified();
@@ -344,7 +375,8 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
         // Update EducationLoanDetails (mark verified)
         EducationLoanDetails details = educationLoanRepo.findByLoans_LoanId(loanId)
-                .orElseThrow(() -> new ResourceNotFoundException("EducationLoanDetails not found for Loan ID: " + loanId));
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("EducationLoanDetails not found for Loan ID: " + loanId));
         details.setVerified(true);
         educationLoanRepo.save(details);
 
@@ -359,9 +391,8 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 .remarks(report.getOfficerRemarks())
                 .verificationDate(report.getVerificationDate())
                 .status(loan.getStatus().name())
-                .message(verified ?
-                        "Education loan verification completed successfully." :
-                        "Verification incomplete. Some details need rechecking.")
+                .message(verified ? "Education loan verification completed successfully."
+                        : "Verification incomplete. Some details need rechecking.")
                 .build();
     }
 
@@ -410,8 +441,6 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         return loanEvaluationResponse;
     }
 
-
-
     public LoanDisbursementResponse disburseLoan(Long loanId) {
         Loans loan = loansRepository.findById(loanId)
                 .orElseThrow(() -> new ResourceNotFoundException("Loan not found"));
@@ -435,8 +464,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         BigDecimal emi = calculateEmi(
                 loan.getApprovedAmount(),
                 loan.getInterestRate(),
-                loan.getRequestedTenureMonths()
-        );
+                loan.getRequestedTenureMonths());
 
         BigDecimal remainingBalance = loan.getApprovedAmount();
         BigDecimal monthlyRate = loan.getInterestRate()
@@ -520,7 +548,6 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 .build();
     }
 
-
     @Override
     public List<LoanEmiScheduleResponse> getEmiSchedule(Long loanId) {
         List<LoanEmiSchedule> emis = loanEmiScheduleRepository.findByLoan_LoanId(loanId);
@@ -528,7 +555,6 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
-
 
     @Transactional
     @Override
@@ -590,8 +616,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 .min(Comparator.comparing(LoanEmiSchedule::getDueDate))
                 .ifPresentOrElse(
                         next -> loan.setNextDueDate(next.getDueDate()),
-                        () -> loan.setNextDueDate(null)
-                );
+                        () -> loan.setNextDueDate(null));
 
         // if all EMIs are done → close loan
         boolean allPaid = loanEmiScheduleRepository.findByLoan_LoanId(loanId).stream()
@@ -689,8 +714,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         if (newPrincipal.compareTo(BigDecimal.ZERO) == 0) {
             loan.setStatus(LoanStatus.CLOSED);
             loanEmiScheduleRepository.deleteAll(
-                    loanEmiScheduleRepository.findByLoanAndStatus(loan, EmiStatus.UNPAID)
-            );
+                    loanEmiScheduleRepository.findByLoanAndStatus(loan, EmiStatus.UNPAID));
 
             LoanPrepayment record = LoanPrepayment.builder()
                     .loans(loan)
@@ -715,10 +739,8 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                     .build();
         }
 
-
         // Partial prepayment — adjust EMI or tenure
-        List<LoanEmiSchedule> remainingEmis =
-                loanEmiScheduleRepository.findByLoanAndStatus(loan, EmiStatus.UNPAID);
+        List<LoanEmiSchedule> remainingEmis = loanEmiScheduleRepository.findByLoanAndStatus(loan, EmiStatus.UNPAID);
 
         int remainingMonths = remainingEmis.size();
         BigDecimal annualRate = loan.getInterestRate();
@@ -748,7 +770,6 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 .build();
 
         loanPrepaymentRepo.save(record);
-
 
         // Delete old unpaid EMIs
         loanEmiScheduleRepository.deleteAll(remainingEmis);
@@ -782,7 +803,8 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
         for (Loans loan : loansList) {
             List<LoanEmiSchedule> schedules = loanEmiScheduleRepository.findByLoan_LoanId(loan.getLoanId());
-            if (schedules.isEmpty()) continue;
+            if (schedules.isEmpty())
+                continue;
 
             int loanEmiCount = schedules.size();
             int timely = 0;
@@ -844,8 +866,6 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 .loanWiseDetails(loanWiseDetails)
                 .build();
     }
-
-
 
     private BigDecimal calculateEmi(BigDecimal principal, BigDecimal annualRate, int months) {
         if (principal == null || principal.compareTo(BigDecimal.ZERO) <= 0) {
@@ -909,8 +929,8 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         return (int) Math.ceil(n);
     }
 
-
-    private void generateNewEmiSchedule(Loans loan, BigDecimal principal, BigDecimal annualRate, int months, BigDecimal emi) {
+    private void generateNewEmiSchedule(Loans loan, BigDecimal principal, BigDecimal annualRate, int months,
+            BigDecimal emi) {
         double remainingPrincipal = principal.doubleValue();
         double R = annualRate.doubleValue() / 12 / 100;
         LocalDate nextDue = LocalDate.now().plusMonths(1);
@@ -919,7 +939,8 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
             double interest = remainingPrincipal * R;
             double principalComponent = emi.doubleValue() - interest;
             remainingPrincipal -= principalComponent;
-            if (remainingPrincipal < 0) remainingPrincipal = 0;
+            if (remainingPrincipal < 0)
+                remainingPrincipal = 0;
 
             LoanEmiSchedule schedule = LoanEmiSchedule.builder()
                     .loan(loan)

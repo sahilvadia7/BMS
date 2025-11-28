@@ -4,7 +4,7 @@ import com.bms.customer.dtos.resetpass.OtpRequestDTO;
 import com.bms.customer.dtos.resetpass.OtpVerifyDTO;
 import com.bms.customer.dtos.resetpass.PasswordResetDTO;
 import com.bms.customer.services.ForgotPasswordService;
-import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -13,10 +13,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/forgot-password")
-@RequiredArgsConstructor
 public class ForgotPasswordController {
 
     private final ForgotPasswordService forgotPasswordService;
+
+    public ForgotPasswordController(ForgotPasswordService forgotPasswordService) {
+        this.forgotPasswordService = forgotPasswordService;
+    }
 
     @PostMapping("/request-otp")
     public ResponseEntity<String> requestOtp(@RequestBody OtpRequestDTO request) {
