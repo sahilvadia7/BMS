@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
+import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,14 +24,12 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/transactions")
 @Tag(name = "Transaction Management", description = "Endpoints for processing and retrieving transactions")
+@AllArgsConstructor
 public class TransactionController {
 
     private final TransactionService transactionService;
     private final InternalTransactionService internalTransactionService;
 
-    public TransactionController(TransactionService transactionService) {
-        this.transactionService = transactionService;
-    }
 
     /**
      * General purpose endpoint for all types of transactions
@@ -44,9 +43,19 @@ public class TransactionController {
             @ApiResponse(responseCode = "500", description = "Transaction failed")
     })
     @PostMapping
-    public ResponseEntity<TransactionResponseDto> createTransaction(
-            @Valid @RequestBody TransactionRequest request) {
-        return ResponseEntity.ok(transactionService.createTransaction(request));
+    public ResponseEntity<?> createTransaction(
+            @Valid @RequestBody TransactionRequest request
+    ) {
+        Object result = internalTransactionService.createTransaction(request);
+
+        if (result instanceof TransactionResponseDto) {
+            return ResponseEntity.ok(result);
+        } else if (result instanceof PaymentResponse) {
+            return ResponseEntity.status(HttpStatus.ACCEPTED).body(result);
+        } else {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Unexpected transaction result"));
+        }
     }
 
     @Operation(summary = "Get transaction by ID", description = "Access: Customer, Admin", responses = {
