@@ -68,6 +68,12 @@ public class GlobalExceptionHandler {
                 "Please check if the KYC or mapping already exists.");
     }
 
+    @ExceptionHandler(InvalidPinException .class)
+    public ResponseEntity<Map<String, Object>> handleInvalidPin(InvalidPinException  ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, "Error while validating PIN");
+    }
+
+
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {
         Map<String, Object> error = new HashMap<>();
         error.put("timestamp", LocalDateTime.now());

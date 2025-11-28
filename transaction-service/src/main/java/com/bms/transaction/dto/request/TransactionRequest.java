@@ -1,37 +1,122 @@
 package com.bms.transaction.dto.request;
 
+import com.bms.transaction.enums.Currency;
+import com.bms.transaction.enums.TransactionType;
 import jakarta.validation.constraints.*;
+import lombok.*;
+
 import java.math.BigDecimal;
 
-public record TransactionRequest(
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class TransactionRequest {
 
-        @NotNull(message = "Account Number is required")
-        String accountNumber,
+	@NotBlank(message = "initiatedBy is required")
+	private String initiatedBy;
 
-        @NotNull(message = "Destination Account Number is required")
-        String destinationAccountNumber,
+	@NotBlank(message = "accountNumber is required")
+	private String accountNumber;
 
-        @NotNull(message = "Transaction type is required")
-        @Pattern(regexp = "DEPOSIT|WITHDRAWAL|TRANSFER", message = "Invalid transaction type")
-        String transactionType,
+	private String destinationAccountNumber;
 
-        @NotNull(message = "Amount is required")
-        @DecimalMin(value = "1.00", message = "Amount must be at least 1.00")
-        @DecimalMax(value = "10000000.00", message = "Amount exceeds transaction limit")
-        BigDecimal amount,
+	@NotNull(message = "amount is required")
+	@Positive(message = "amount must be greater than zero")
+	private BigDecimal amount;
 
-        @NotNull(message = "Currency is required")
-        @Pattern(regexp = "INR|USD|EUR", message = "Invalid currency")
-        String currency,
+	@NotNull(message = "currency is required")
+	private Currency currency;
 
-        @NotNull(message = "Channel is required")
-        @Pattern(regexp = "ONLINE|BRANCH|ATM", message = "Invalid channel")
-        String channel,
+	@NotNull(message = "transactionType is required")
+	private TransactionType transactionType;
 
-        @NotNull(message = "PIN is required")
-        @Pattern(regexp = "\\d{4}", message = "PIN must be a 4-digit number")
-        String pin,
+	private String description;
 
-        @Size(max = 255, message = "Description cannot exceed 255 characters")
-        String description
-) {}
+	private String pin;
+
+	@NotBlank(message = "idempotencyKey is required")
+	private String idempotencyKey;
+
+	private String channelReferenceId;
+
+	private String branchCode;
+
+	private String linkedTransactionId;
+
+	// ---------------- External Transfer Fields ---------------- //
+
+	/** Bank IFSC or bank code for external transfers */
+	private String destinationBankCode;
+
+	/** Payment gateway provider name, e.g., PAYTM, NPCI, INTERNAL_UPI */
+	private String gatewayProvider;
+
+	/** Reference number returned by gateway (e.g., UTR, UPI Ref No) */
+	private String externalReferenceId;
+
+	public void validateConditionalFields() {
+		if (transactionType != null && requiresPin(transactionType)) {
+			if (pin == null || pin.isBlank()) {
+				throw new IllegalArgumentException("PIN is required for this transaction type");
+			}
+		}
+
+		if (transactionType != null && requiresDestinationAccount(transactionType)) {
+			if (destinationAccountNumber == null || destinationAccountNumber.isBlank()) {
+				throw new IllegalArgumentException("destinationAccountNumber is required for this transaction type");
+			}
+		}
+
+		if (transactionType == TransactionType.REVERSAL) {
+			if (linkedTransactionId == null || linkedTransactionId.isBlank()) {
+				throw new IllegalArgumentException("linkedTransactionId is required for REVERSAL");
+			}
+		}
+
+		if (transactionType == TransactionType.CASH_DEPOSIT ||
+				transactionType == TransactionType.CASH_WITHDRAWAL) {
+
+			if (destinationAccountNumber != null && !destinationAccountNumber.isBlank()) {
+				throw new IllegalArgumentException("destinationAccountNumber is not allowed for cash operations");
+			}
+		}
+
+		// ---------------- External Transfer Validation ---------------- //
+		if (transactionType == TransactionType.EXTERNAL_TRANSFER) {
+			if (destinationBankCode == null || destinationBankCode.isBlank()) {
+				throw new IllegalArgumentException("destinationBankCode is required for external transfers");
+			}
+			if (gatewayProvider == null || gatewayProvider.isBlank()) {
+				throw new IllegalArgumentException("gatewayProvider is required for external transfers");
+			}
+		}
+	}
+
+	/**
+	 * PIN required for these types
+	 */
+	private boolean requiresPin(TransactionType type) {
+		return switch (type) {
+			case WITHDRAWAL,
+				 CASH_WITHDRAWAL,
+				 TRANSFER,
+				 EMI_DEDUCTION,
+				 PENALTY -> true;
+			default -> false;
+		};
+	}
+
+	/**
+	 * Destination account required for these types
+	 */
+	private boolean requiresDestinationAccount(TransactionType type) {
+		return switch (type) {
+			case TRANSFER,
+				 DEPOSIT,
+				 LOAN_DISBURSEMENT,
+				 REFUND -> true;
+			default -> false;
+		};
+	}
+}

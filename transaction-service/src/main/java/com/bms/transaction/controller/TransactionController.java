@@ -2,14 +2,15 @@ package com.bms.transaction.controller;
 
 import com.bms.transaction.dto.request.SearchTransactionsRequest;
 import com.bms.transaction.dto.request.TransactionRequest;
+import com.bms.transaction.dto.response.PaymentResponse;
 import com.bms.transaction.dto.response.TransactionResponseDto;
-import com.bms.transaction.dto.response.TransactionSummaryDto;
 import com.bms.transaction.enums.TransactionStatus;
+import com.bms.transaction.service.InternalTransactionService;
 import com.bms.transaction.service.TransactionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,17 +21,18 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/transactions")
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class TransactionController {
 
     private final TransactionService transactionService;
+    private final InternalTransactionService internalTransactionService;
 
     /**
      * General purpose endpoint for all types of transactions
      * Handles Deposit, Withdrawal, Transfer, Loan Disbursement, EMI Deduction, and Refund
      */
     @Operation(
-            summary = "Create a transaction (Deposit, Withdrawal, Transfer, Loan, EMI, Refund)",
+            summary = "Create a transaction (Deposit, Withdrawal, Transfer, Loan, EMI, Refund,Bank Transfer )",
             description = "Handles all transaction types in one unified API endpoint.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Transaction processed successfully"),
@@ -40,18 +42,25 @@ public class TransactionController {
             }
     )
     @PostMapping
-    public ResponseEntity<TransactionResponseDto> createTransaction(
+    public ResponseEntity<?> createTransaction(
             @Valid @RequestBody TransactionRequest request
     ) {
-        return ResponseEntity.ok(transactionService.createTransaction(request));
+        Object result = internalTransactionService.createTransaction(request);
+
+        if (result instanceof TransactionResponseDto) {
+            return ResponseEntity.ok(result);
+        } else if (result instanceof PaymentResponse) {
+            return ResponseEntity.status(HttpStatus.ACCEPTED).body(result);
+        } else {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Unexpected transaction result"));
+        }
     }
 
     @Operation(summary = "Get transaction by ID", responses = {
             @ApiResponse(responseCode = "200", description = "Transaction found"),
             @ApiResponse(responseCode = "404", description = "Transaction not found")
     })
-
-
     @GetMapping("/{transactionId}")
     public ResponseEntity<TransactionResponseDto> getTransactionById(
             @PathVariable Long transactionId) {

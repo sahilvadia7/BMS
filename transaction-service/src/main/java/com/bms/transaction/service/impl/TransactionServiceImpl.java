@@ -1,14 +1,11 @@
 package com.bms.transaction.service.impl;
 
-import com.bms.transaction.dto.request.TransactionRequest;
+
 import com.bms.transaction.dto.request.SearchTransactionsRequest;
 import com.bms.transaction.dto.response.AccountResponseDTO;
 import com.bms.transaction.dto.response.TransactionResponseDto;
 import com.bms.transaction.dto.response.TransactionSummaryDto;
-import com.bms.transaction.enums.Channel;
-import com.bms.transaction.enums.Currency;
 import com.bms.transaction.enums.TransactionStatus;
-import com.bms.transaction.enums.TransactionType;
 import com.bms.transaction.exception.ResourceNotFoundException;
 import com.bms.transaction.feing.AccountClient;
 import com.bms.transaction.feing.CustomerClient;
@@ -26,17 +23,15 @@ import com.lowagie.text.Rectangle;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -47,228 +42,13 @@ import java.util.stream.Stream;
 
 @Service
 @Slf4j
+@AllArgsConstructor
 public class TransactionServiceImpl implements TransactionService {
 
     private final TransactionRepository transactionRepository;
     private final AccountClient accountClient;
     private final CustomerClient customerClient;
     private final NotificationClient notificationClient;
-
-    public TransactionServiceImpl(
-            TransactionRepository transactionRepository,
-            AccountClient accountClient,
-            CustomerClient customerClient,
-            NotificationClient notificationClient) {
-        this.transactionRepository = transactionRepository;
-        this.accountClient = accountClient;
-        this.customerClient = customerClient;
-        this.notificationClient = notificationClient;
-    }
-
-    private static final Map<TransactionType, BigDecimal> WEEKLY_LIMITS = Map.of(
-            TransactionType.DEPOSIT, new BigDecimal("50000"),
-            TransactionType.WITHDRAWAL, new BigDecimal("20000"),
-            TransactionType.TRANSFER, new BigDecimal("20000"),
-            TransactionType.LOAN_DISBURSEMENT, new BigDecimal("100000"),
-            TransactionType.EMI_DEDUCTION, new BigDecimal("50000"),
-            TransactionType.REFUND, new BigDecimal("100000")
-    );
-
-    @Transactional
-    public TransactionResponseDto createTransaction(TransactionRequest request) {
-
-        validateAccount(request.accountNumber());
-
-        TransactionType type = validateTransactionType(request.transactionType());
-        if (Objects.equals(request.accountNumber(), request.destinationAccountNumber())) {
-            throw new IllegalArgumentException("Source and destination accounts cannot be the same");
-        }
-
-        boolean isValidPin = verifyPinWithAccountService(
-                request.accountNumber(),
-                Integer.parseInt(request.pin())
-        );
-        if (!isValidPin) {
-            throw new IllegalArgumentException("Invalid account PIN");
-        }
-
-        validateTransactionLimits(request.accountNumber(), type, request.amount());
-
-        BigDecimal fee = calculateFee(request.accountNumber(), type, request.amount());
-
-        Transaction txn = createPendingTransaction(request, type);
-
-        if (fee.compareTo(BigDecimal.ZERO) > 0) {
-            txn.setChargeable(true);
-            txn.setFee(fee);
-        }
-
-        try {
-            executeTransactionSteps(type, request, fee, txn);
-
-            txn.setStatus(TransactionStatus.COMPLETED);
-            txn.setRemarks("Transaction successful");
-            transactionRepository.save(txn);
-
-        } catch (Exception e) {
-
-            txn.setStatus(TransactionStatus.FAILED);
-            txn.setRemarks(e.getMessage());
-            transactionRepository.save(txn);
-
-            handleCompensation(type, request, txn);
-
-            throw new IllegalStateException("Transaction failed: " + e.getMessage(), e);
-        }
-
-        return mapToResponseDto(txn);
-    }
-
-
-    private Transaction createPendingTransaction(TransactionRequest request, TransactionType type) {
-        Transaction txn = new Transaction();
-        txn.setAccountNumber(request.accountNumber());
-        txn.setDestinationAccountNumber(request.destinationAccountNumber());
-        txn.setTransactionType(type);
-        txn.setAmount(request.amount());
-        txn.setCurrency(Currency.valueOf(request.currency().toUpperCase()));
-        txn.setStatus(TransactionStatus.PENDING);
-        txn.setDescription(request.description());
-        txn.setReferenceId(UUID.randomUUID().toString());
-        txn.setChannel(Channel.valueOf(request.channel().toUpperCase()));
-        txn.setTransactionDate(LocalDateTime.now());
-        return transactionRepository.save(txn);
-    }
-
-
-    private void executeTransactionSteps(
-            TransactionType type,
-            TransactionRequest request,
-            BigDecimal fee,
-            Transaction mainTxn
-    ) {
-
-        BigDecimal principalAmount = request.amount();
-        BigDecimal totalDeduct = principalAmount.add(fee);
-
-        switch (type) {
-
-            case WITHDRAWAL, EMI_DEDUCTION -> {
-
-                accountClient.updateBalance(request.accountNumber(), totalDeduct, "WITHDRAW");
-
-
-                if (fee.compareTo(BigDecimal.ZERO) > 0) {
-                    accountClient.updateBalance("AC0000000001", fee, "DEPOSIT");
-                    createFeeTransaction(request.accountNumber(), fee, mainTxn.getTransactionId());
-                }
-            }
-
-            case TRANSFER -> {
-                accountClient.updateBalance(request.accountNumber(), totalDeduct, "WITHDRAW");
-
-                validateAccount(request.destinationAccountNumber());
-                accountClient.updateBalance(request.destinationAccountNumber(), principalAmount, "DEPOSIT");
-
-                if (fee.compareTo(BigDecimal.ZERO) > 0) {
-                    accountClient.updateBalance("AC3631614340", fee, "DEPOSIT");
-                    createFeeTransaction(request.accountNumber(), fee, mainTxn.getTransactionId());
-                }
-            }
-
-            case DEPOSIT, LOAN_DISBURSEMENT, REFUND -> {
-                validateAccount(request.destinationAccountNumber());
-                accountClient.updateBalance(request.destinationAccountNumber(), principalAmount, "DEPOSIT");
-            }
-        }
-    }
-
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void handleCompensation(TransactionType type, TransactionRequest request, Transaction txn) {
-        try {
-            switch (type) {
-                case TRANSFER, WITHDRAWAL, EMI_DEDUCTION -> {
-                    log.warn("Compensating failed {} for account {}", type, request.accountNumber());
-                    accountClient.updateBalance(request.accountNumber(), request.amount(), "DEPOSIT");
-                }
-                case DEPOSIT, LOAN_DISBURSEMENT, REFUND -> {
-                    if (request.destinationAccountNumber() != null) {
-                        log.warn("Reverting {} to destination {}", type, request.destinationAccountNumber());
-                        accountClient.updateBalance(request.destinationAccountNumber(), request.amount(), "WITHDRAW");
-                    }
-                }
-            }
-
-            txn.setRemarks("Compensation executed successfully");
-            transactionRepository.save(txn);
-
-        } catch (Exception rollbackEx) {
-            log.error("Compensation failed: {}", rollbackEx.getMessage());
-            txn.setRemarks("Compensation failed: " + rollbackEx.getMessage());
-            transactionRepository.save(txn);
-        }
-    }
-
-
-    private void validateTransactionLimits(String accountNumber, TransactionType type, BigDecimal newAmount) {
-        LocalDateTime weekStart = LocalDate.now().with(DayOfWeek.MONDAY).atStartOfDay();
-        LocalDateTime now = LocalDateTime.now();
-
-        List<Transaction> weeklyTxns = transactionRepository.findByAccountNumberAndTransactionDateBetween(
-                accountNumber, weekStart, now
-        );
-
-        BigDecimal total = weeklyTxns.stream()
-                .filter(txn -> txn.getTransactionType() == type && txn.getStatus() == TransactionStatus.COMPLETED)
-                .map(Transaction::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal limit = WEEKLY_LIMITS.getOrDefault(type, BigDecimal.valueOf(Long.MAX_VALUE));
-
-        if (total.add(newAmount).compareTo(limit) > 0) {
-            throw new IllegalStateException("Weekly " + type + " limit exceeded. Allowed: " + limit);
-        }
-    }
-
-    private BigDecimal calculateFee(String accountNumber, TransactionType type, BigDecimal amount) {
-
-        LocalDateTime weekStart = getWeekStart();
-        LocalDateTime weekEnd = getWeekEnd();
-
-        BigDecimal weeklyUsed = transactionRepository
-                .sumWeeklyAmount(accountNumber, type, weekStart, weekEnd)
-                .orElse(BigDecimal.ZERO);
-
-        BigDecimal limit = WEEKLY_LIMITS.get(type);
-
-        // If weekly boundary crossed → 1% fee applies
-        if (weeklyUsed.add(amount).compareTo(limit) > 0) {
-            return amount.multiply(new BigDecimal("0.01"));
-        }
-
-        return BigDecimal.ZERO;
-    }
-
-
-    private Transaction createFeeTransaction(String accountNumber, BigDecimal feeAmount, String originalTxnId) {
-
-        Transaction feeTxn = new Transaction();
-        feeTxn.setAccountNumber(accountNumber);
-        feeTxn.setDestinationAccountNumber("AC0000000001");
-        feeTxn.setTransactionType(TransactionType.FEE);
-        feeTxn.setAmount(feeAmount);
-        feeTxn.setCurrency(Currency.INR);
-        feeTxn.setStatus(TransactionStatus.COMPLETED);
-        feeTxn.setDescription("Fee for exceeding weekly limit");
-        feeTxn.setChargeable(true);
-        feeTxn.setLinkedTransactionId(originalTxnId);
-        feeTxn.setTransactionDate(LocalDateTime.now());
-        feeTxn.setReferenceId(UUID.randomUUID().toString());
-
-        return transactionRepository.save(feeTxn);
-    }
-
 
     public TransactionResponseDto getTransactionById(Long transactionId) {
         Transaction transaction = transactionRepository.findById(transactionId)
@@ -293,11 +73,6 @@ public class TransactionServiceImpl implements TransactionService {
         return List.of();
     }
 
-    public TransactionSummaryDto getTransactionSummary(String accountNumber, Long branchId) {
-        validateAccount(accountNumber);
-        return new TransactionSummaryDto(accountNumber, branchId, 0, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
-    }
-
 
     public List<TransactionResponseDto> getTransactionsByStatus(TransactionStatus status) {
         List<Transaction> transactions = transactionRepository.findByStatus(status);
@@ -306,6 +81,7 @@ public class TransactionServiceImpl implements TransactionService {
                 .map(this::mapToResponseDto)
                 .toList();
     }
+
 
     public List<Map<String, Object>> getDailyTransactionSummary() {
         List<Object[]> results = transactionRepository.getDailySummary();
@@ -510,37 +286,6 @@ public class TransactionServiceImpl implements TransactionService {
         }
     }
 
-    private boolean verifyPinWithAccountService(String accountId, int  PIN) {
-        try {
-            ResponseEntity<Boolean> response =
-                    accountClient.verifyAccountPin(accountId, PIN);
-
-            return Boolean.TRUE.equals(response.getBody());
-        } catch (Exception ex) {
-            log.error("Error verifying PIN: {}", ex.getMessage());
-            throw new IllegalStateException("PIN verification failed", ex);
-        }
-    }
-
-    private TransactionType validateTransactionType(String type) {
-        try {
-            return TransactionType.valueOf(type.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid transaction type: " + type);
-        }
-    }
-
-    private LocalDateTime getWeekStart() {
-        return LocalDate.now().with(DayOfWeek.MONDAY).atStartOfDay();
-    }
-
-    private LocalDateTime getWeekEnd() {
-        return LocalDate.now().with(DayOfWeek.SUNDAY).atTime(23, 59, 59);
-    }
-
-    private String generateReferenceId() {
-        return "TXN-" + System.currentTimeMillis();
-    }
 
     private TransactionResponseDto mapToResponseDto(Transaction transaction) {
         return new TransactionResponseDto(
@@ -550,10 +295,10 @@ public class TransactionServiceImpl implements TransactionService {
                 transaction.getAmount(),
                 transaction.getTransactionDate(),
                 transaction.getCurrency().name(),
-                transaction.getChannel().name(),
+                transaction.getChannelReferenceId(),
                 transaction.getStatus().name(),
                 transaction.getDescription(),
-                transaction.getReferenceId()
+                transaction.getTransactionId()
         );
     }
 }

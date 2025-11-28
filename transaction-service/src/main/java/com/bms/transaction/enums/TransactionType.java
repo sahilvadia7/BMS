@@ -7,5 +7,9 @@ public enum TransactionType {
     LOAN_DISBURSEMENT,
     EMI_DEDUCTION,
     REFUND,
-    FEE
+    CASH_DEPOSIT,
+    CASH_WITHDRAWAL,
+    PENALTY,
+    REVERSAL,
+    EXTERNAL_TRANSFER, FEE
 }

@@ -3,17 +3,17 @@ package com.bms.transaction.repository;
 import com.bms.transaction.enums.TransactionStatus;
 import com.bms.transaction.enums.TransactionType;
 import com.bms.transaction.model.Transaction;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
-
-	List<Transaction> findByStatusAndNextRetryTimeBefore(TransactionStatus transactionStatus, LocalDateTime now);
 
 	List<Transaction> findByAccountNumberAndTransactionDateBetween(String accountNumber, LocalDateTime weekStart, LocalDateTime now);
 
@@ -56,4 +56,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 			@Param("weekStart") LocalDateTime weekStart,
 			@Param("weekEnd") LocalDateTime weekEnd
 	);
+
+	Optional<Transaction> findByIdempotencyKey(@NotBlank(message = "idempotencyKey is required") String idempotencyKey);
+
+	boolean existsByLinkedTransactionId(String transactionId);
 }
