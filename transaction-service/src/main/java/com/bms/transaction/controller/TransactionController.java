@@ -2,9 +2,10 @@ package com.bms.transaction.controller;
 
 import com.bms.transaction.dto.request.SearchTransactionsRequest;
 import com.bms.transaction.dto.request.TransactionRequest;
+import com.bms.transaction.dto.response.PaymentResponse;
 import com.bms.transaction.dto.response.TransactionResponseDto;
-import com.bms.transaction.dto.response.TransactionSummaryDto;
 import com.bms.transaction.enums.TransactionStatus;
+import com.bms.transaction.service.InternalTransactionService;
 import com.bms.transaction.service.TransactionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -25,6 +26,7 @@ import java.util.Map;
 public class TransactionController {
 
     private final TransactionService transactionService;
+    private final InternalTransactionService internalTransactionService;
 
     public TransactionController(TransactionService transactionService) {
         this.transactionService = transactionService;

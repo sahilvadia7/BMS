@@ -28,7 +28,7 @@ public class PaymentController {
 	public ResponseEntity<PaymentResponse> initiatePayment(
 			@Valid @RequestBody PaymentRequest request) throws Exception {
 		log.info("Initiating payment for request: {}", request);
-		PaymentResponse response = paymentService.initiatePayment(request);
+		PaymentResponse response = paymentService.processExternalTransfer(request);
 		return ResponseEntity.ok(response);
 	}
 

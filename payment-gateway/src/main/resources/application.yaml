@@ -2,5 +2,15 @@ spring:
   application:
     name: payment-gateway
 
+  datasource:
+    url: jdbc:postgresql://localhost:5432/bms_db
+    username: postgres
+    password: root
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+
 server:
   port: 8091

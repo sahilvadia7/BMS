@@ -1,63 +1,52 @@
 package com.bms.gateway.model;
 
-import com.bms.gateway.enums.PaymentMethod;
-import com.bms.gateway.enums.PaymentStatus;
-import jakarta.persistence.*;
+import com.bms.gateway.enums.Currency;
+import com.bms.gateway.enums.TransactionStatus;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
+import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 
-@Data
 @Entity
+@Table(name = "external_transactions",
+		indexes = {@Index(name = "idx_external_ref", columnList = "externalReferenceId")})
+@Data
 @Builder
-@AllArgsConstructor
 @NoArgsConstructor
-@Table(name = "payments", indexes = {
-		@Index(name = "idx_payment_txn_id", columnList = "transactionId"),
-		@Index(name = "idx_payment_idem_key", columnList = "idempotencyKey", unique = true)
-})
+@AllArgsConstructor
 public class Payment {
 
 	@Id
-	@GeneratedValue(strategy = GenerationType.UUID)
-	private String id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+
+	@Column(nullable = false, unique = true)
+	private String transactionId;
 
 	@Column(nullable = false)
-	private String transactionId;
+	private String sourceAccount;
+
+	@Column(nullable = false)
+	private String destinationAccount;
+
+	private String destinationBankCode;
 
 	@Column(nullable = false)
 	private BigDecimal amount;
 
 	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
-	private PaymentMethod method;
+	private Currency currency;
 
 	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
-	private PaymentStatus status;
+	private TransactionStatus status;
 
-	private String providerPaymentId;
-	private String providerReference;
+	private String failureReason;
 
 	@Column(unique = true)
-	private String idempotencyKey;
+	private String externalReferenceId;
 
-	@Column(columnDefinition = "TEXT")
-	private String metadataJson;
+	private String gatewayProvider;
 
-	@Column(columnDefinition = "TEXT")
-	private String providerResponse;
-
-	@CreationTimestamp
-	private LocalDateTime createdAt;
-
-	@UpdateTimestamp
-	private LocalDateTime updatedAt;
-
-	@OneToOne(mappedBy = "payment", cascade = CascadeType.ALL)
-	private Refund refund;
+	private LocalDateTime initiatedAt;
+	private LocalDateTime completedAt;
 }

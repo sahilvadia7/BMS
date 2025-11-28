@@ -1,4 +1,4 @@
-package com.bms.transaction.enums;
+package com.bms.gateway.enums;
 
 public enum TransactionStatus {
     PENDING,

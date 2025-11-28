@@ -2,31 +2,18 @@ package com.bms.gateway.service.impl;
 
 import com.bms.gateway.dto.request.PaymentRequest;
 import com.bms.gateway.dto.response.PaymentResponse;
-import com.bms.gateway.dto.response.ProviderInitResponse;
-import com.bms.gateway.dto.response.ProviderRetryResponse;
-import com.bms.gateway.enums.PaymentStatus;
-import com.bms.gateway.enums.ProviderPaymentStatus;
-import com.bms.gateway.exception.ResourceNotFoundException;
+import com.bms.gateway.enums.TransactionStatus;
 import com.bms.gateway.model.Payment;
-import com.bms.gateway.service.PaymentProvider;
 import com.bms.gateway.repository.PaymentRepository;
-import com.bms.gateway.repository.RefundRepository;
 import com.bms.gateway.service.PaymentService;
 import com.bms.gateway.service.RefundService;
 
 import lombok.extern.slf4j.Slf4j;
-
-import org.apache.coyote.BadRequestException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 
-import java.math.BigDecimal;
-import java.security.ProviderException;
-import java.util.Optional;
+import java.time.LocalDateTime;
+import java.util.UUID;
 
-@Slf4j
 @Service
 public class PaymentServiceImpl implements PaymentService {
 
@@ -45,52 +32,26 @@ public class PaymentServiceImpl implements PaymentService {
 
 		log.info("Initiating payment for transactionId: {}", request.getTransactionId());
 
-		if (request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
-			throw new BadRequestException("Amount must be greater than 0");
+	public PaymentResponse processExternalTransfer(PaymentRequest request) {
+
+		// Check duplicate transaction
+		if (repository.findByExternalReferenceId(request.getTransactionId()).isPresent()) {
+			throw new IllegalStateException("Duplicate external transaction request");
 		}
 
-		Optional<Payment> existing = paymentRepository.findByIdempotencyKey(request.getIdempotencyKey());
-		if (existing.isPresent()) {
-			log.warn("Duplicate payment request detected for idempotencyKey={}", request.getIdempotencyKey());
-			return PaymentResponse.fromEntity(existing.get());
-		}
-
-		Payment payment = Payment.builder()
+		Payment txn = Payment.builder()
 				.transactionId(request.getTransactionId())
+				.sourceAccount(request.getSourceAccount())
+				.destinationAccount(request.getDestinationAccount())
+				.destinationBankCode(request.getDestinationBankCode())
 				.amount(request.getAmount())
-				.method(request.getMethod())
-				.status(PaymentStatus.INITIATED)
-				.idempotencyKey(request.getIdempotencyKey())
-				.metadataJson(request.getMetadataJson())
+				.currency(request.getCurrency())
+				.status(TransactionStatus.PENDING)
+				.initiatedAt(LocalDateTime.now())
+				.externalReferenceId(UUID.randomUUID().toString())
 				.build();
 
-		paymentRepository.save(payment);
-
-		ProviderInitResponse providerInit = paymentProvider.initiate(payment);
-
-		payment.setProviderReference(providerInit.getProviderReference());
-		payment.setProviderResponse(providerInit.getRawResponse());
-		paymentRepository.save(payment);
-
-		return PaymentResponse.fromEntity(payment);
-	}
-
-	@Override
-	@Transactional
-	public PaymentResponse processPayment(String paymentId) {
-
-		Payment payment = getPaymentOrThrow(paymentId);
-
-		if (payment.getStatus() == PaymentStatus.SUCCESS ||
-				payment.getStatus() == PaymentStatus.FAILED) {
-			log.info("Payment {} already completed, skipping processing.", paymentId);
-			return PaymentResponse.fromEntity(payment);
-		}
-
-		payment.setStatus(PaymentStatus.PROCESSING);
-		paymentRepository.save(payment);
-
-		ProviderPaymentStatus providerStatus;
+		repository.save(txn);
 
 		try {
 			providerStatus = paymentProvider.checkStatus(payment);
@@ -227,46 +188,28 @@ public class PaymentServiceImpl implements PaymentService {
 				throw new SecurityException("Invalid webhook signature");
 			}
 
-			Payment payment = paymentRepository.findByProviderPaymentId(providerPaymentId)
-					.orElseThrow(() -> new ResourceNotFoundException(
-							"Payment not found for providerPaymentId=" + providerPaymentId));
-
-			PaymentStatus newStatus = mapWebhookStatus(statusStr);
-
-			if (payment.getStatus() == PaymentStatus.SUCCESS ||
-					payment.getStatus() == PaymentStatus.FAILED ||
-					payment.getStatus() == PaymentStatus.CANCELLED) {
-
-				log.info("Webhook ignored — Payment {} already in final state: {}",
-						payment.getId(), payment.getStatus());
-				return;
-			}
-
-			payment.setProviderResponse(rawPayload);
-			payment.setStatus(newStatus);
-
-			paymentRepository.save(payment);
-
-			log.info("Payment webhook processed successfully for paymentId={} -> {}",
-					payment.getId(), newStatus);
-
 		} catch (Exception e) {
-			log.error("Failed to process payment webhook", e);
-			throw new RuntimeException("Invalid payment webhook payload");
+			txn.setStatus(TransactionStatus.FAILED);
+			txn.setFailureReason(e.getMessage());
 		}
+
+		repository.save(txn);
+
+		return PaymentResponse.builder()
+				.transactionId(txn.getTransactionId())
+				.externalReferenceId(txn.getExternalReferenceId())
+				.status(txn.getStatus())
+				.amount(txn.getAmount())
+				.destinationBankCode(txn.getDestinationBankCode())
+				.initiatedAt(txn.getInitiatedAt())
+				.completedAt(txn.getCompletedAt())
+				.failureReason(txn.getFailureReason())
+				.build();
 	}
 
-	private PaymentStatus mapWebhookStatus(String providerStatus) {
 
-		return switch (providerStatus.toUpperCase()) {
-			case "SUCCESS", "CAPTURED", "PAID" -> PaymentStatus.SUCCESS;
-			case "FAILED", "DECLINED", "ERROR" -> PaymentStatus.FAILED;
-			case "PENDING" -> PaymentStatus.PENDING;
-			case "AUTHORIZED" -> PaymentStatus.AUTHORIZED;
-			case "PROCESSING" -> PaymentStatus.PROCESSING;
-			case "CANCELLED" -> PaymentStatus.CANCELLED;
-			default -> throw new IllegalArgumentException("Unknown provider webhook status");
-		};
+	private boolean callExternalBankAPI(Payment txn) {
+		log.info("Calling external bank API for {} -> {}", txn.getSourceAccount(), txn.getDestinationAccount());
+		return true;
 	}
-
 }

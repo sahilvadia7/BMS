@@ -1,32 +1,22 @@
 package com.bms.gateway.dto.response;
 
-import com.bms.gateway.enums.PaymentStatus;
-import com.bms.gateway.model.Payment;
-import lombok.*;
+import com.bms.gateway.enums.TransactionStatus;
+import lombok.Builder;
+import lombok.Data;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
+@Data
 @Builder
 public class PaymentResponse {
 
-	private String paymentId;
 	private String transactionId;
+	private String externalReferenceId;
+	private TransactionStatus status;
 	private BigDecimal amount;
-	private PaymentStatus status;
-	private String providerReference;
-
-	public static PaymentResponse fromEntity(Payment p) {
-		return PaymentResponse.builder()
-				.paymentId(p.getId())
-				.transactionId(p.getTransactionId())
-				.amount(p.getAmount())
-				.status(p.getStatus())
-				.providerReference(p.getProviderReference())
-				.build();
-	}
+	private String destinationBankCode;
+	private LocalDateTime initiatedAt;
+	private LocalDateTime completedAt;
+	private String failureReason;
 }
-

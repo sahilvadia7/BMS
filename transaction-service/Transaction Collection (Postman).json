@@ -1,0 +1,179 @@
+{
+  "info": {
+    "name": "BMS Transaction Service - Updated",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "DEPOSIT",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"initiatedBy\": \"1\",\n  \"accountNumber\": \"AC3629770998\",\n  \"destinationAccountNumber\": \"AC3631614340\",\n  \"amount\": 5000,\n  \"currency\": \"INR\",\n  \"transactionType\": \"DEPOSIT\",\n  \"description\": \"Deposit into savings\",\n  \"idempotencyKey\": \"DEP-001-XYZ\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/v1/transactions",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "v1", "transactions"]
+        }
+      }
+    },
+    {
+      "name": "WITHDRAWAL",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"initiatedBy\": \"1\",\n  \"accountNumber\": \"AC3629770998\",\n  \"amount\": 2000,\n  \"currency\": \"INR\",\n  \"transactionType\": \"WITHDRAWAL\",\n  \"description\": \"ATM cash withdrawal\",\n  \"pin\": \"1234\",\n  \"idempotencyKey\": \"WDL-001-XYZ\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/v1/transactions",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "v1", "transactions"]
+        }
+      }
+    },
+    {
+      "name": "TRANSFER (Internal)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"initiatedBy\": \"1\",\n  \"accountNumber\": \"AC3629770998\",\n  \"destinationAccountNumber\": \"AC3631614340\",\n  \"amount\": 1500,\n  \"currency\": \"INR\",\n  \"transactionType\": \"TRANSFER\",\n  \"description\": \"Internal transfer\",\n  \"pin\": \"4321\",\n  \"idempotencyKey\": \"INT-TRF-001\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/v1/transactions",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "v1", "transactions"]
+        }
+      }
+    },
+    {
+      "name": "LOAN DISBURSEMENT",
+      "request": {
+        "method": "POST",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"initiatedBy\": \"1\",\n  \"accountNumber\": \"AC3629770998\",\n  \"destinationAccountNumber\": \"AC3631614340\",\n  \"amount\": 100000,\n  \"currency\": \"INR\",\n  \"transactionType\": \"LOAN_DISBURSEMENT\",\n  \"description\": \"Loan disbursement\",\n  \"idempotencyKey\": \"LOAN-DBM-001\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/v1/transactions"
+        }
+      }
+    },
+    {
+      "name": "EMI DEDUCTION",
+      "request": {
+        "method": "POST",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"initiatedBy\": \"1\",\n  \"accountNumber\": \"AC3629770998\",\n  \"amount\": 3500,\n  \"currency\": \"INR\",\n  \"transactionType\": \"EMI_DEDUCTION\",\n  \"description\": \"Monthly EMI\",\n  \"pin\": \"7890\",\n  \"idempotencyKey\": \"EMI-001\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/v1/transactions"
+        }
+      }
+    },
+    {
+      "name": "REFUND",
+      "request": {
+        "method": "POST",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"initiatedBy\": \"1\",\n  \"accountNumber\": \"AC3631614340\",\n  \"destinationAccountNumber\": \"AC3629770998\",\n  \"amount\": 700,\n  \"currency\": \"INR\",\n  \"transactionType\": \"REFUND\",\n  \"description\": \"Refund issued\",\n  \"idempotencyKey\": \"REFUND-001\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/v1/transactions"
+        }
+      }
+    },
+    {
+      "name": "CASH DEPOSIT",
+      "request": {
+        "method": "POST",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"initiatedBy\": \"1\",\n  \"accountNumber\": \"AC3629770998\",\n  \"amount\": 3000,\n  \"currency\": \"INR\",\n  \"transactionType\": \"CASH_DEPOSIT\",\n  \"description\": \"Cash deposit at branch\",\n  \"idempotencyKey\": \"CASH-DEP-001\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/v1/transactions"
+        }
+      }
+    },
+    {
+      "name": "CASH WITHDRAWAL",
+      "request": {
+        "method": "POST",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"initiatedBy\": \"1\",\n  \"accountNumber\": \"AC3629770998\",\n  \"amount\": 2500,\n  \"currency\": \"INR\",\n  \"transactionType\": \"CASH_WITHDRAWAL\",\n  \"description\": \"Cash withdrawal at branch\",\n  \"pin\": \"5432\",\n  \"idempotencyKey\": \"CASH-WDL-001\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/v1/transactions"
+        }
+      }
+    },
+    {
+      "name": "PENALTY",
+      "request": {
+        "method": "POST",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"initiatedBy\": \"1\",\n  \"accountNumber\": \"AC3629770998\",\n  \"amount\": 150,\n  \"currency\": \"INR\",\n  \"transactionType\": \"PENALTY\",\n  \"description\": \"Late payment penalty\",\n  \"pin\": \"1234\",\n  \"idempotencyKey\": \"PENALTY-001\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/v1/transactions"
+        }
+      }
+    },
+    {
+      "name": "REVERSAL",
+      "request": {
+        "method": "POST",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"initiatedBy\": \"1\",\n  \"accountNumber\": \"AC3629770998\",\n  \"amount\": 5000,\n  \"currency\": \"INR\",\n  \"transactionType\": \"REVERSAL\",\n  \"description\": \"Reversing failed transaction\",\n  \"linkedTransactionId\": \"TXN-12345\",\n  \"idempotencyKey\": \"REV-001\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/v1/transactions"
+        }
+      }
+    },
+    {
+      "name": "EXTERNAL TRANSFER",
+      "request": {
+        "method": "POST",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"initiatedBy\": \"1\",\n  \"accountNumber\": \"AC3629770998\",\n  \"destinationAccountNumber\": \"AC3631614340\",\n  \"destinationBankCode\": \"HDFC0001234\",\n  \"amount\": 2500,\n  \"currency\": \"INR\",\n  \"transactionType\": \"EXTERNAL_TRANSFER\",\n  \"description\": \"Sending money externally\",\n  \"pin\": \"2222\",\n  \"gatewayProvider\": \"NPCI\",\n  \"idempotencyKey\": \"EXT-TRF-001\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/v1/transactions"
+        }
+      }
+    },
+    {
+      "name": "FEE",
+      "request": {
+        "method": "POST",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"initiatedBy\": \"1\",\n  \"accountNumber\": \"AC3629770998\",\n  \"amount\": 50,\n  \"currency\": \"INR\",\n  \"transactionType\": \"FEE\",\n  \"description\": \"Service fee\",\n  \"idempotencyKey\": \"FEE-001\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/v1/transactions"
+        }
+      }
+    }
+  ]
+}

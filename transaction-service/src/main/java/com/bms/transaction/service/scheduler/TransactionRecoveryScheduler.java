@@ -4,15 +4,12 @@ import com.bms.transaction.dto.request.TransactionRequest;
 import com.bms.transaction.enums.TransactionStatus;
 import com.bms.transaction.model.Transaction;
 import com.bms.transaction.repository.TransactionRepository;
-import com.bms.transaction.service.TransactionService;
+import com.bms.transaction.service.InternalTransactionService;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
-import java.util.List;
 
 @Component
 @Slf4j
