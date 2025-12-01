@@ -1,0 +1,608 @@
+{
+	"info": {
+		"_postman_id": "dc2b6ef0-86b1-41b9-9e55-f646c9315536",
+		"name": "BMS Transaction Service - Updated",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "37737201"
+	},
+	"item": [
+		{
+			"name": "DEPOSIT",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"initiatedBy\": \"1\",\n  \"accountNumber\": \"AC3629770998\",\n  \"amount\": 5555,\n  \"currency\": \"INR\",\n  \"transactionType\": \"DEPOSIT\",\n  \"description\": \"Deposit into savings\",\n  \"idempotencyKey\": \"DEP-001-XYQ\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8085/api/v1/transactions",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8085",
+					"path": [
+						"api",
+						"v1",
+						"transactions"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "WITHDRAWAL",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"initiatedBy\": \"1\",\n  \"accountNumber\": \"AC3629770998\",\n  \"amount\": 2000,\n  \"currency\": \"INR\",\n  \"transactionType\": \"WITHDRAWAL\",\n  \"description\": \"ATM cash withdrawal\",\n  \"pin\": \"1111\",\n  \"idempotencyKey\": \"WDL-001-XY1\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8085/api/v1/transactions",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8085",
+					"path": [
+						"api",
+						"v1",
+						"transactions"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "TRANSFER (Internal)",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{ \n  \"initiatedBy\": \"1\",\n  \"accountNumber\": \"AC3631614340\",\n  \"destinationAccountNumber\": \"AC3629770998\", \n  \"amount\": 4700,\n  \"currency\": \"INR\",\n  \"transactionType\": \"TRANSFER\",\n  \"description\": \"Internal transfer\",\n  \"pin\": \"1111\",\n  \"idempotencyKey\": \"IN-TRF-1qq2\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8085/api/v1/transactions",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8085",
+					"path": [
+						"api",
+						"v1",
+						"transactions"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "LOAN DISBURSEMENT",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"initiatedBy\": \"1\",\n  \"accountNumber\": \"AC3629770998\",\n  \"destinationAccountNumber\": \"AC3631614340\",\n  \"amount\": 100000,\n  \"currency\": \"INR\",\n  \"transactionType\": \"LOAN_DISBURSEMENT\",\n  \"description\": \"Loan disbursement\",\n  \"idempotencyKey\": \"LOAN-DBM-001\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": ""
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "EMI DEDUCTION",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"initiatedBy\": \"1\",\n  \"accountNumber\": \"AC3629770998\",\n  \"amount\": 3500,\n  \"currency\": \"INR\",\n  \"transactionType\": \"EMI_DEDUCTION\",\n  \"description\": \"Monthly EMI\",\n  \"pin\": \"7890\",\n  \"idempotencyKey\": \"EMI-001\"\n}"
+				},
+				"url": {
+					"raw": ""
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "REFUND",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"initiatedBy\": \"1\",\n  \"accountNumber\": \"AC3631614340\",\n  \"destinationAccountNumber\": \"AC3629770998\",\n  \"amount\": 700,\n  \"currency\": \"INR\",\n  \"transactionType\": \"REFUND\",\n  \"description\": \"Refund issued\",\n  \"idempotencyKey\": \"REFUND-001\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": ""
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "CASH DEPOSIT",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"initiatedBy\": \"1\",\n  \"accountNumber\": \"AC3629770998\",\n  \"amount\": 3000,\n  \"currency\": \"INR\",\n  \"transactionType\": \"CASH_DEPOSIT\",\n  \"description\": \"Cash deposit at branch\",\n  \"idempotencyKey\": \"CASH-DEP-001\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8085/api/v1/transactions",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8085",
+					"path": [
+						"api",
+						"v1",
+						"transactions"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "CASH WITHDRAWAL",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"initiatedBy\": \"1\",\n  \"accountNumber\": \"AC3629770998\",\n  \"amount\": 2500,\n  \"currency\": \"INR\",\n  \"transactionType\": \"CASH_WITHDRAWAL\",\n  \"description\": \"Cash withdrawal at branch\",\n  \"pin\": \"5432\",\n  \"idempotencyKey\": \"CASH-WDL-001\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8085/api/v1/transactions",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8085",
+					"path": [
+						"api",
+						"v1",
+						"transactions"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "PENALTY",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"initiatedBy\": \"1\",\n  \"accountNumber\": \"AC3629770998\",\n  \"amount\": 150,\n  \"currency\": \"INR\",\n  \"transactionType\": \"PENALTY\",\n  \"description\": \"Late payment penalty\",\n  \"pin\": \"1234\",\n  \"idempotencyKey\": \"PENALTY-001\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8085/api/v1/transactions",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8085",
+					"path": [
+						"api",
+						"v1",
+						"transactions"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "REVERSAL",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"initiatedBy\": \"1\",\n  \"accountNumber\": \"AC3629770998\",\n  \"amount\": 5000,\n  \"currency\": \"INR\",\n  \"transactionType\": \"REVERSAL\",\n  \"description\": \"Reversing failed transaction\",\n  \"linkedTransactionId\": \"TXN-12345\",\n  \"idempotencyKey\": \"REV-001\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8085/api/v1/transactions",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8085",
+					"path": [
+						"api",
+						"v1",
+						"transactions"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "EXTERNAL TRANSFER",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"initiatedBy\": \"1\",\n  \"accountNumber\": \"AC3629770998\",\n  \"destinationAccountNumber\": \"AC3631614340\",\n  \"destinationBankCode\": \"HDFC0001234\",\n  \"amount\": 2500,\n  \"currency\": \"INR\",\n  \"transactionType\": \"EXTERNAL_TRANSFER\",\n  \"description\": \"Sending money externally\",\n  \"pin\": \"2222\",\n  \"gatewayProvider\": \"NPCI\",\n  \"idempotencyKey\": \"EXT-TRF-001\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8085/api/v1/transactions",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8085",
+					"path": [
+						"api",
+						"v1",
+						"transactions"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "FEE",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"initiatedBy\": \"1\",\n  \"accountNumber\": \"AC3629770998\",\n  \"amount\": 50,\n  \"currency\": \"INR\",\n  \"transactionType\": \"FEE\",\n  \"description\": \"Service fee\",\n  \"idempotencyKey\": \"FEE-001\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8085/api/v1/transactions",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8085",
+					"path": [
+						"api",
+						"v1",
+						"transactions"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "BANK TRANSFER",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"initiatedBy\": \"1\",\n  \"accountNumber\": \"AC3631614340\",\n  \"destinationAccountNumber\": \"AC0000000001\",\n  \"amount\": 2700,\n  \"currency\": \"INR\",\n  \"transactionType\": \"EXTERNAL_TRANSFER\",\n  \"description\": \"External bank transfer\",\n  \"pin\": \"1111\",\n  \"idempotencyKey\": \"EXT-TRr-714\",\n  \n  \"destinationBankCode\": \"HDFC0001234\",\n  \"gatewayProvider\": \"NPCI\",\n  \"externalReferenceId\": \"UPI987654321\" \n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8085/api/v1/transactions",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8085",
+					"path": [
+						"api",
+						"v1",
+						"transactions"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Request",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://account-service/api/v1/accounts/exists/AC3631614340",
+					"protocol": "http",
+					"host": [
+						"account-service"
+					],
+					"path": [
+						"api",
+						"v1",
+						"accounts",
+						"exists",
+						"AC3631614340"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Transaction by ID",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/v1/transactions/1",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"v1",
+						"transactions",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Transactions for Month",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/v1/transactions/month?accountNumber=1234567890&year=2025&month=1",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"v1",
+						"transactions",
+						"month"
+					],
+					"query": [
+						{
+							"key": "accountNumber",
+							"value": "1234567890"
+						},
+						{
+							"key": "year",
+							"value": "2025"
+						},
+						{
+							"key": "month",
+							"value": "1"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Transactions by Status",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/v1/transactions/status/SUCCESS",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"v1",
+						"transactions",
+						"status",
+						"SUCCESS"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Transactions",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/v1/transactions/search?accountNumber=1234567890&minAmount=100&maxAmount=10000",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"v1",
+						"transactions",
+						"search"
+					],
+					"query": [
+						{
+							"key": "accountNumber",
+							"value": "1234567890"
+						},
+						{
+							"key": "minAmount",
+							"value": "100"
+						},
+						{
+							"key": "maxAmount",
+							"value": "10000"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Daily Transaction Summary",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/v1/transactions/summary/daily",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"v1",
+						"transactions",
+						"summary",
+						"daily"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Account Summary",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/v1/transactions/summary/account/1234567890",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"v1",
+						"transactions",
+						"summary",
+						"account",
+						"1234567890"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Transaction Charges",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/v1/transactions/charges/txn1234",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"v1",
+						"transactions",
+						"charges",
+						"txn1234"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Send Transaction Statement (Email)",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/v1/transactions/statements/send-transaction-statement?accountNumber=1234567890",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"v1",
+						"transactions",
+						"statements",
+						"send-transaction-statement"
+					],
+					"query": [
+						{
+							"key": "accountNumber",
+							"value": "1234567890"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
