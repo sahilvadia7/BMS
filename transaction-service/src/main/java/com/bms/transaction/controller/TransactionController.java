@@ -1,5 +1,6 @@
 package com.bms.transaction.controller;
 
+import com.bms.transaction.dto.request.PaymentRequest;
 import com.bms.transaction.dto.request.SearchTransactionsRequest;
 import com.bms.transaction.dto.request.TransactionRequest;
 import com.bms.transaction.dto.response.PaymentResponse;
@@ -43,9 +44,7 @@ public class TransactionController {
             @ApiResponse(responseCode = "500", description = "Transaction failed")
     })
     @PostMapping
-    public ResponseEntity<?> createTransaction(
-            @Valid @RequestBody TransactionRequest request
-    ) {
+    public ResponseEntity<?> createTransaction(@Valid @RequestBody TransactionRequest request) {
         Object result = internalTransactionService.createTransaction(request);
 
         if (result instanceof TransactionResponseDto) {
@@ -57,6 +56,7 @@ public class TransactionController {
                     .body(Map.of("error", "Unexpected transaction result"));
         }
     }
+
 
     @Operation(summary = "Get transaction by ID", description = "Access: Customer, Admin", responses = {
             @ApiResponse(responseCode = "200", description = "Transaction found"),
@@ -114,7 +114,7 @@ public class TransactionController {
     }
 
     @Operation(summary = "Get account summary", description = "Access: Customer, Admin")
-    @GetMapping("/summary/account/{accountId}")
+    @GetMapping("/summary/account/{accountNumber}")
     public ResponseEntity<Map<String, BigDecimal>> getAccountSummary(@PathVariable String accountNumber) {
         return ResponseEntity.ok(transactionService.getAccountSummary(accountNumber));
     }
@@ -126,7 +126,7 @@ public class TransactionController {
     }
 
     @Operation(summary = "Send transaction statement", description = "Access: Customer")
-    @PostMapping("/statements/send-transaction-statement")
+    @GetMapping("/statements/send-transaction-statement")
     public ResponseEntity<String> sendStatement(@RequestParam String accountNumber) {
         try {
             transactionService.sendStatement(accountNumber);

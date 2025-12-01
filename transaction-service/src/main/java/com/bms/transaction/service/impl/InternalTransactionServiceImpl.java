@@ -15,11 +15,12 @@ import com.bms.transaction.model.OutboxEvent;
 import com.bms.transaction.model.Transaction;
 import com.bms.transaction.repository.OutboxRepository;
 import com.bms.transaction.repository.TransactionRepository;
+import com.bms.transaction.service.InternalTransactionService;
 import jakarta.transaction.Transactional;
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -29,35 +30,19 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import static org.springframework.http.codec.ServerSentEvent.builder;
 
-/**
- * NOTE:
- * - This implementation persists an OutboxEvent instead of calling the payment gateway directly.
- * - Create a separate OutboxEvent entity + OutboxRepository (JPA) to back this.
- *
- * OutboxEvent fields expected (example):
- *  - id (String/UUID)
- *  - aggregateId (transactionId)
- *  - eventType (e.g. EXTERNAL_TRANSFER_INITIATED)
- *  - payloadJson (text)
- *  - status (PENDING, SENT, FAILED)
- *  - attempts (int)
- *  - nextAttemptAt (LocalDateTime)
- *  - createdAt (LocalDateTime)
- *
- * A scheduler should poll OutboxRepository for PENDING/RETRY events and call payment service.
- */
 @Service
 @Slf4j
-@AllArgsConstructor
-public class InternalTransactionServiceImpl implements com.bms.transaction.service.InternalTransactionService {
+public class InternalTransactionServiceImpl implements InternalTransactionService {
 
-	private final TransactionRepository transactionRepository;
-	private final AccountClient accountClient;
-	private final PaymentClient paymentClient;
-	private final OutboxRepository outboxRepository;
+	@Autowired private TransactionRepository transactionRepository;
+	@Autowired private AccountClient accountClient;
+	@Autowired private PaymentClient paymentClient;
+	@Autowired private OutboxRepository outboxRepository;
+
+	@Value("${bank.account.number}")
+	private String BANK_ACC_NUMBER;
 
 	private static final Map<TransactionType, BigDecimal> WEEKLY_LIMITS = Map.of(
 			TransactionType.DEPOSIT, new BigDecimal("50000"),
@@ -72,14 +57,6 @@ public class InternalTransactionServiceImpl implements com.bms.transaction.servi
 
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
-	/**
-	 * Creates transaction. For EXTERNAL_TRANSFER this method will:
-	 *  - persist txn (PENDING)
-	 *  - persist outbox event (PENDING)
-	 *  - return an immediate Processing response
-	 *
-	 * Payment gateway call is delegated to Outbox Scheduler (separate component).
-	 */
 	@Override
 	@Transactional
 	public Object createTransaction(TransactionRequest request) {
@@ -92,15 +69,16 @@ public class InternalTransactionServiceImpl implements com.bms.transaction.servi
 			validateDestinationAccount(request.getDestinationAccountNumber());
 		}
 
-		// Verify PIN if needed (debit operations)
 		if (isDebitType(request.getTransactionType())) {
-			verifyAccountPin(request.getAccountNumber(), Integer.parseInt(Optional.ofNullable(request.getPin()).orElse("0")));
+			verifyAccountPin(
+					request.getAccountNumber(),
+					Integer.parseInt(Optional.ofNullable(request.getPin()).orElse("0"))
+			);
 		}
 
 		BigDecimal fee = calculateFee(request);
 		Transaction txn = createPendingTransaction(request, fee);
 
-		// INTERNAL TRANSACTION: handle synchronously (ACID within local DB and reliance on account-service atomic ops)
 		if (!request.getTransactionType().equals(TransactionType.EXTERNAL_TRANSFER)) {
 			processInternalOperation(txn);
 			txn.setStatus(TransactionStatus.COMPLETED);
@@ -109,11 +87,8 @@ public class InternalTransactionServiceImpl implements com.bms.transaction.servi
 			return buildInternalResponse(txn);
 		}
 
-		// EXTERNAL TRANSACTION: create outbox event (do not call external service here)
 		try {
 			PaymentRequest paymentRequest = mapToPaymentRequest(request, txn.getTransactionId());
-
-			// create outbox event payload (serialized)
 			String payloadJson = objectMapper.writeValueAsString(paymentRequest);
 
 			OutboxEvent outbox = OutboxEvent.builder()
@@ -130,6 +105,8 @@ public class InternalTransactionServiceImpl implements com.bms.transaction.servi
 
 			txn.setStatus(TransactionStatus.PROCESSING);
 			txn.setGatewayProvider(request.getGatewayProvider());
+			txn.setBranchCode("BMS0001");
+			txn.setDestinationBankCode(request.getDestinationBankCode());
 			txn.setTransactionDate(LocalDateTime.now());
 			transactionRepository.save(txn);
 
@@ -163,20 +140,13 @@ public class InternalTransactionServiceImpl implements com.bms.transaction.servi
 		}
 	}
 
-
 	private Transaction createPendingTransaction(TransactionRequest request, BigDecimal fee) {
 		String requestHash = generateRequestHash(request);
 
 		String destinationAcc = switch (request.getTransactionType()) {
-			case TRANSFER -> request.getDestinationAccountNumber();
-			case EMI_DEDUCTION -> null;
-			case WITHDRAWAL, DEPOSIT, LOAN_DISBURSEMENT, REFUND -> null;
-			case CASH_DEPOSIT -> null;
-			case CASH_WITHDRAWAL -> null;
-			case PENALTY -> null;
-			case REVERSAL -> null;
-			case EXTERNAL_TRANSFER -> request.getDestinationAccountNumber();
-			case FEE -> "BANK_ACCOUNT";
+			case TRANSFER, EXTERNAL_TRANSFER -> request.getDestinationAccountNumber();
+			case EMI_DEDUCTION, WITHDRAWAL, DEPOSIT, LOAN_DISBURSEMENT, REFUND, CASH_DEPOSIT, CASH_WITHDRAWAL, PENALTY, REVERSAL -> null;
+			case FEE -> BANK_ACC_NUMBER;
 		};
 
 		Transaction txn = Transaction.builder()
@@ -208,15 +178,9 @@ public class InternalTransactionServiceImpl implements com.bms.transaction.servi
 		String dest = txn.getDestinationAccountNumber();
 
 		switch (txn.getTransactionType()) {
-			case WITHDRAWAL -> {
+			case WITHDRAWAL, CASH_WITHDRAWAL -> {
 				checkSufficientBalance(source, total);
 				debitAccount(source, total, txn.getTransactionId());
-				if (txn.getFee().signum() > 0) applyFee(source, txn);
-			}
-			case CASH_WITHDRAWAL -> {
-				checkSufficientBalance(source, total);
-				debitAccount(source, total, txn.getTransactionId());
-				moveToVault(txn);
 				if (txn.getFee().signum() > 0) applyFee(source, txn);
 			}
 			case CASH_DEPOSIT -> {
@@ -230,9 +194,7 @@ public class InternalTransactionServiceImpl implements com.bms.transaction.servi
 				creditAccount(dest, txn.getAmount(), txn.getTransactionId());
 				if (txn.getFee().signum() > 0) applyFee(source, txn);
 			}
-			case DEPOSIT -> {
-				creditAccount(source, txn.getAmount(), txn.getTransactionId());
-			}
+			case DEPOSIT -> creditAccount(source, txn.getAmount(), txn.getTransactionId());
 			case LOAN_DISBURSEMENT, REFUND -> {
 				validateAccount(dest);
 				creditAccount(dest, txn.getAmount(), txn.getTransactionId());
@@ -254,12 +216,14 @@ public class InternalTransactionServiceImpl implements com.bms.transaction.servi
 	}
 
 	private void debitAccount(String acc, BigDecimal amount, String ref) {
-		accountClient.updateBalance(acc, amount, "WITHDRAW");
+		BigDecimal bal = Optional.ofNullable( accountClient.updateBalance(acc, amount, "WITHDRAW"))
+				.orElseThrow(() -> new IllegalStateException("Debit failed for " + acc));
 		log.info("Debited {} from {} (Ref: {})", amount, acc, ref);
 	}
 
 	private void creditAccount(String acc, BigDecimal amount, String ref) {
-		accountClient.updateBalance(acc, amount, "DEPOSIT");
+		BigDecimal bal = Optional.ofNullable( accountClient.updateBalance(acc, amount, "DEPOSIT"))
+				.orElseThrow(() -> new IllegalStateException("Credit failed for " + acc));
 		log.info("Credited {} to {} (Ref: {})", amount, acc, ref);
 	}
 
@@ -287,56 +251,36 @@ public class InternalTransactionServiceImpl implements com.bms.transaction.servi
 		log.info("Starting reversal for txn {} -> original {}", reversalTxn.getTransactionId(), original.getTransactionId());
 
 		switch (original.getTransactionType()) {
-
 			case DEPOSIT -> {
 				checkSufficientBalance(source, amount);
 				debitAccount(source, amount, reversalTxn.getTransactionId());
 			}
-
-			case WITHDRAWAL -> {
-				creditAccount(source, amount, reversalTxn.getTransactionId());
-			}
-
+			case WITHDRAWAL -> creditAccount(source, amount, reversalTxn.getTransactionId());
 			case TRANSFER -> {
 				creditAccount(source, amount, reversalTxn.getTransactionId());
 				checkSufficientBalance(dest, amount);
 				debitAccount(dest, amount, reversalTxn.getTransactionId());
 			}
-
 			case CASH_DEPOSIT -> {
 				checkSufficientBalance(source, amount);
 				debitAccount(source, amount, reversalTxn.getTransactionId());
 			}
-
-			case CASH_WITHDRAWAL -> {
-				creditAccount(source, amount, reversalTxn.getTransactionId());
-			}
-
-			case EMI_DEDUCTION -> {
-				creditAccount(source, amount, reversalTxn.getTransactionId());
-			}
-
+			case CASH_WITHDRAWAL -> creditAccount(source, amount, reversalTxn.getTransactionId());
+			case EMI_DEDUCTION -> creditAccount(source, amount, reversalTxn.getTransactionId());
 			case PENALTY -> {
 				creditAccount(source, amount, reversalTxn.getTransactionId());
-
-				String penaltyAcc = "AC_PENALTY_WALLET";
-				BigDecimal walletBal = accountClient.getBalance(penaltyAcc).getBody();
+				String penaltyAcc = BANK_ACC_NUMBER;
+				BigDecimal walletBal = Optional.ofNullable(accountClient.getBalance(penaltyAcc))
+						.orElse(BigDecimal.ZERO);
 				if (walletBal.compareTo(amount) < 0)
 					throw new IllegalStateException("Penalty wallet insufficient to reverse");
 
 				debitAccount(penaltyAcc, amount, reversalTxn.getTransactionId());
 			}
-
-			case LOAN_DISBURSEMENT -> {
+			case LOAN_DISBURSEMENT, REFUND -> {
 				checkSufficientBalance(dest, amount);
 				debitAccount(dest, amount, reversalTxn.getTransactionId());
 			}
-
-			case REFUND -> {
-				checkSufficientBalance(dest, amount);
-				debitAccount(dest, amount, reversalTxn.getTransactionId());
-			}
-
 			default -> throw new IllegalStateException("Reversal not supported for: " + original.getTransactionType());
 		}
 
@@ -348,11 +292,11 @@ public class InternalTransactionServiceImpl implements com.bms.transaction.servi
 	}
 
 	private void reverseFee(Transaction original, Transaction reversalTxn) {
-
-		String feeAcc = "AC_SYS_FEE";
+		String feeAcc = BANK_ACC_NUMBER;
 		BigDecimal fee = original.getFee();
 
-		BigDecimal bal = accountClient.getBalance(feeAcc).getBody();
+		BigDecimal bal = Optional.ofNullable(accountClient.getBalance(feeAcc))
+				.orElse(BigDecimal.ZERO);
 		if (bal.compareTo(fee) < 0)
 			throw new IllegalStateException("System fee account cannot cover fee reversal");
 
@@ -379,22 +323,23 @@ public class InternalTransactionServiceImpl implements com.bms.transaction.servi
 		Transaction feeTxn = Transaction.builder()
 				.transactionId(UUID.randomUUID().toString())
 				.accountNumber(source)
-				.destinationAccountNumber("AC_SYS_FEE")
+				.destinationAccountNumber(BANK_ACC_NUMBER)
 				.transactionType(TransactionType.FEE)
 				.amount(parentTxn.getFee())
 				.currency(Currency.INR)
 				.status(TransactionStatus.COMPLETED)
 				.linkedTransactionId(parentTxn.getTransactionId())
-				.description("Fee...")
+				.description("Fee applied")
 				.transactionDate(LocalDateTime.now())
 				.build();
 
 		transactionRepository.save(feeTxn);
-		accountClient.updateBalance("AC_SYS_FEE", parentTxn.getFee(), "DEPOSIT");
+		accountClient.updateBalance(BANK_ACC_NUMBER, parentTxn.getFee(), "DEPOSIT");
 	}
 
 	private void checkSufficientBalance(String account, BigDecimal amt) {
-		BigDecimal bal = accountClient.getBalance(account).getBody();
+		BigDecimal bal = Optional.ofNullable(accountClient.getBalance(account))
+				.orElse(BigDecimal.ZERO);
 		if (bal.compareTo(amt) < 0)
 			throw new IllegalStateException("Insufficient balance");
 	}
@@ -426,9 +371,8 @@ public class InternalTransactionServiceImpl implements com.bms.transaction.servi
 	private void postToPenaltyWallet(Transaction txn) { log.info("Penalty posted for txn {}", txn.getTransactionId()); }
 
 	private void validateAccount(String accountNumber) {
-		if (Boolean.FALSE.equals(accountClient.accountExists(accountNumber).getBody())) {
-			throw new ResourceNotFoundException("Account not found: " + accountNumber);
-		}
+		Boolean exists = Optional.ofNullable(accountClient.accountExists(accountNumber)).orElse(Boolean.FALSE);
+		if (!exists) throw new ResourceNotFoundException("Account not found: " + accountNumber);
 	}
 
 	private boolean requiresDestinationAccount(TransactionType type) {
@@ -444,19 +388,13 @@ public class InternalTransactionServiceImpl implements com.bms.transaction.servi
 			throw new IllegalArgumentException("Destination account number is missing");
 		}
 
-		AccountResponseDTO account = accountClient
-				.getAccountByNumber(destinationAccountNumber)
-				.getBody();
-
-		if (account == null) {
-			throw new ResourceNotFoundException(
-					"Destination account not found: " + destinationAccountNumber);
-		}
+		AccountResponseDTO account = Optional.ofNullable(accountClient.getAccountByNumber(destinationAccountNumber))
+				.orElseThrow(() -> new ResourceNotFoundException("Destination account not found: " + destinationAccountNumber));
 	}
 
 	private void verifyAccountPin(String acc, int pin) {
-		ResponseEntity<Boolean> res = accountClient.verifyAccountPin(acc, pin);
-		if (!Boolean.TRUE.equals(res.getBody())) throw new InvalidPinException("Invalid PIN");
+		Boolean valid = Optional.ofNullable(accountClient.verifyAccountPin(acc, pin)).orElse(Boolean.FALSE);
+		if (!valid) throw new InvalidPinException("Invalid PIN");
 	}
 
 	private BigDecimal calculateFee(TransactionRequest req) {
@@ -481,7 +419,6 @@ public class InternalTransactionServiceImpl implements com.bms.transaction.servi
 		if (!request.getTransactionType().equals(TransactionType.EXTERNAL_TRANSFER)) {
 			throw new IllegalArgumentException("Invalid mapping call for non-external transaction");
 		}
-
 
 		return PaymentRequest.builder()
 				.sourceAccount(request.getAccountNumber())

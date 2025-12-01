@@ -14,25 +14,24 @@ import java.math.BigDecimal;
 public interface AccountClient {
 
     @GetMapping("/{accountNumber}/balance")
-     ResponseEntity<BigDecimal> getBalance(@PathVariable String accountNumber);
+    BigDecimal getBalance(@PathVariable String accountNumber);
 
     @PostMapping("/{accountNumber}/balance")
-    ResponseEntity<?> updateBalance(
+    BigDecimal updateBalance(
             @PathVariable String accountNumber,
             @RequestParam("amount") BigDecimal amount,
-            @RequestParam("transactionType") String transactionType);
+            @RequestParam("transactionType") String transactionType
+    );
 
     @PostMapping("/verify-pin")
-    ResponseEntity<Boolean> verifyAccountPin(
+    Boolean verifyAccountPin(
             @RequestParam String accountNumber,
-            @RequestParam int accountPin);
-
+            @RequestParam int accountPin
+    );
 
     @GetMapping("/exists/{accountNumber}")
-    ResponseEntity<Boolean> accountExists(@PathVariable String accountNumber);
+    Boolean accountExists(@PathVariable String accountNumber);
 
     @GetMapping("/number/{accountNumber}")
-    ResponseEntity<AccountResponseDTO> getAccountByNumber(@PathVariable String accountNumber);
-
-
+    AccountResponseDTO getAccountByNumber(@PathVariable String accountNumber);
 }

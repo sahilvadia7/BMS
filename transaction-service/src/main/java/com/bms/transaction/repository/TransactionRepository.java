@@ -24,7 +24,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
            t.transactionType AS type,
            SUM(t.amount) AS totalAmount
     FROM Transaction t
-    WHERE t.status = 'SUCCESS'
+    WHERE t.status = 'COMPLETED'
     GROUP BY DATE(t.transactionDate), t.transactionType
     ORDER BY DATE(t.transactionDate) DESC
 """)

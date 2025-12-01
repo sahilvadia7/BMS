@@ -10,6 +10,7 @@ import com.bms.transaction.model.Transaction;
 import com.bms.transaction.repository.OutboxRepository;
 import com.bms.transaction.repository.TransactionRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -27,9 +28,11 @@ public class OutboxScheduler {
 	private final TransactionRepository transactionRepository;
 	private final PaymentClient paymentClient;
 
+	private final ObjectMapper objectMapper = new ObjectMapper();
 	private static final int MAX_RETRY = 5;
 
 	@Scheduled(fixedDelay = 3000)
+	@Transactional
 	public void processOutboxEvents() {
 
 		List<OutboxEvent> pendingEvents =
@@ -40,26 +43,36 @@ public class OutboxScheduler {
 		log.info("Processing {} outbox events", pendingEvents.size());
 
 		for (OutboxEvent event : pendingEvents) {
-
 			try {
 				processEvent(event);
 
 			} catch (Exception e) {
 				log.error("Error processing Outbox event {}: {}", event.getId(), e.getMessage());
-				handleFailure(event, e.getMessage());
+
+				boolean permanentlyFailed = handleFailure(event, e.getMessage());
+
+				if (permanentlyFailed) {
+					failTransaction(event, e.getMessage());
+				}
 			}
 		}
 	}
 
-	private void processEvent(OutboxEvent event) {
+	@Transactional
+	public void processEvent(OutboxEvent event) {
 
 		log.info("Processing Outbox Event ID={}, type={}", event.getId(), event.getEventType());
 
-		// Parse JSON into PaymentRequest
 		PaymentRequest request = parsePayload(event.getPayload());
 
-		// Call external payment API
-		PaymentResponse response = paymentClient.initiatePayment(request);
+		PaymentResponse response;
+
+		try {
+			response = paymentClient.initiatePayment(request);
+			log.info("External Response : " + response.toString());
+		} catch (Exception e) {
+			throw new RuntimeException("Payment Gateway Call Failed: " + e.getMessage());
+		}
 
 		Transaction txn = transactionRepository.findByTransactionId(event.getAggregateId())
 				.orElseThrow(() -> new RuntimeException("Transaction not found"));
@@ -68,17 +81,18 @@ public class OutboxScheduler {
 
 			txn.setStatus(TransactionStatus.COMPLETED);
 			txn.setExternalReferenceId(response.getExternalReferenceId());
+			txn.setGatewayAcknowledgedAt(LocalDateTime.now());
 			txn.setCompletedAt(LocalDateTime.now());
+			txn.setLinkedTransactionId(response.getExternalReferenceId());
 			transactionRepository.save(txn);
 
 			event.setStatus(OutboxStatus.SENT);
 			outboxRepository.save(event);
 
-			log.info("External Payment Success → txnId={} marked COMPLETED", txn.getTransactionId());
-		} else {
+			log.info("External Payment SUCCESS → txnId={} marked COMPLETED", txn.getTransactionId());
 
-			// Payment Failed
-			handleFailure(event, response.getFailureReason());
+		} else {
+			boolean permanentlyFailed = handleFailure(event, response.getFailureReason());
 
 			txn.setStatus(TransactionStatus.FAILED);
 			txn.setFailureReason(response.getFailureReason());
@@ -86,31 +100,50 @@ public class OutboxScheduler {
 			transactionRepository.save(txn);
 
 			log.warn("External Payment FAILED → txnId={} marked FAILED", txn.getTransactionId());
+
+			if (permanentlyFailed) {
+				log.error("Transaction {} permanently failed after {} retries",
+						txn.getTransactionId());
+			}
 		}
 	}
 
 	private PaymentRequest parsePayload(String payloadJson) {
 		try {
-			ObjectMapper mapper = new ObjectMapper();
-			return mapper.readValue(payloadJson, PaymentRequest.class);
+			log.info("Parsing Payload: {}", payloadJson);
+			return objectMapper.readValue(payloadJson, PaymentRequest.class);
+
 		} catch (Exception e) {
+			log.error("Payload parsing failed! Raw Payload = {}", payloadJson);
 			throw new RuntimeException("Failed to parse Outbox Payload: " + e.getMessage());
 		}
 	}
 
-	private void handleFailure(OutboxEvent event, String error) {
+	private boolean handleFailure(OutboxEvent event, String error) {
+
 		int retries = event.getRetryCount() + 1;
+		event.setRetryCount(retries);
 
 		if (retries >= MAX_RETRY) {
 			event.setStatus(OutboxStatus.FAILED);
-			event.setRetryCount(retries);
 			outboxRepository.save(event);
-			log.error("Outbox Event {} PERMANENTLY FAILED after {} retries", event.getId(), retries);
-		} else {
-			event.setRetryCount(retries);
-			event.setStatus(OutboxStatus.PENDING);
-			outboxRepository.save(event);
-			log.warn("Retry {}/{} for Outbox Event {} due to error: {}", retries, MAX_RETRY, event.getId(), error);
+			return true;
 		}
+
+		event.setStatus(OutboxStatus.PENDING);
+		outboxRepository.save(event);
+		return false;
+	}
+
+	private void failTransaction(OutboxEvent event, String error) {
+
+		Transaction txn = transactionRepository.findByTransactionId(event.getAggregateId())
+				.orElseThrow(() -> new RuntimeException("Transaction not found"));
+
+		txn.setStatus(TransactionStatus.FAILED);
+		txn.setFailureReason(error);
+		txn.setCompletedAt(LocalDateTime.now());
+
+		transactionRepository.save(txn);
 	}
 }

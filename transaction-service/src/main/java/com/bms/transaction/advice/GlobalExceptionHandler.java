@@ -1,4 +1,4 @@
-package com.bms.transaction.advice.customexception;
+package com.bms.transaction.advice;
 
 import com.bms.transaction.exception.*;
 import org.springframework.dao.DataIntegrityViolationException;

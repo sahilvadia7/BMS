@@ -129,7 +129,7 @@ public class TransactionServiceImpl implements TransactionService {
 
         StatementResult result = generateStatement(accountNumber);
 
-        AccountResponseDTO account = accountClient.getAccountByNumber(accountNumber).getBody();
+        AccountResponseDTO account = accountClient.getAccountByNumber(accountNumber);
         if (account == null) {
             throw new RuntimeException("Account not found: " + accountNumber);
         }
@@ -163,8 +163,7 @@ public class TransactionServiceImpl implements TransactionService {
     public StatementResult generateStatement(String accountNumber) throws Exception {
 
         AccountResponseDTO account = accountClient
-                .getAccountByNumber(accountNumber)
-                .getBody();
+                .getAccountByNumber(accountNumber);
 
         if (account == null) {
             throw new RuntimeException("Account not found for number: " + accountNumber);
@@ -281,7 +280,7 @@ public class TransactionServiceImpl implements TransactionService {
 
 
     private void validateAccount(String accountNumber) {
-        if (Boolean.FALSE.equals(accountClient.accountExists(accountNumber).getBody())) {
+        if (Boolean.FALSE.equals(accountClient.accountExists(accountNumber))) {
             throw new ResourceNotFoundException("Account not found with Number: " + accountNumber);
         }
     }
