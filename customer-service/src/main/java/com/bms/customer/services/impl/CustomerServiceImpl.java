@@ -13,6 +13,7 @@ import com.bms.customer.services.CustomerService;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -22,7 +23,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
-@org.springframework.transaction.annotation.Transactional
+@Transactional
 public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepository customerRepository;
@@ -40,7 +41,6 @@ public class CustomerServiceImpl implements CustomerService {
         this.jwtService = jwtService;
     }
 
-    // ✅ 1️⃣ Register new customer
     @Override
     public CustomerRegistrationResponseDTO registerCustomer(CustomerRegisterRequestDTO requestDTO) {
         String cifNumber = generateUniqueCifNumber();
@@ -62,7 +62,7 @@ public class CustomerServiceImpl implements CustomerService {
         Customer savedCustomer = customerRepository.save(customer);
 
         // Send email notification
-        if (savedCustomer != null) {
+        if (savedCustomer.getEmail() != null) {
             EmailRequestDTO emailRequestDTO = EmailRequestDTO.builder()
                     .toEmail(savedCustomer.getEmail())
                     .customerName(savedCustomer.getFirstName())
@@ -88,15 +88,6 @@ public class CustomerServiceImpl implements CustomerService {
         if (!passwordEncoder.matches(loginRequest.getPassword(), customer.getPassword())) {
             throw new InvalidCredentialsException("Invalid credentials. Please try again.");
         }
-
-        // Optional check
-        // if (customer.getStatus() != UserStatus.ACTIVE) {
-        // throw new AccountNotActiveException("Account not active. Please complete
-        // KYC.");
-        // if (customer.getStatus() != UserStatus.ACTIVE) {
-        // throw new AccountNotActiveException("Account is not active. Status: " +
-        // customer.getStatus().name() + ". Please complete KYC.");
-        // }
 
         String accessToken = jwtService.generateToken(customer.getCifNumber());
         String refreshToken = jwtService.generateRefreshToken(customer.getCifNumber());
