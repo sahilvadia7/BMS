@@ -9,7 +9,6 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 public class EducationEvaluationResponse {
-
     private Long loanId;
     private boolean verifiedSuccessfully;
     private String officerName;

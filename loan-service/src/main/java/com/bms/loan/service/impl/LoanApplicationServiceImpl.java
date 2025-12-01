@@ -867,6 +867,14 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 .build();
     }
 
+    @Override
+    public List<LoanDetailsAdminDto> getAllLoans() {
+
+        List<Loans> listOfLoans = loansRepository.findAll();
+
+        return mapper.loanDetailsAdminDtoList(listOfLoans);
+    }
+
     private BigDecimal calculateEmi(BigDecimal principal, BigDecimal annualRate, int months) {
         if (principal == null || principal.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Principal must be greater than zero");

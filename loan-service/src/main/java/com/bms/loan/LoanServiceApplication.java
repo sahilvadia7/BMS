@@ -9,7 +9,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableFeignClients
 @EnableScheduling
-public class 1LoanServiceApplication {
+public class LoanServiceApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(LoanServiceApplication.class, args);

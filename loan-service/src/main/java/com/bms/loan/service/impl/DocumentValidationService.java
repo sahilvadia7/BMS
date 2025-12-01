@@ -69,6 +69,32 @@ public class DocumentValidationService {
                 text.matches("(?s).*[A-Z]{5}[0-9]{4}[A-Z]{1}.*") ||
                 text.matches("GOVT. OF INDIA") ||
                 text.contains("INCOMETAX")) {
+
+
+            Pattern panPattern = Pattern.compile("\\b[A-Z]{5}[0-9]{4}[A-Z]{1}\\b");
+            Matcher matcher = panPattern.matcher(text);
+
+            if (matcher.find()) {
+                String extractedPan = matcher.group();
+                System.out.println("Extracted PAN Number: " + extractedPan);
+
+                // If documentNumber provided and matches
+                if (documentNumber != null &&
+                        extractedPan.equalsIgnoreCase(documentNumber)) {
+                    System.out.println("PAN Number MATCHES with provided documentNumber: " + documentNumber);
+                }
+
+                return DocumentType.PAN;
+            }
+
+            Pattern panLoosePattern = Pattern.compile("\\b[A-Z0-9]{10}\\b");
+            Matcher matcher2 = panLoosePattern.matcher(text);
+
+            if (matcher2.find()) {
+                String extractedPanLoose = matcher2.group();
+                System.out.println("Extracted Possible PAN (loose check): " + extractedPanLoose);
+                return DocumentType.PAN;
+            }
             return DocumentType.PAN;
         }
         return DocumentType.UNKNOWN;
