@@ -22,10 +22,12 @@ public class CustomUserDetailsService implements UserDetailsService {
         Customer user = customerRepository.findByCifNumber(cifNumber)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with CIF: " + cifNumber));
 
+        String roleName = "ROLE_" + user.getRole().name();
+
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getCifNumber())
                 .password(user.getPassword())
-                .authorities("ROLE_USER")
+                .authorities(roleName)
                 .build();
     }
 }
