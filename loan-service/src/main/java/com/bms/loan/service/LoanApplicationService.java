@@ -41,4 +41,5 @@ public interface LoanApplicationService {
 
     CustomerTimelyPaidEmiResponseDTO customerTimelyPaidEmiDetails(String cifNumber);
 
+    List<LoanDetailsAdminDto>  getAllLoans();
 }

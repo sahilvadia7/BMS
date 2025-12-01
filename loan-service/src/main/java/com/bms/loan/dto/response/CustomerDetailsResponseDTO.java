@@ -3,14 +3,18 @@ package com.bms.loan.dto.response;
 import com.bms.loan.enums.Gender;
 import com.bms.loan.enums.Roles;
 import com.bms.loan.enums.UserStatus;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Set;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class CustomerDetailsResponseDTO {
 

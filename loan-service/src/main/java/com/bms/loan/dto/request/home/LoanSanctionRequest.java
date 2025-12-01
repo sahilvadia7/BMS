@@ -10,6 +10,5 @@ import java.math.BigDecimal;
 @Builder
 public class LoanSanctionRequest {
     private BigDecimal sanctionedAmount;
-    private BigDecimal interestRate;
     private Integer tenureMonths;
 }

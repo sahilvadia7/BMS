@@ -1,7 +1,7 @@
 package com.bms.loan.service.impl;
 
 import com.bms.loan.Repository.home.HomeLoanRepository;
-import com.bms.loan.Repository.home.HomeLoanSanctionRepository;
+import com.bms.loan.Repository.LoanSanctionRepository;
 import com.bms.loan.Repository.home.HomeVerificationReportRepository;
 import com.bms.loan.Repository.InterestRateRepository;
 import com.bms.loan.Repository.LoanRepository;
@@ -41,7 +41,7 @@ public class HomeLoanServiceImpl implements HomeLoanService {
         private final HomeLoanRepository homeLoanRepository;
         private final InterestRateRepository interestRateRepository;
         private final HomeVerificationReportRepository homeVerificationReportRepository;
-        private final HomeLoanSanctionRepository homeLoanSanctionRepository;
+        private final LoanSanctionRepository homeLoanSanctionRepository;
         private final NotificationClient notificationClient;
         private final CustomerClient customerClient;
 
@@ -49,7 +49,7 @@ public class HomeLoanServiceImpl implements HomeLoanService {
                         HomeLoanRepository homeLoanRepository,
                         InterestRateRepository interestRateRepository,
                         HomeVerificationReportRepository homeVerificationReportRepository,
-                        HomeLoanSanctionRepository homeLoanSanctionRepository,
+                        LoanSanctionRepository homeLoanSanctionRepository,
                         NotificationClient notificationClient,
                         CustomerClient customerClient) {
                 this.loanRepository = loanRepository;
@@ -281,51 +281,50 @@ public class HomeLoanServiceImpl implements HomeLoanService {
 
                 CustomerDetailsResponseDTO customer = customerClient.getByCif(loan.getCifNumber());
 
-                BigDecimal principal = request.getSanctionedAmount();
-                BigDecimal rate = request.getInterestRate();
-                Integer tenure = request.getTenureMonths();
+        BigDecimal principal = request.getSanctionedAmount();
+        Integer tenure = request.getTenureMonths();
 
-                BigDecimal emi = calculateEmi(principal, rate, tenure);
+        BigDecimal emi = calculateEmi(principal, loan.getInterestRate(), tenure);
 
-                // Save sanction
-                LoanSanction sanction = LoanSanction.builder()
-                                .loans(loan)
-                                .sanctionedAmount(principal)
-                                .interestRate(rate)
-                                .tenureMonths(tenure)
-                                .sanctionDate(LocalDate.now())
-                                .eSigned(false)
-                                .build();
+        // Save sanction
+        LoanSanction sanction = LoanSanction.builder()
+                .loans(loan)
+                .sanctionedAmount(principal)
+                .interestRate(loan.getInterestRate())
+                .tenureMonths(tenure)
+                .sanctionDate(LocalDate.now())
+                .eSigned(false)
+                .build();
 
                 loan.setStatus(LoanStatus.SANCTIONED);
                 homeLoanSanctionRepository.save(sanction);
                 loanRepository.save(loan);
 
-                // sanction email to customer
-                SanctionEmailDTO email = SanctionEmailDTO.builder()
-                                .toEmail(customer.getEmail())
-                                .customerName(customer.getFirstName() + " " + customer.getLastName())
-                                .loanType(loan.getLoanType().name())
-                                .sanctionedAmount(principal)
-                                .interestRate(rate)
-                                .tenureMonths(tenure)
-                                .emiAmount(emi)
-                                .sanctionDate(LocalDate.now())
-                                .build();
+        // sanction email to customer
+        SanctionEmailDTO email = SanctionEmailDTO.builder()
+                .toEmail(customer.getEmail())
+                .customerName(customer.getFirstName()+" "+customer.getLastName())
+                .loanType(loan.getLoanType().name())
+                .sanctionedAmount(principal)
+                .interestRate(loan.getInterestRate())
+                .tenureMonths(tenure)
+                .emiAmount(emi)
+                .sanctionDate(LocalDate.now())
+                .build();
 
                 notificationClient.sendSanctionEmail(email);
 
-                return LoanSanctionResponseDTO.builder()
-                                .loanId(loan.getLoanId())
-                                .sanctionedAmount(principal)
-                                .interestRate(rate)
-                                .tenureMonths(tenure)
-                                .emiAmount(emi)
-                                .sanctionDate(LocalDate.now())
-                                .sanctionedBy("Penil")
-                                .remarks("loan Sanction latter successfully")
-                                .build();
-        }
+        return LoanSanctionResponseDTO.builder()
+                .loanId(loan.getLoanId())
+                .sanctionedAmount(principal)
+                .interestRate(loan.getInterestRate())
+                .tenureMonths(tenure)
+                .emiAmount(emi)
+                .sanctionDate(LocalDate.now())
+                .sanctionedBy("Penil")
+                .remarks("loan Sanction latter successfully")
+                .build();
+    }
 
         @Override
         public void eSignSanctionLatter(Long loanId) {

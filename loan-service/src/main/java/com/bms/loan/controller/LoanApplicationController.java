@@ -39,6 +39,11 @@ public class LoanApplicationController {
         return ResponseEntity.ok(loanService.applyLoan(request));
     }
 
+    @GetMapping("/all")
+    public ResponseEntity<List<LoanDetailsAdminDto>> getAllLoans(){
+        return ResponseEntity.ok(loanService.getAllLoans());
+    }
+
     // Evaluate Loan by ID
     @Operation(summary = "Evaluate loan application", description = "Access: Internal (Loan Officer)")
     @PostMapping("/{loanId}/evaluate")

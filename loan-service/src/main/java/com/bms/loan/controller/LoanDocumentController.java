@@ -34,19 +34,30 @@ public class LoanDocumentController {
 
     // Get all documents by loan application id
     @Operation(summary = "Get documents by loan application ID", description = "Access: Internal (Loan Officer), Admin")
-    @GetMapping("/loan/{loanApplicationId}")
+    @GetMapping("/loan/{loanApplicationId}/documents")
     public ResponseEntity<List<LoanDocumentResponse>> getDocumentsByLoanApplication(
             @PathVariable Long loanApplicationId) {
         return ResponseEntity.ok(service.getDocumentsByLoanApplication(loanApplicationId));
     }
 
-    // Verify or reject document (KYC)
-    @Operation(summary = "Verify or reject document", description = "Access: Internal (Loan Officer)")
+    // Verify document (KYC)
+    @Operation(summary = "Verify document", description = "Access: Internal (Loan Officer)")
     @PutMapping("/{documentId}/verify")
     public ResponseEntity<LoanDocumentResponse> verifyDocument(
             @PathVariable Long documentId) {
         return ResponseEntity.ok(service.verifyDocument(documentId));
     }
+
+
+    // Reject document (KYC)
+    @Operation(summary = "Reject document", description = "Access: Internal (Loan Officer)")
+    @PutMapping("/{documentId}/reject")
+    public ResponseEntity<LoanDocumentResponse> rejectDocument(
+            @PathVariable Long documentId) {
+        return ResponseEntity.ok(service.rejectDocument(documentId));
+    }
+
+
 
     @Operation(summary = "Download document", description = "Access: Internal (Loan Officer), Admin")
     @GetMapping("/{documentId}/download")
