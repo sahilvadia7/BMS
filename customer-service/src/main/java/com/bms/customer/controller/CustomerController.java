@@ -33,10 +33,10 @@ public class CustomerController {
         this.jwtService = jwtService;
     }
 
-    @GetMapping("/greet")
+    @GetMapping("/health")
     public String greet() {
-        log.info("greet called it here in customer service");
-        return "Greetings from Spring Boot!";
+        log.info("customer service up and running");
+        return "customer service up and running";
     }
 
     @Operation(summary = "Register a new customer", description = "Access: Public")
