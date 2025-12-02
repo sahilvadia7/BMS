@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 public interface TransactionService {
-    List<TransactionResponseDto> getTransactionsForMonth(String accountNumber, int year, int month);
+    List<TransactionResponseDto> getLatestMonthTransactions(String accountNumber);
     List<TransactionResponseDto> getTransactionsByStatus(TransactionStatus status);
     TransactionResponseDto getTransactionById(Long transactionId);
     List<TransactionResponseDto> searchTransactions(SearchTransactionsRequest request);

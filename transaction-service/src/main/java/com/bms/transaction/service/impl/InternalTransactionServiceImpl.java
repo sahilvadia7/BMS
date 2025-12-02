@@ -7,12 +7,16 @@ import com.bms.transaction.dto.response.PaymentResponse;
 import com.bms.transaction.dto.response.TransactionResponseDto;
 import com.bms.transaction.enums.*;
 import com.bms.transaction.enums.Currency;
+import com.bms.transaction.events.AccountCreditEvent;
+import com.bms.transaction.events.AccountDebitEvent;
+import com.bms.transaction.events.LedgerEntryEvent;
+import com.bms.transaction.events.TransactionCreatedEvent;
 import com.bms.transaction.exception.InvalidPinException;
 import com.bms.transaction.exception.ResourceNotFoundException;
 import com.bms.transaction.feing.AccountClient;
-import com.bms.transaction.feing.PaymentClient;
 import com.bms.transaction.model.OutboxEvent;
 import com.bms.transaction.model.Transaction;
+import com.bms.transaction.producer.LedgerEventProducer;
 import com.bms.transaction.repository.OutboxRepository;
 import com.bms.transaction.repository.TransactionRepository;
 import com.bms.transaction.service.InternalTransactionService;
@@ -30,7 +34,6 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import static org.springframework.http.codec.ServerSentEvent.builder;
 
 @Service
 @Slf4j
@@ -38,8 +41,9 @@ public class InternalTransactionServiceImpl implements InternalTransactionServic
 
 	@Autowired private TransactionRepository transactionRepository;
 	@Autowired private AccountClient accountClient;
-	@Autowired private PaymentClient paymentClient;
 	@Autowired private OutboxRepository outboxRepository;
+	@Autowired private LedgerEventProducer ledgerEventProducer;
+
 
 	@Value("${bank.account.number}")
 	private String BANK_ACC_NUMBER;
@@ -141,12 +145,12 @@ public class InternalTransactionServiceImpl implements InternalTransactionServic
 	}
 
 	private Transaction createPendingTransaction(TransactionRequest request, BigDecimal fee) {
+
 		String requestHash = generateRequestHash(request);
 
 		String destinationAcc = switch (request.getTransactionType()) {
 			case TRANSFER, EXTERNAL_TRANSFER -> request.getDestinationAccountNumber();
-			case EMI_DEDUCTION, WITHDRAWAL, DEPOSIT, LOAN_DISBURSEMENT, REFUND, CASH_DEPOSIT, CASH_WITHDRAWAL, PENALTY, REVERSAL -> null;
-			case FEE -> BANK_ACC_NUMBER;
+			default -> null;
 		};
 
 		Transaction txn = Transaction.builder()
@@ -169,7 +173,45 @@ public class InternalTransactionServiceImpl implements InternalTransactionServic
 				.transactionDate(LocalDateTime.now())
 				.build();
 
-		return transactionRepository.save(txn);
+		Transaction savedTxn = transactionRepository.save(txn);
+
+		// Publish DEBIT and CREDIT events instead of TRANSACTION_CREATED
+		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+			@Override
+			public void afterCommit() {
+
+				// Always send sender DEBIT (money goes out)
+				HashMap<String, Object> debitEvent = new HashMap<>();
+				debitEvent.put("eventType", "DEBIT");
+				debitEvent.put("transactionId", savedTxn.getTransactionId());
+				debitEvent.put("accountNumber", savedTxn.getAccountNumber());
+				debitEvent.put("amount", savedTxn.getAmount());
+				debitEvent.put("description", savedTxn.getDescription());
+				debitEvent.put("timestamp", LocalDateTime.now().toString());
+				ledgerEventProducer.publishAccountDebit(debitEvent);
+
+				log.info("Published DEBIT event for txnId={}", savedTxn.getTransactionId());
+
+				// CREDIT only for TRANSFER (internal transfers)
+				if (savedTxn.getTransactionType() == TransactionType.TRANSFER &&
+						savedTxn.getDestinationAccountNumber() != null) {
+
+					HashMap<String, Object> creditEvent = new HashMap<>();
+					creditEvent.put("eventType", "CREDIT");
+					creditEvent.put("transactionId", savedTxn.getTransactionId());
+					creditEvent.put("accountNumber", savedTxn.getDestinationAccountNumber());
+					creditEvent.put("amount", savedTxn.getAmount());
+					creditEvent.put("description", savedTxn.getDescription());
+					creditEvent.put("timestamp", LocalDateTime.now().toString());
+
+					ledgerEventProducer.publishAccountCredit(creditEvent);
+
+					log.info("Published CREDIT event for txnId={}", savedTxn.getTransactionId());
+				}
+			}
+		});
+
+		return savedTxn;
 	}
 
 	private void processInternalOperation(Transaction txn) {
@@ -215,16 +257,28 @@ public class InternalTransactionServiceImpl implements InternalTransactionServic
 		}
 	}
 
-	private void debitAccount(String acc, BigDecimal amount, String ref) {
-		BigDecimal bal = Optional.ofNullable( accountClient.updateBalance(acc, amount, "WITHDRAW"))
+	private void debitAccount(String acc, BigDecimal amount, String txnId) {
+
+		BigDecimal bal = Optional.ofNullable(accountClient.updateBalance(acc, amount, "WITHDRAW"))
 				.orElseThrow(() -> new IllegalStateException("Debit failed for " + acc));
-		log.info("Debited {} from {} (Ref: {})", amount, acc, ref);
+
+		log.info("Debited {} from {} (txn={})", amount, acc, txnId);
+
+		publishDebit(acc, amount, txnId, "Amount debited");
+
+		publishLedgerEntry(acc, amount, LedgerType.DEBIT, txnId, "Debit from account");
 	}
 
-	private void creditAccount(String acc, BigDecimal amount, String ref) {
-		BigDecimal bal = Optional.ofNullable( accountClient.updateBalance(acc, amount, "DEPOSIT"))
+	private void creditAccount(String acc, BigDecimal amount, String txnId) {
+
+		BigDecimal bal = Optional.ofNullable(accountClient.updateBalance(acc, amount, "DEPOSIT"))
 				.orElseThrow(() -> new IllegalStateException("Credit failed for " + acc));
-		log.info("Credited {} to {} (Ref: {})", amount, acc, ref);
+
+		log.info("Credited {} to {} (txn={})", amount, acc, txnId);
+
+		publishCredit(acc, amount, txnId, "Amount credited");
+
+		publishLedgerEntry(acc, amount, LedgerType.CREDIT, txnId, "Credit to account");
 	}
 
 	private void moveToVault(Transaction txn) { log.info("Moving {} to bank vault", txn.getAmount()); }
@@ -412,6 +466,66 @@ public class InternalTransactionServiceImpl implements InternalTransactionServic
 						(req.getDestinationAccountNumber() == null ? "" : req.getDestinationAccountNumber()) +
 						req.getAmount() + req.getTransactionType() + req.getIdempotencyKey()
 		);
+	}
+
+	private void publishDebit(String account, BigDecimal amount, String txnId, String description) {
+
+		HashMap<String, Object> event = new HashMap<>();
+		event.put("eventType", "DEBIT");
+		event.put("transactionId", txnId);
+		event.put("accountNumber", account);
+		event.put("amount", amount);
+		event.put("description", description);
+		event.put("timestamp", LocalDateTime.now().toString());
+
+		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+			@Override
+			public void afterCommit() {
+				ledgerEventProducer.publishAccountDebit(event);
+				log.info("Published DEBIT event {}", event);
+			}
+		});
+	}
+
+	private void publishCredit(String account, BigDecimal amount, String txnId, String description) {
+
+		HashMap<String, Object> event = new HashMap<>();
+		event.put("eventType", "CREDIT");
+		event.put("transactionId", txnId);
+		event.put("accountNumber", account);
+		event.put("amount", amount);
+		event.put("description", description);
+		event.put("timestamp", LocalDateTime.now().toString());
+
+		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+			@Override
+			public void afterCommit() {
+				ledgerEventProducer.publishAccountCredit(event);
+				log.info("Published CREDIT event {}", event);
+			}
+		});
+	}
+
+	private void publishLedgerEntry(String account, BigDecimal amount, LedgerType type,
+									String txnId, String description) {
+
+		HashMap<String, Object> event = new HashMap<>();
+		event.put("eventType", "LEDGER_ENTRY");
+		event.put("ledgerEntryId", UUID.randomUUID().toString());
+		event.put("transactionId", txnId);
+		event.put("accountNumber", account);
+		event.put("amount", amount);
+		event.put("ledgerType", type.name());
+		event.put("description", description);
+		event.put("timestamp", LocalDateTime.now().toString());
+
+		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+			@Override
+			public void afterCommit() {
+				ledgerEventProducer.publishLedgerEntry(event);
+				log.info("Published LEDGER_ENTRY event {}", event);
+			}
+		});
 	}
 
 	private PaymentRequest mapToPaymentRequest(TransactionRequest request, String txnId) {
