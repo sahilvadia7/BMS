@@ -2,11 +2,9 @@ package com.bms.customer.services;
 
 import com.bms.customer.dtos.kyc.KycRequestDTO;
 import com.bms.customer.dtos.kyc.KycResponseDTO;
-import com.bms.customer.dtos.response.CustomerResponseDTO;
-import jakarta.validation.Valid;
+import com.bms.customer.dtos.response.CustomerDetailsResponseDTO;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface KycService {
 
@@ -15,8 +13,8 @@ public interface KycService {
     List<KycResponseDTO> getAllKyc();
     KycResponseDTO updateKyc(Long id, KycRequestDTO requestDTO);
     void deleteKyc(Long id);
-    CustomerResponseDTO linkKycToCustomer(Long customerId, Long kycId);
-    CustomerResponseDTO approveKyc(Long kycId, String approvedBy);
+    CustomerDetailsResponseDTO linkKycToCustomer(Long customerId, Long kycId);
+    CustomerDetailsResponseDTO approveKyc(Long kycId, String approvedBy);
     void rejectKyc(Long kycId, String reason);
 
     KycResponseDTO uploadKycForCustomer(Long customerId, KycRequestDTO requestDTO);

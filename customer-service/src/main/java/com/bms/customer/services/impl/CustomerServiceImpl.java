@@ -98,7 +98,7 @@ public class CustomerServiceImpl implements CustomerService {
                 .tokenType("Bearer")
                 .build();
 
-        CustomerResponseDTO customerResponse = mapToResponse(customer);
+        CustomerDetailsResponseDTO customerResponse = mapToResponse(customer);
 
         return AuthResponseDTO.builder()
                 .message("Login successful")
@@ -126,14 +126,14 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
-    public CustomerResponseDTO getCustomerById(Long id) {
+    public CustomerDetailsResponseDTO getCustomerById(Long id) {
         Customer customer = customerRepository.findWithKycByCustomerId(id)
                 .orElseThrow(() -> new CustomerNotFoundException("Customer not found for ID: " + id));
         return mapToResponse(customer);
     }
 
     @Override
-    public CustomerResponseDTO getCustomerByCifNumber(String cifNumber) {
+    public CustomerDetailsResponseDTO getCustomerByCifNumber(String cifNumber) {
         Customer customer = customerRepository.findByCifNumber(cifNumber)
                 .orElseThrow(() -> new CustomerNotFoundException("Customer not found for CIF: " + cifNumber));
         return mapToResponse(customer);
@@ -156,14 +156,14 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
-    public List<CustomerResponseDTO> getAllCustomers() {
+    public List<CustomerDetailsResponseDTO> getAllCustomers() {
         return customerRepository.findAll().stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
     // ✅ helper: map entity to DTO
-    private CustomerResponseDTO mapToResponse(Customer customer) {
+    private CustomerDetailsResponseDTO mapToResponse(Customer customer) {
         Set<CustomerKycMappingDTO> kycMappings = customer.getKycDocuments().stream()
                 .map(mapping -> CustomerKycMappingDTO.builder()
                         .kycId(mapping.getKyc().getId())
@@ -175,7 +175,7 @@ public class CustomerServiceImpl implements CustomerService {
                         .build())
                 .collect(Collectors.toSet());
 
-        return CustomerResponseDTO.builder()
+        return CustomerDetailsResponseDTO.builder()
                 .customerId(customer.getCustomerId())
                 .firstName(customer.getFirstName())
                 .lastName(customer.getLastName())

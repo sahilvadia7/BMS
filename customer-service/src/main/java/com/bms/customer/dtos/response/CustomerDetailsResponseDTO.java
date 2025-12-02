@@ -3,16 +3,20 @@ package com.bms.customer.dtos.response;
 import com.bms.customer.enums.Gender;
 import com.bms.customer.enums.Roles;
 import com.bms.customer.enums.UserStatus;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Set; // Import Set
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
-public class CustomerResponseDTO {
+public class CustomerDetailsResponseDTO {
 
     private Long customerId;
     private String firstName;
