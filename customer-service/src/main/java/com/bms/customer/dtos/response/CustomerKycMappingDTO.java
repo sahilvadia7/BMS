@@ -1,12 +1,16 @@
 package com.bms.customer.dtos.response;
 
 import com.bms.customer.enums.KycStatus;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class CustomerKycMappingDTO {
 

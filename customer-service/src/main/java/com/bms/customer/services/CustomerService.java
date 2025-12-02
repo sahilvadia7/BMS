@@ -6,7 +6,7 @@ import com.bms.customer.dtos.request.LoginRequest;
 import com.bms.customer.dtos.request.LogoutRequest;
 import com.bms.customer.dtos.response.AuthResponseDTO;
 import com.bms.customer.dtos.response.CustomerRegistrationResponseDTO;
-import com.bms.customer.dtos.response.CustomerResponseDTO;
+import com.bms.customer.dtos.response.CustomerDetailsResponseDTO;
 import java.util.List;
 import java.util.Map;
 
@@ -20,11 +20,11 @@ public interface CustomerService {
 
     void changePassword(ChangePwdDTO changePwdDTO);
 
-    CustomerResponseDTO getCustomerById(Long id);
+    CustomerDetailsResponseDTO getCustomerById(Long id);
 
-    CustomerResponseDTO getCustomerByCifNumber(String cifNumber);
+    CustomerDetailsResponseDTO getCustomerByCifNumber(String cifNumber);
 
-    List<CustomerResponseDTO> getAllCustomers();
+    List<CustomerDetailsResponseDTO> getAllCustomers();
 
     Map<String, Object> getLimitedCustomerInfo(String cifNumber);
 }

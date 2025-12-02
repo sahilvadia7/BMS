@@ -3,20 +3,16 @@ package com.bms.customer.controller;
 import com.bms.customer.dtos.kyc.KycRequestDTO;
 import com.bms.customer.dtos.kyc.KycResponseDTO;
 import com.bms.customer.dtos.kyc.KycUploadRequestDto;
-import com.bms.customer.dtos.response.CustomerResponseDTO;
+import com.bms.customer.dtos.response.CustomerDetailsResponseDTO;
 import com.bms.customer.services.KycService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/kyc")
@@ -72,11 +68,11 @@ public class KycController {
 
     @Operation(summary = "Admin: Verify KYC and link to Customer, activating the account")
     @PatchMapping("/{customerId}/verify/{kycId}")
-    public ResponseEntity<CustomerResponseDTO> verifyAndLinkKyc(
+    public ResponseEntity<CustomerDetailsResponseDTO> verifyAndLinkKyc(
             @PathVariable Long customerId,
             @PathVariable Long kycId) {
 
-        CustomerResponseDTO response = kycService.linkKycToCustomer(customerId, kycId);
+        CustomerDetailsResponseDTO response = kycService.linkKycToCustomer(customerId, kycId);
         return ResponseEntity.ok(response);
     }
 
@@ -89,7 +85,7 @@ public class KycController {
     @Operation(summary = "Branch Manager: Approve KYC and activate customer")
     // @PreAuthorize("hasRole('BRANCH_MANAGER')")
     @PatchMapping("/{kycId}/approve")
-    public ResponseEntity<CustomerResponseDTO> approveKyc(
+    public ResponseEntity<CustomerDetailsResponseDTO> approveKyc(
             @PathVariable Long kycId,
             @RequestHeader(value = "X-Approved-By", required = false) String approvedBy) {
 

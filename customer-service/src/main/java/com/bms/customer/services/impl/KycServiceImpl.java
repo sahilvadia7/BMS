@@ -2,7 +2,7 @@ package com.bms.customer.services.impl;
 
 import com.bms.customer.dtos.kyc.KycRequestDTO;
 import com.bms.customer.dtos.kyc.KycResponseDTO;
-import com.bms.customer.dtos.response.CustomerResponseDTO;
+import com.bms.customer.dtos.response.CustomerDetailsResponseDTO;
 import com.bms.customer.entities.*;
 import com.bms.customer.enums.*;
 import com.bms.customer.exception.BadRequestException;
@@ -47,8 +47,8 @@ public class KycServiceImpl implements KycService {
                 kyc.getUpdatedAt());
     }
 
-    private CustomerResponseDTO mapToCustomerResponse(Customer customer) {
-        return CustomerResponseDTO.builder()
+    private CustomerDetailsResponseDTO mapToCustomerResponse(Customer customer) {
+        return CustomerDetailsResponseDTO.builder()
                 .customerId(customer.getCustomerId())
                 .firstName(customer.getFirstName())
                 .lastName(customer.getLastName())
@@ -121,14 +121,14 @@ public class KycServiceImpl implements KycService {
     }
 
     @Override
-    public CustomerResponseDTO linkKycToCustomer(Long customerId, Long kycId) {
+    public CustomerDetailsResponseDTO linkKycToCustomer(Long customerId, Long kycId) {
         return null;
     }
 
     // branch manager only
     @Override
     @Transactional
-    public CustomerResponseDTO approveKyc(Long kycId, String approvedBy) {
+    public CustomerDetailsResponseDTO approveKyc(Long kycId, String approvedBy) {
         Kyc kyc = kycRepository.findById(kycId)
                 .orElseThrow(() -> new ResourceNotFoundException("KYC not found"));
 
@@ -177,7 +177,7 @@ public class KycServiceImpl implements KycService {
         customerRepository.save(customer);
     }
 
-    public CustomerResponseDTO verifyAndLinkKyc(Long customerId, Long kycId) {
+    public CustomerDetailsResponseDTO verifyAndLinkKyc(Long customerId, Long kycId) {
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer not found for ID: " + customerId));
 
