@@ -36,6 +36,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 
@@ -57,16 +58,21 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
 
-    public List<TransactionResponseDto> getTransactionsForMonth(String accountNumber, int year, int month) {
-        LocalDateTime startDate = LocalDate.of(year, month, 1).atStartOfDay();
-        LocalDateTime endDate = startDate.plusMonths(1).minusNanos(1);
+    public List<TransactionResponseDto> getLatestMonthTransactions(String accountNumber) {
+        LocalDateTime endDate = LocalDateTime.now();
+        LocalDateTime startDate = endDate.minusMonths(1);
 
-        List<Transaction> transactions = transactionRepository.findByAccountNumberAndTransactionDateBetween(accountNumber, startDate, endDate);
+        List<Transaction> transactions = transactionRepository
+                .findByAccountNumberAndTransactionDateBetween(accountNumber, startDate, endDate);
 
         return transactions.stream()
+                .sorted(Comparator.comparing(Transaction::getTransactionDate).reversed())
                 .map(this::mapToResponseDto)
                 .toList();
     }
+
+
+
 
 
     public List<TransactionResponseDto> searchTransactions(SearchTransactionsRequest request) {

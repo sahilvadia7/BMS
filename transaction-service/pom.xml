@@ -80,6 +80,12 @@
             <scope>runtime</scope>
         </dependency>
 
+		<!-- Rabbit MQ-->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-amqp</artifactId>
+		</dependency>
+
   		<!-- PDF -->
 		<dependency>
 			<groupId>com.github.librepdf</groupId>

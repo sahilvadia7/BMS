@@ -71,12 +71,9 @@ public class TransactionController {
     @Operation(summary = "Get transactions for a month", description = "Access: Customer, Admin")
     @GetMapping("/month")
     public ResponseEntity<List<TransactionResponseDto>> getTransactionsForMonth(
-            @RequestParam String accountNumber,
-            @RequestParam int year,
-            @RequestParam int month) {
+            @RequestParam String accountNumber) {
 
-        List<TransactionResponseDto> transactions = transactionService.getTransactionsForMonth(accountNumber, year,
-                month);
+        List<TransactionResponseDto> transactions = transactionService.getLatestMonthTransactions(accountNumber);
         return ResponseEntity.ok(transactions);
     }
 

@@ -73,6 +73,7 @@ public class Transaction {
 	private String description;
 
 	private LocalDateTime transactionDate;
+
 	private LocalDateTime completedAt;
 
 
