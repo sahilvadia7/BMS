@@ -16,6 +16,9 @@ public interface LoanDocumentService {
 
     LoanDocumentResponse verifyDocument(Long documentId);
 
+    LoanDocumentResponse rejectDocument(Long documentId);
+
+
     LoanDocument getDocument(Long documentId);
 
     ResponseEntity<byte[]> downloadDocument(Long documentId);

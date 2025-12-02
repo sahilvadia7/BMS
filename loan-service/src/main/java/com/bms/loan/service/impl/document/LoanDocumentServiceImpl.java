@@ -78,11 +78,11 @@ public class LoanDocumentServiceImpl implements LoanDocumentService {
             String docType = request.getDocumentType().toUpperCase();
             String docNumber = request.getDocumentNumber();
 
-            if (docType.equals(DocumentType.AADHAAR) && docNumber != null) {
+            if (docType.equals("AADHAAR") && docNumber != null) {
                 boolean isValid = aadhaarVerificationService.verifyAadhaar(docNumber);
                 document.setKycStatus(isValid ? KycStatus.VERIFIED : KycStatus.INVALID);
                 document.setRemarks(isValid ? "Aadhaar verified successfully" : "Aadhaar verification failed");
-            } else if (docType.equals(DocumentType.PAN) && docNumber != null) {
+            } else if (docType.equals("PAN") && docNumber != null) {
                 boolean isValid = aadhaarVerificationService.verifyPan(docNumber);
                 document.setKycStatus(isValid ? KycStatus.VERIFIED : KycStatus.INVALID);
                 document.setRemarks(isValid ? "PAN verified successfully" : "PAN verification failed");
@@ -110,6 +110,15 @@ public class LoanDocumentServiceImpl implements LoanDocumentService {
 
         document.setKycStatus(KycStatus.VERIFIED);
         document.setRemarks("Document verified");
+        return mapper.toResponse(loanDocumentRepository.save(document));
+    }
+
+    public LoanDocumentResponse rejectDocument(Long documentId) {
+        LoanDocument document = loanDocumentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + documentId));
+
+        document.setKycStatus(KycStatus.REJECTED);
+        document.setRemarks("Document rejected");
         return mapper.toResponse(loanDocumentRepository.save(document));
     }
 

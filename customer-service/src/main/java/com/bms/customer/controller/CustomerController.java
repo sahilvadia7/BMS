@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -33,10 +34,10 @@ public class CustomerController {
         this.jwtService = jwtService;
     }
 
-    @GetMapping("/greet")
+    @GetMapping("/health")
     public String greet() {
-        log.info("greet called it here in customer service");
-        return "Greetings from Spring Boot!";
+        log.info("customer service up and running");
+        return "customer service up and running";
     }
 
     @Operation(summary = "Register a new customer", description = "Access: Public")
@@ -88,6 +89,7 @@ public class CustomerController {
 
     @Operation(summary = "Get all customers", description = "Access: Admin")
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<CustomerResponseDTO>> getAll() {
         return ResponseEntity.ok(customerService.getAllCustomers());
     }

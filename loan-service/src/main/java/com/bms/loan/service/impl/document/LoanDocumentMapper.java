@@ -23,6 +23,7 @@ public class LoanDocumentMapper {
 
     public LoanDocumentResponse toResponse(LoanDocument entity) {
         return LoanDocumentResponse.builder()
+                .documentId(entity.getId())
                 .loanApplicationId(entity.getLoans().getLoanId())
                 .documentType(String.valueOf(entity.getDocumentType()))
                 .documentName(entity.getDocumentName())

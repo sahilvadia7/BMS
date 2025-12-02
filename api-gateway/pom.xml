@@ -43,19 +43,19 @@
             <scope>test</scope>
         </dependency>
 
-        <dependency>
-            <groupId>org.springdoc</groupId>
-            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>2.6.0</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.springdoc</groupId>-->
+<!--            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>-->
+<!--            <version>2.6.0</version>-->
+<!--        </dependency>-->
 
         <!--	Mac Os	-->
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-resolver-dns-native-macos</artifactId>
-            <version>4.1.121.Final</version>
-            <classifier>osx-aarch_64</classifier> <!-- or osx-x86_64 depending on your Mac -->
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>io.netty</groupId>-->
+<!--            <artifactId>netty-resolver-dns-native-macos</artifactId>-->
+<!--            <version>4.1.121.Final</version>-->
+<!--            <classifier>osx-aarch_64</classifier> &lt;!&ndash; or osx-x86_64 depending on your Mac &ndash;&gt;-->
+<!--        </dependency>-->
 
     </dependencies>
     <dependencyManagement>

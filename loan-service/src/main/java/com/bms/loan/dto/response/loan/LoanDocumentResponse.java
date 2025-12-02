@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class LoanDocumentResponse {
+    private Long documentId;
     private Long loanApplicationId;
     private String documentType;
     private String documentName;

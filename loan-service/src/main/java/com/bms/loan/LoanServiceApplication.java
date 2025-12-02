@@ -9,10 +9,12 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableFeignClients
 @EnableScheduling
-public class 1LoanServiceApplication {
+public class LoanServiceApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(LoanServiceApplication.class, args);
+        System.out.println("jna.library.path=" + System.getProperty("jna.library.path"));
+        System.out.println("java.library.path=" + System.getProperty("java.library.path"));
+        SpringApplication.run(LoanServiceApplication.class, args);
 	}
 
 }

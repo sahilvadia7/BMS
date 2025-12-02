@@ -11,7 +11,6 @@
 		<version>3.3.4</version>
 		<relativePath/>
 	</parent>
-
 	<groupId>com.bms</groupId>
 	<artifactId>ledger</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
@@ -22,8 +21,6 @@
 		<java.version>17</java.version>
 		<spring-cloud.version>2023.0.3</spring-cloud.version>
 	</properties>
-
-
 	<dependencies>
 
 		<!-- Web + JPA -->
