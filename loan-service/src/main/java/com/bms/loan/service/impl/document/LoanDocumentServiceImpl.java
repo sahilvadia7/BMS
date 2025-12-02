@@ -4,6 +4,7 @@ import com.bms.loan.Repository.LoanDocumentRepository;
 import com.bms.loan.Repository.LoanRepository;
 import com.bms.loan.config.AadhaarVerificationService;
 import com.bms.loan.dto.request.loan.LoanDocumentRequest;
+import com.bms.loan.dto.response.DocumentValidationResponse;
 import com.bms.loan.dto.response.loan.LoanDocumentResponse;
 import com.bms.loan.entity.LoanDocument;
 import com.bms.loan.entity.loan.Loans;
@@ -53,14 +54,9 @@ public class LoanDocumentServiceImpl implements LoanDocumentService {
                     .orElseThrow(() -> new ResourceNotFoundException(
                             "Loan Application not found with id: " + request.getLoanApplicationId()));
 
-            boolean validType = documentValidationService.validateDocumentType(file, request.getDocumentType(),
+            DocumentValidationResponse documentValidationResponse = documentValidationService.validateDocumentType(file, request.getDocumentType(),
                     request.getDocumentNumber());
 
-            System.out.println("Document Validated: " + validType);
-            if (!validType) {
-                throw new InvalidDocumentTypeException("Uploaded document does not match the declared type: "
-                        + request.getDocumentType());
-            }
 
             // Validate document type before saving
             LoanDocument document = LoanDocument.builder()
@@ -78,15 +74,33 @@ public class LoanDocumentServiceImpl implements LoanDocumentService {
             String docType = request.getDocumentType().toUpperCase();
             String docNumber = request.getDocumentNumber();
 
-            if (docType.equals("AADHAAR") && docNumber != null) {
-                boolean isValid = aadhaarVerificationService.verifyAadhaar(docNumber);
-                document.setKycStatus(isValid ? KycStatus.VERIFIED : KycStatus.INVALID);
-                document.setRemarks(isValid ? "Aadhaar verified successfully" : "Aadhaar verification failed");
-            } else if (docType.equals("PAN") && docNumber != null) {
-                boolean isValid = aadhaarVerificationService.verifyPan(docNumber);
-                document.setKycStatus(isValid ? KycStatus.VERIFIED : KycStatus.INVALID);
-                document.setRemarks(isValid ? "PAN verified successfully" : "PAN verification failed");
+
+            if (documentValidationResponse.isNumberMatched()){
+                document.setKycStatus(KycStatus.PENDING);
+                document.setRemarks("Document match with declared type");
+//                if (docType.equals("AADHAAR")) {
+//                    boolean isValid = aadhaarVerificationService.verifyAadhaar(docNumber);
+//                    document.setKycStatus(isValid ? KycStatus.PENDING : KycStatus.INVALID);
+//                    document.setRemarks(isValid ? "Aadhaar verified successfully" : "Aadhaar verification failed");
+//                } else if (docType.equals("PAN")) {
+//                    boolean isValid = aadhaarVerificationService.verifyPan(docNumber);
+//                    document.setKycStatus(isValid ? KycStatus.PENDING : KycStatus.INVALID);
+//                    document.setRemarks(isValid ? "PAN verified successfully" : "PAN verification failed");
+//                }
+            }else {
+                document.setKycStatus(KycStatus.INVALID);
+                document.setRemarks("Document number does not match with Document");
             }
+
+//            if (docType.equals("AADHAAR") && docNumber != null) {
+//                boolean isValid = aadhaarVerificationService.verifyAadhaar(docNumber);
+//                document.setKycStatus(isValid ? KycStatus.VERIFIED : KycStatus.INVALID);
+//                document.setRemarks(isValid ? "Aadhaar verified successfully" : "Aadhaar verification failed");
+//            } else if (docType.equals("PAN") && docNumber != null) {
+//                boolean isValid = aadhaarVerificationService.verifyPan(docNumber);
+//                document.setKycStatus(isValid ? KycStatus.VERIFIED : KycStatus.INVALID);
+//                document.setRemarks(isValid ? "PAN verified successfully" : "PAN verification failed");
+//            }
 
             loanDocumentRepository.save(document);
 
