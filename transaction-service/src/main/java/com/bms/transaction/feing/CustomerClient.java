@@ -7,10 +7,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.Map;
 
-@FeignClient(name = "customer-service", path = "/api/v1/customers")
+@FeignClient(name = "CUSTOMER-SERVICE", url = "http://localhost:8082/api/v1/customers")
 public interface CustomerClient {
 
 	@GetMapping("/info/{cifNumber}")
-	ResponseEntity<Map<String, Object>> getLimitedInfoByCif(@PathVariable String cifNumber);
+	Map<String, Object> getLimitedInfoByCif(@PathVariable String cifNumber);
 
 }
