@@ -140,14 +140,6 @@ public class TransactionServiceImpl implements TransactionService {
             throw new RuntimeException("Account not found: " + accountNumber);
         }
 
-        Map<String, Object> customer = customerClient
-                .getLimitedInfoByCif(account.getCifNumber())
-                .getBody();
-
-        if (customer == null) {
-            throw new RuntimeException("Customer not found for CIF: " + account.getCifNumber());
-        }
-
 
         MultipartFile file = new ByteArrayMultipartFile(
                 result.getPdfBytes(),
@@ -176,7 +168,7 @@ public class TransactionServiceImpl implements TransactionService {
         }
 
         Map<String, Object> customer =
-                customerClient.getLimitedInfoByCif(account.getCifNumber()).getBody();
+                customerClient.getLimitedInfoByCif(account.getCifNumber());
 
         if (customer == null) {
             throw new RuntimeException("Customer not found for CIF: " + account.getCifNumber());
@@ -294,6 +286,8 @@ public class TransactionServiceImpl implements TransactionService {
 
     private TransactionResponseDto mapToResponseDto(Transaction transaction) {
         return new TransactionResponseDto(
+                transaction.getTransactionId(),
+                "",
                 transaction.getAccountNumber(),
                 transaction.getDestinationAccountNumber(),
                 transaction.getTransactionType().name(),
