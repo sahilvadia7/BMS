@@ -17,8 +17,8 @@ public class LedgerServiceImpl implements LedgerService {
 
 	private final LedgerRepository ledgerRepository;
 
+	@Override
 	public BigDecimal getLatestBalance(String accountNumber) {
-
 		return ledgerRepository.findByAccountNumberOrderByCreatedAtDesc(accountNumber)
 				.stream()
 				.findFirst()
@@ -26,36 +26,65 @@ public class LedgerServiceImpl implements LedgerService {
 				.orElse(BigDecimal.ZERO);
 	}
 
+	/**
+	 * APPLY BALANCE CHANGE ONLY ON SUCCESS EVENTS
+	 */
+	private BigDecimal applyBalanceChange(BigDecimal currentBalance,
+										  LedgerType type,
+										  BigDecimal amount) {
+
+		switch (type) {
+			case DEBIT_SUCCESS:
+				return currentBalance.subtract(amount);
+
+			case CREDIT_SUCCESS:
+				return currentBalance.add(amount);
+
+			case COMPENSATION_DEBIT:
+				return currentBalance.subtract(amount);
+
+			case COMPENSATION_CREDIT:
+				return currentBalance.add(amount);
+
+			default:
+				// REQUESTED or FAILED events: no balance change
+				return currentBalance;
+		}
+	}
+
+	@Override
 	public LedgerEntry processLedgerEntry(
 			String transactionId,
 			String accountNumber,
 			BigDecimal amount,
 			LedgerType type,
+			String eventStep,
 			String description,
-			String transactionType
+			boolean isSuccess,
+			String failureReason
 	) {
 
 		BigDecimal currentBalance = getLatestBalance(accountNumber);
 
-		BigDecimal newBalance = type == LedgerType.DEBIT
-				? currentBalance.subtract(amount)
-				: currentBalance.add(amount);
+		// FIXED: use only applyBalanceChange()
+		BigDecimal newBalance = applyBalanceChange(currentBalance, type, amount);
 
 		LedgerEntry entry = LedgerEntry.builder()
 				.transactionId(transactionId)
 				.accountNumber(accountNumber)
 				.amount(amount)
 				.type(type)
+				.eventStep(eventStep)
 				.description(description)
-				.transactionType(transactionType)
+				.success(isSuccess)
+				.failureReason(failureReason)
 				.balanceAfter(newBalance)
 				.build();
 
 		ledgerRepository.save(entry);
 
-		log.info("Ledger entry saved: {}", entry);
+		log.info("Ledger entry created: {}", entry);
 
 		return entry;
 	}
 }
-
