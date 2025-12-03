@@ -35,9 +35,13 @@ public class LedgerEntry {
 	private BigDecimal balanceAfter;
 
 	@Column(nullable = false)
-	private String transactionType;
+	private String eventStep;
 
 	private String description;
+
+	private Boolean success = true;
+
+	private String failureReason;
 
 	private LocalDateTime createdAt;
 

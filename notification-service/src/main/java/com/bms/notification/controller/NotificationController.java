@@ -1,6 +1,7 @@
 package com.bms.notification.controller;
 
 import com.bms.notification.dto.OtpEmailDTO;
+import com.bms.notification.dto.Transaction;
 import com.bms.notification.dto.request.account.AccountCreationNotificationRequest;
 import com.bms.notification.dto.request.account.pin.OtpEmailRequest;
 import com.bms.notification.dto.request.loan.ApplyLoanEmailDTO;
@@ -101,5 +102,12 @@ public class NotificationController {
                 name,
                 toEmail,
                 pdfBytes);
+    }
+
+    @Operation(summary = "Send Alert for Transaction ", description = "Access: Internal")
+    @PostMapping("/transaction-alert")
+    public void sendTransactionAlert(@RequestBody Transaction request,
+                                                       @RequestParam String email ) {
+        emailService.sendTransactionAlert(request,email);
     }
 }

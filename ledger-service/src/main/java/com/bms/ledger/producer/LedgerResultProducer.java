@@ -2,7 +2,6 @@ package com.bms.ledger.producer;
 
 import com.bms.ledger.config.RabbitMQConfig;
 
-import com.bms.ledger.events.LedgerResultEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
