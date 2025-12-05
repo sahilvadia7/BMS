@@ -12,7 +12,8 @@ public class EducationVerificationRequestDto {
     private boolean admissionVerified;
     private boolean collegeRecognized;
     private boolean feeStructureVerified;
-    private String officerName;
-    private String officerRemarks;
-    private LocalDate verificationDate;
+    private boolean studentBackgroundClear;
+
+    private boolean coApplicantIncomeVerified;
+    private boolean coApplicantIdentityValid;
 }

@@ -6,23 +6,20 @@ import com.bms.loan.Repository.home.HomeVerificationReportRepository;
 import com.bms.loan.Repository.InterestRateRepository;
 import com.bms.loan.Repository.LoanRepository;
 import com.bms.loan.dto.email.SanctionEmailDTO;
-import com.bms.loan.dto.request.home.HomeVerificationRequestDto;
 import com.bms.loan.dto.request.home.LoanSanctionRequest;
 import com.bms.loan.dto.response.CustomerDetailsResponseDTO;
 import com.bms.loan.dto.response.home.LoanSanctionResponseDTO;
-import com.bms.loan.dto.response.home.HomeVerificationResponse;
 import com.bms.loan.dto.response.loan.LoanEvaluationResponse;
 import com.bms.loan.entity.InterestRate;
 import com.bms.loan.entity.home.HomeLoanDetails;
 import com.bms.loan.entity.home.LoanSanction;
-import com.bms.loan.entity.home.HomeVerificationReport;
 import com.bms.loan.entity.loan.Loans;
 import com.bms.loan.enums.LoanStatus;
 import com.bms.loan.exception.InvalidLoanStatusException;
 import com.bms.loan.exception.ResourceNotFoundException;
 import com.bms.loan.feign.CustomerClient;
 import com.bms.loan.feign.NotificationClient;
-import com.bms.loan.service.HomeLoanService;
+import com.bms.loan.service.LoanEvolutionAndSanctionService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 
@@ -35,7 +32,7 @@ import java.time.LocalDate;
 // Verification → Evaluation → Sanction → Disbursement
 
 @Service
-public class HomeLoanServiceImpl implements HomeLoanService {
+public class HomeLoanServiceImpl implements LoanEvolutionAndSanctionService {
 
         private final LoanRepository loanRepository;
         private final HomeLoanRepository homeLoanRepository;
@@ -61,58 +58,6 @@ public class HomeLoanServiceImpl implements HomeLoanService {
                 this.customerClient = customerClient;
         }
 
-        @Override
-        public HomeVerificationResponse verifyProperty(HomeVerificationRequestDto request) {
-                // Validate Loan
-                Loans loan = loanRepository.findById(request.getLoanId())
-                                .orElseThrow(() -> new RuntimeException(
-                                                "Loan not found for ID: " + request.getLoanId()));
-
-                if (loan.getStatus() != LoanStatus.APPLIED) {
-                        throw new InvalidLoanStatusException("Loan status is not Applied");
-                }
-
-                // Save or update verification report
-                HomeVerificationReport report = homeVerificationReportRepository
-                                .findByLoans_LoanId(request.getLoanId())
-                                .orElse(HomeVerificationReport.builder().loans(loan).build());
-
-                report.setAddressVerified(request.isAddressVerified());
-                report.setOwnershipVerified(request.isOwnershipVerified());
-                report.setPropertyConditionOk(request.isPropertyConditionOk());
-                report.setEvaluatedValue(request.getEvaluatedValue());
-                report.setOfficerName(request.getOfficerName());
-                report.setOfficerRemarks(request.getOfficerRemarks());
-                report.setVisitDate(request.getVisitDate());
-
-                homeVerificationReportRepository.save(report);
-
-                // Update HomeLoanDetails (propertyValue or approvedByAuthority)
-                HomeLoanDetails details = homeLoanRepository.findByLoans_LoanId(request.getLoanId())
-                                .orElseThrow(() -> new RuntimeException(
-                                                "HomeLoanDetails not found for Loan ID: " + request.getLoanId()));
-
-                details.setPropertyValue(request.getEvaluatedValue());
-                details.setApprovedByAuthority(true); // Mark as verified
-                homeLoanRepository.save(details);
-
-                // Optionally, mark loan as VERIFIED
-                loan.setStatus(LoanStatus.VERIFIED);
-                loanRepository.save(loan);
-
-                // Return response
-                return HomeVerificationResponse.builder()
-                                .loanId(loan.getLoanId())
-                                .verifiedSuccessfully(true)
-                                .evaluatedValue(report.getEvaluatedValue())
-                                .officerName(report.getOfficerName())
-                                .remarks(report.getOfficerRemarks())
-                                .verificationDate(report.getVisitDate())
-                                .status(loan.getStatus().name())
-                                .message("Property verification completed successfully.")
-                                .build();
-
-        }
 
         // Simple EMI calculator
         private BigDecimal calculateEmi(BigDecimal principal, BigDecimal annualRate, int months) {
@@ -246,29 +191,6 @@ public class HomeLoanServiceImpl implements HomeLoanService {
                                 .build();
         }
 
-        // @Override
-        // public HomeLoanDisbursementResponseDTO disburseLoan(Long loanId) {
-        // Loans loan = loanRepository.findById(loanId)
-        // .orElseThrow(() -> new EntityNotFoundException("Loan not found"));
-        //
-        // if (loan.getStatus() != LoanStatus.APPROVED) {
-        // throw new IllegalStateException("Loan not approved for disbursement");
-        // }
-        //
-        // loan.setStatus(LoanStatus.DISBURSED);
-        // loan.setDisbursementDate(LocalDate.now());
-        // loan.setOutstandingAmount(loan.getApprovedAmount());
-        // loanRepository.save(loan);
-        //
-        // return HomeLoanDisbursementResponseDTO.builder()
-        // .loanId(loanId)
-        // .disbursedAmount(loan.getApprovedAmount())
-        // .disbursementDate(LocalDate.now())
-        // .paymentMode("NEFT")
-        // .transactionRefNo("TXN" + loanId + System.currentTimeMillis())
-        // .remarks("loan amount disbursed successfully")
-        // .build();
-        // }
 
         @Transactional
         public LoanSanctionResponseDTO sanctionHomeLoan(Long loanId, LoanSanctionRequest request) {

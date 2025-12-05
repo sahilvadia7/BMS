@@ -1,6 +1,7 @@
 package com.bms.loan.service.impl;
 
 import com.bms.loan.Repository.*;
+import com.bms.loan.Repository.car.CarLoanRepository;
 import com.bms.loan.Repository.education.EducationLoanRepository;
 import com.bms.loan.Repository.home.HomeLoanRepository;
 import com.bms.loan.dto.request.InterestRateRequest;
@@ -8,15 +9,21 @@ import com.bms.loan.dto.request.loan.LoanHistory.ActiveLoanDto;
 import com.bms.loan.dto.request.loan.LoanHistory.ClosedLoanDto;
 import com.bms.loan.dto.response.InterestRateResponse;
 import com.bms.loan.dto.response.car.CarLoanInfo;
+import com.bms.loan.dto.response.car.CarVerificationResponseDto;
+import com.bms.loan.dto.response.education.EducationVerificationResponseDto;
 import com.bms.loan.dto.response.emi.EmiSummary;
 import com.bms.loan.dto.response.home.HomeLoanInfo;
+import com.bms.loan.dto.response.home.HomeVerificationResponseDto;
 import com.bms.loan.dto.response.loan.LoanDetailsAdminDto;
 import com.bms.loan.dto.response.loan.LoanDetailsResponse;
 import com.bms.loan.dto.response.loan.LoanSanctionDto;
 import com.bms.loan.entity.InterestRate;
 import com.bms.loan.entity.car.CarLoanDetails;
+import com.bms.loan.entity.car.CarVerificationReport;
 import com.bms.loan.entity.education.EducationLoanDetails;
+import com.bms.loan.entity.education.EducationVerificationReport;
 import com.bms.loan.entity.home.HomeLoanDetails;
+import com.bms.loan.entity.home.HomeVerificationReport;
 import com.bms.loan.entity.home.LoanSanction;
 import com.bms.loan.entity.loan.ActiveLoan;
 import com.bms.loan.entity.loan.ClosedLoan;
@@ -119,10 +126,6 @@ public class Mapper {
                             .carValue(carDetails.getCarValue())
                             .registrationNumber(carDetails.getRegistrationNumber())
                             .carAgeYears(carDetails.getCarAgeYears())
-                            .carConditionScore(carDetails.getCarConditionScore())
-                            .downPayment(carDetails.getDownPayment())
-                            .insuranceValid(carDetails.isInsuranceValid())
-                            .employmentStabilityYears(carDetails.getEmploymentStabilityYears())
                             .build()
             );
         }
@@ -197,10 +200,7 @@ public class Mapper {
                             .carValue(car.getCarValue())
                             .registrationNumber(car.getRegistrationNumber())
                             .carAgeYears(car.getCarAgeYears())
-                            .carConditionScore(car.getCarConditionScore())
                             .downPayment(car.getDownPayment())
-                            .insuranceValid(car.isInsuranceValid())
-                            .employmentStabilityYears(car.getEmploymentStabilityYears())
                             .build();
                     dto.setCarLoanDetails(carLoanInfo);
 
@@ -292,5 +292,54 @@ public class Mapper {
                         .build()
                 )
                 .collect(Collectors.toList());
+    }
+
+    public CarVerificationResponseDto toCarVerificationResponse(CarVerificationReport carSavedReport) {
+
+        return CarVerificationResponseDto.builder()
+                .insuranceValid(carSavedReport.isInsuranceValid())
+                .employmentVerified(carSavedReport.isEmploymentVerified())
+                .carDocumentsVerified(carSavedReport.isCarDocumentsVerified())
+                .physicalCarInspectionDone(carSavedReport.isPhysicalCarInspectionDone())
+                .carConditionScore(carSavedReport.getCarConditionScore())
+                .neighbourhoodStabilityScore(carSavedReport.getNeighbourhoodStabilityScore())
+                .employmentStabilityYears(carSavedReport.getEmploymentStabilityYears())
+                .officerName(carSavedReport.getOfficerName())
+                .officerRemarks(carSavedReport.getOfficerRemarks())
+                .visitDate(carSavedReport.getVisitDate())
+                .verifiedSuccessfully(carSavedReport.isVerifiedSuccessfully())
+                .build();
+    }
+
+    public HomeVerificationResponseDto toHomeVerificationResponse(HomeVerificationReport homeSavedReport) {
+
+        return HomeVerificationResponseDto.builder()
+                .ownershipVerified(homeSavedReport.isOwnershipVerified())
+                .neighbourCheckDone(homeSavedReport.isNeighbourCheckDone())
+                .propertyConditionOk(homeSavedReport.isPropertyConditionOk())
+                .evaluatedValue(homeSavedReport.getEvaluatedValue())
+                .propertyType(homeSavedReport.getPropertyType())
+                .propertyArea(homeSavedReport.getPropertyArea())
+                .officerName(homeSavedReport.getOfficerName())
+                .officerRemarks(homeSavedReport.getOfficerRemarks())
+                .visitDate(homeSavedReport.getVisitDate())
+                .verifiedSuccessfully(homeSavedReport.isVerifiedSuccessfully())
+                .build();
+    }
+
+    public EducationVerificationResponseDto toEducationVerificationResponse(EducationVerificationReport eduSavedRepost) {
+
+        return EducationVerificationResponseDto.builder()
+                .admissionVerified(eduSavedRepost.isAdmissionVerified())
+                .collegeRecognized(eduSavedRepost.isCollegeRecognized())
+                .feeStructureVerified(eduSavedRepost.isFeeStructureVerified())
+                .studentBackgroundClear(eduSavedRepost.isStudentBackgroundClear())
+                .coApplicantIncomeVerified(eduSavedRepost.isCoApplicantIncomeVerified())
+                .coApplicantIdentityValid(eduSavedRepost.isCoApplicantIdentityValid())
+                .officerName(eduSavedRepost.getOfficerName())
+                .officerRemarks(eduSavedRepost.getOfficerRemarks())
+                .visitDate(eduSavedRepost.getVisitDate())
+                .verifiedSuccessfully(eduSavedRepost.isVerifiedSuccessfully())
+                .build();
     }
 }

@@ -32,9 +32,6 @@ public class CarLoanDetails {
     private BigDecimal carValue;
     private String registrationNumber;
     private int carAgeYears; // how old the car is
-    private int carConditionScore; // e.g. 1–10 from evaluation team
     private BigDecimal downPayment;
-    private boolean insuranceValid;
-    private int employmentStabilityYears; // how long employed (external data)
 
 }

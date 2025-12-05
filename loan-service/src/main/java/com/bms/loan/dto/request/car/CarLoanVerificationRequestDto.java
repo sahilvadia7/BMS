@@ -11,9 +11,16 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CarLoanEvaluationRequestDto {
-    private BigDecimal downPayment;
+public class CarLoanVerificationRequestDto {
+
+
     private boolean insuranceValid;
+    private boolean employmentVerified;
+    private boolean carDocumentsVerified;
+    private boolean physicalCarInspectionDone;
+
     private int carConditionScore;
-    private int employmentStabilityYears;
+    private int neighbourhoodStabilityScore;
+
+    private int employmentStabilityYears; // Officer inputs this value
 }

@@ -1,16 +1,19 @@
 package com.bms.loan.entity.education;
 
+import com.bms.loan.entity.BaseVerificationReport;
 import com.bms.loan.entity.loan.Loans;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
+
 import java.time.LocalDate;
 
 @Entity
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class EducationVerificationReport {
+@SuperBuilder
+public class EducationVerificationReport extends BaseVerificationReport {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -20,12 +23,11 @@ public class EducationVerificationReport {
     @JoinColumn(name = "loan_id", nullable = false)
     private Loans loans;
 
-    private boolean admissionVerified;       // true if admission letter verified
+    private boolean admissionVerified;
     private boolean collegeRecognized;       // true if institute approved
     private boolean feeStructureVerified;    // true if fee structure validated with university
-    private String officerName;
-    private String officerRemarks;
-    private LocalDate verificationDate;
-    private boolean verifiedSuccessfully;
+    private boolean studentBackgroundClear;     // background validation
 
+    private boolean coApplicantIncomeVerified;  // salary slips or ITR
+    private boolean coApplicantIdentityValid;   // PAN, Aadhaar KYC match
 }
