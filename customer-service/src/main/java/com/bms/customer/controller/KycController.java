@@ -106,4 +106,11 @@ public class KycController {
         kycService.rejectKyc(kycId, reason);
         return ResponseEntity.noContent().build();
     }
+
+    @Operation(summary = "Get all KYC documents with status for given Customer ID")
+    @GetMapping("/status/{customerId}")
+    public ResponseEntity<List<KycResponseDTO>> findAllKycStatusByCustomerId(@PathVariable Long customerId) {
+        List<KycResponseDTO> responseList = kycService.getAllKycStatusByCustomerId(customerId);
+        return ResponseEntity.ok(responseList);
+    }
 }

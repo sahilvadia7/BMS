@@ -27,4 +27,6 @@ public interface KycService {
 
 
     Long findKycIdByCustomerId(Long customerId);
+
+    List<KycResponseDTO> getAllKycStatusByCustomerId(Long customerId);
 }
