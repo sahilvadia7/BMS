@@ -42,6 +42,8 @@ public class KycServiceImpl implements KycService {
                 kyc.getId(),
                 kyc.getDocumentType(),
                 kyc.getDocumentNumber(),
+                kyc.getDocumentUrl(),
+                kyc.getDocumentFileName(),
                 kyc.getStatus(),
                 kyc.getCreatedAt(),
                 kyc.getUpdatedAt());
@@ -238,6 +240,8 @@ public class KycServiceImpl implements KycService {
                 kyc.getId(),
                 kyc.getDocumentType(),
                 kyc.getDocumentNumber(),
+                kyc.getDocumentUrl(),
+                kyc.getDocumentFileName(),
                 kyc.getStatus(),
                 kyc.getCreatedAt(),
                 kyc.getUpdatedAt());
@@ -265,17 +269,20 @@ public class KycServiceImpl implements KycService {
             throw new BadRequestException("Account is already active. KYC cannot be re-uploaded.");
         }
 
-        if (kycRepository.findByDocumentTypeAndDocumentNumber(
-                requestDTO.documentType(),
-                requestDTO.documentNumber()).isPresent()) {
-            throw new BadRequestException(
-                    "This " + requestDTO.documentType() + " is already registered to another customer.");
-        }
+//        if (kycRepository.findByDocumentTypeAndDocumentNumber(
+//                requestDTO.documentType(),
+//                requestDTO.documentNumber()).isPresent()) {
+//            throw new BadRequestException(
+//                    "This " + requestDTO.documentType() + " is already registered to another customer.");
+//        }
 
         Kyc kyc = Kyc.builder()
                 .documentType(requestDTO.documentType())
                 .documentNumber(requestDTO.documentNumber())
+                .documentUrl(requestDTO.documentUrl())
+                .documentFileName(requestDTO.documentFileName())
                 .status(KycStatus.PENDING)
+                .createdAt(LocalDateTime.now())
                 .build();
         Kyc savedKyc = kycRepository.save(kyc);
 
@@ -292,4 +299,27 @@ public class KycServiceImpl implements KycService {
 
         return mapToKycResponse(savedKyc);
     }
+
+    @Override
+    public List<KycResponseDTO> getAllKycStatusByCustomerId(Long customerId) {
+
+        List<Kyc> kycs = mappingRepository.findAllKycStatusByCustomerId(customerId);
+
+        if (kycs.isEmpty()) {
+            throw new ResourceNotFoundException("No KYC documents found for customer: " + customerId);
+        }
+
+        return kycs.stream()
+                .map(k -> KycResponseDTO.builder()
+                        .id(k.getId())
+                        .documentType(k.getDocumentType())
+                        .documentNumber(k.getDocumentNumber())
+                        .documentUrl(k.getDocumentUrl())
+                        .documentFileName(k.getDocumentFileName())
+                        .status(k.getStatus())
+                        .build())
+                .toList();
+    }
+
+
 }
