@@ -1,4 +1,4 @@
-package com.bms.loan.Repository;
+package com.bms.loan.Repository.car;
 
 import com.bms.loan.entity.car.CarLoanDetails;
 import org.springframework.data.jpa.repository.JpaRepository;
