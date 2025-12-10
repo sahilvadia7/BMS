@@ -1,5 +1,6 @@
 package com.bms.account.exception;
 
+import com.bms.account.dtos.accountPin.PinErrorResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -80,9 +82,21 @@ public class GlobalExceptionHandler {
 
     // Handle Invalid PIN (403)
     @ExceptionHandler(InvalidPinException.class)
-    public ResponseEntity<ErrorResponseDTO> handleInvalidPin(InvalidPinException ex, HttpServletRequest request) {
-        log.warn("Invalid PIN: {}", ex.getMessage());
-        return buildErrorResponse(ex.getMessage(), HttpStatus.FORBIDDEN, request.getRequestURI());
+    public ResponseEntity<?> handleInvalidPin(InvalidPinException ex) {
+
+        PinErrorResponse response = PinErrorResponse.builder()
+                .message(ex.getMessage())
+                .attempts(ex.getAttempts())
+                .attemptsRemaining(ex.getRemaining())
+                .locked(ex.isLocked())
+                .lockExpiresInSeconds(ex.getLockExpiresInSeconds())
+                .build();
+
+        if (ex.isLocked()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+        }
+
+        return ResponseEntity.badRequest().body(response);
     }
 
     // Handle Insufficient Balance (400)
