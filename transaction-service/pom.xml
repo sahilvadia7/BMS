@@ -93,6 +93,8 @@
 			<version>1.3.39</version>
 		</dependency>
 
+
+
 		<dependency>
 			<groupId>org.bouncycastle</groupId>
 			<artifactId>bcprov-jdk18on</artifactId>
@@ -108,13 +110,21 @@
         </dependency>
 
 
-		<dependency>
-			<groupId>io.github.openfeign.form</groupId>
-			<artifactId>feign-form-spring</artifactId>
-			<version>3.8.0</version>
-		</dependency>
+<!--		<dependency>-->
+<!--			<groupId>io.github.openfeign.form</groupId>-->
+<!--			<artifactId>feign-form-spring</artifactId>-->
+<!--			<version>3.8.0</version>-->
+<!--		</dependency>-->
+        <!-- https://mvnrepository.com/artifact/io.github.openfeign.form/feign-form -->
+        <dependency>
+            <groupId>io.github.openfeign.form</groupId>
+            <artifactId>feign-form</artifactId>
+            <version>3.8.0</version>
+        </dependency>
 
-		<dependency>
+
+
+        <dependency>
 			<groupId>commons-codec</groupId>
 			<artifactId>commons-codec</artifactId>
 			<version>1.16.0</version>
