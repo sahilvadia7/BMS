@@ -13,6 +13,7 @@ import com.bms.customer.services.CustomerService;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -22,7 +23,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
-@org.springframework.transaction.annotation.Transactional
+@Transactional
 public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepository customerRepository;
@@ -40,7 +41,6 @@ public class CustomerServiceImpl implements CustomerService {
         this.jwtService = jwtService;
     }
 
-    // ✅ 1️⃣ Register new customer
     @Override
     public CustomerRegistrationResponseDTO registerCustomer(CustomerRegisterRequestDTO requestDTO) {
         String cifNumber = generateUniqueCifNumber();
@@ -62,7 +62,7 @@ public class CustomerServiceImpl implements CustomerService {
         Customer savedCustomer = customerRepository.save(customer);
 
         // Send email notification
-        if (savedCustomer != null) {
+        if (savedCustomer.getEmail() != null) {
             EmailRequestDTO emailRequestDTO = EmailRequestDTO.builder()
                     .toEmail(savedCustomer.getEmail())
                     .customerName(savedCustomer.getFirstName())
@@ -89,15 +89,6 @@ public class CustomerServiceImpl implements CustomerService {
             throw new InvalidCredentialsException("Invalid credentials. Please try again.");
         }
 
-        // Optional check
-        // if (customer.getStatus() != UserStatus.ACTIVE) {
-        // throw new AccountNotActiveException("Account not active. Please complete
-        // KYC.");
-        // if (customer.getStatus() != UserStatus.ACTIVE) {
-        // throw new AccountNotActiveException("Account is not active. Status: " +
-        // customer.getStatus().name() + ". Please complete KYC.");
-        // }
-
         String accessToken = jwtService.generateToken(customer.getCifNumber());
         String refreshToken = jwtService.generateRefreshToken(customer.getCifNumber());
 
@@ -107,7 +98,7 @@ public class CustomerServiceImpl implements CustomerService {
                 .tokenType("Bearer")
                 .build();
 
-        CustomerResponseDTO customerResponse = mapToResponse(customer);
+        CustomerDetailsResponseDTO customerResponse = mapToResponse(customer);
 
         return AuthResponseDTO.builder()
                 .message("Login successful")
@@ -135,14 +126,14 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
-    public CustomerResponseDTO getCustomerById(Long id) {
+    public CustomerDetailsResponseDTO getCustomerById(Long id) {
         Customer customer = customerRepository.findWithKycByCustomerId(id)
                 .orElseThrow(() -> new CustomerNotFoundException("Customer not found for ID: " + id));
         return mapToResponse(customer);
     }
 
     @Override
-    public CustomerResponseDTO getCustomerByCifNumber(String cifNumber) {
+    public CustomerDetailsResponseDTO getCustomerByCifNumber(String cifNumber) {
         Customer customer = customerRepository.findByCifNumber(cifNumber)
                 .orElseThrow(() -> new CustomerNotFoundException("Customer not found for CIF: " + cifNumber));
         return mapToResponse(customer);
@@ -165,14 +156,14 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
-    public List<CustomerResponseDTO> getAllCustomers() {
+    public List<CustomerDetailsResponseDTO> getAllCustomers() {
         return customerRepository.findAll().stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
     // ✅ helper: map entity to DTO
-    private CustomerResponseDTO mapToResponse(Customer customer) {
+    private CustomerDetailsResponseDTO mapToResponse(Customer customer) {
         Set<CustomerKycMappingDTO> kycMappings = customer.getKycDocuments().stream()
                 .map(mapping -> CustomerKycMappingDTO.builder()
                         .kycId(mapping.getKyc().getId())
@@ -184,7 +175,7 @@ public class CustomerServiceImpl implements CustomerService {
                         .build())
                 .collect(Collectors.toSet());
 
-        return CustomerResponseDTO.builder()
+        return CustomerDetailsResponseDTO.builder()
                 .customerId(customer.getCustomerId())
                 .firstName(customer.getFirstName())
                 .lastName(customer.getLastName())

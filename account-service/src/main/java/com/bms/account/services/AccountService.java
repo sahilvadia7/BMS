@@ -4,6 +4,7 @@ import com.bms.account.dtos.AccountResponseDTO;
 import com.bms.account.dtos.accountPin.ChangePinRequest;
 import com.bms.account.dtos.accountType.CurrentAccountRequestDTO;
 import com.bms.account.dtos.accountType.SavingsAccountRequestDTO;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -11,8 +12,8 @@ import java.util.List;
 public interface AccountService {
 
     // Create Accounts
-    AccountResponseDTO createSavingsAccount(SavingsAccountRequestDTO requestDTO);
-    AccountResponseDTO createCurrentAccount(CurrentAccountRequestDTO requestDTO);
+    AccountResponseDTO createSavingsAccount(SavingsAccountRequestDTO requestDTO, MultipartFile file);
+    AccountResponseDTO createCurrentAccount(CurrentAccountRequestDTO requestDTO, MultipartFile file);
 
     //  Common Operations
     AccountResponseDTO getAccountById(Long id);

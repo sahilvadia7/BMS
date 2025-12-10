@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+//import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -91,6 +92,7 @@ public class LoanApplicationController {
     }
 
     // get all loan by CIFNumber
+//    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get all loans by CIF Number", description = "Access: Admin")
     @GetMapping("/{cifNumber}/all")
     public ResponseEntity<List<LoanDetailsResponse>> getLoansByCif(@PathVariable String cifNumber) {
@@ -105,6 +107,7 @@ public class LoanApplicationController {
     }
 
     // get single emi by loan id and emi id
+//    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get EMI by ID", description = "Access: Customer, Admin")
     @GetMapping("/{loanId}/emi/{emiId}")
     public ResponseEntity<EmiSummary> getEmiById(@PathVariable Long loanId, @PathVariable Long emiId) {
@@ -117,6 +120,7 @@ public class LoanApplicationController {
         return ResponseEntity.ok(DocumentType.getRequiredForLoan(loanType));
     }
 
+//    @PreAuthorize("hasRole('CUSTOMER')")
     @Operation(summary = "Make loan prepayment", description = "Access: Customer")
     @PostMapping("/{loanId}/prepayment")
     public ResponseEntity<LoanPrepaymentResponse> makePrepayment(
@@ -125,6 +129,7 @@ public class LoanApplicationController {
         return ResponseEntity.ok(loanService.makePrepayment(loanId, request));
     }
 
+//    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get customer timely paid EMI details", description = "Access: Admin")
     @GetMapping("/{cifNumber}/customer")
     public ResponseEntity<CustomerTimelyPaidEmiResponseDTO> customerTimelyPaidEmiDetails(

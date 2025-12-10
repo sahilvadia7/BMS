@@ -1,6 +1,7 @@
 package com.bms.notification.service.impl;
 
 import com.bms.notification.dto.OtpEmailDTO;
+import com.bms.notification.dto.Transaction;
 import com.bms.notification.dto.request.account.AccountCreationNotificationRequest;
 import com.bms.notification.dto.request.account.pin.OtpEmailRequest;
 import com.bms.notification.dto.request.loan.ApplyLoanEmailDTO;
@@ -13,11 +14,15 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.pulsar.PulsarProperties;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 @Service
 public class EmailServiceImpl implements EmailService {
@@ -344,5 +349,143 @@ public class EmailServiceImpl implements EmailService {
         } catch (Exception e) {
             System.err.println("Failed to send statement email: " + e.getMessage());
         }
+    }
+
+    @Override
+    public void sendTransactionAlert(Transaction txn,String email) {
+        try {
+            String text = buildMessage(txn);
+
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message);
+
+            helper.setFrom(fromEmail);
+            helper.setTo(email);
+            helper.setSubject("BMS - Transaction Alert ❗❗");
+            helper.setText(text);
+
+            mailSender.send(message);
+
+        } catch (Exception e) {
+            System.err.println("Notification send failed: " + e.getMessage());
+        }
+    }
+
+    public String buildMessage(Transaction tx) {
+
+        String amount = "Rs." + tx.getAmount();
+        String date = formatDate(tx.getTransactionDate());
+        String ref = tx.getTransactionId();
+        String account = tx.getAccountNumber();
+        String dest = tx.getDestinationAccountNumber();
+        String provider = tx.getGatewayProvider();
+
+        switch (tx.getTransactionType()) {
+
+            case DEPOSIT:
+                return """
+                        Dear Customer, %s has been credited to your account %s on %s.
+                        Reference: %s.
+                        If you did not authorize this deposit, contact support immediately.
+                        Regards, BMS Bank
+                        """.formatted(amount, account, date, ref);
+
+            case WITHDRAWAL:
+                return """
+                        Dear Customer, %s has been debited from your account %s on %s.
+                        Withdrawal Reference: %s.
+                        If this was not done by you, block your account immediately.
+                        Regards, BMS Bank
+                        """.formatted(amount, account, date, ref);
+
+            case TRANSFER:
+                return """
+                        Dear Customer, %s has been transferred from account %s to %s on %s.
+                        Transfer Reference: %s.
+                        If you did not authorize this transaction, report immediately.
+                        Regards, BMS Bank
+                        """.formatted(amount, account, dest, date, ref);
+
+            case LOAN_DISBURSEMENT:
+                return """
+                        Dear Customer, a loan amount of %s has been credited to your account %s on %s.
+                        Loan Reference ID: %s.
+                        Thank you for banking with us.
+                        Regards, BMS Bank
+                        """.formatted(amount, account, date, ref);
+
+            case EMI_DEDUCTION:
+                return """
+                        Dear Customer, an EMI of %s has been debited from your account %s on %s.
+                        EMI Reference: %s.
+                        Ensure sufficient balance for future EMI deductions.
+                        Regards, BMS Bank
+                        """.formatted(amount, account, date, ref);
+
+            case REFUND:
+                return """
+                        Dear Customer, a refund of %s has been credited to account %s on %s.
+                        Refund Reference: %s.
+                        If you have concerns regarding this refund, contact support.
+                        Regards, BMS Bank
+                        """.formatted(amount, account, date, ref);
+
+            case CASH_DEPOSIT:
+                return """
+                        Dear Customer, %s has been deposited in cash to your account %s on %s.
+                        Deposit Slip Ref: %s.
+                        Regards, BMS Bank
+                        """.formatted(amount, account, date, ref);
+
+            case CASH_WITHDRAWAL:
+                return """
+                        Dear Customer, a cash withdrawal of %s has been done from your account %s on %s.
+                        Withdrawal Reference: %s.
+                        If not done by you, report immediately.
+                        Regards, BMS Bank
+                        """.formatted(amount, account, date, ref);
+
+            case PENALTY:
+                return """
+                        Dear Customer, a penalty of %s has been charged on your account %s on %s.
+                        Reason: %s.
+                        Reference: %s.
+                        Regards, BMS Bank
+                        """.formatted(amount, account, date, tx.getDescription(), ref);
+
+            case REVERSAL:
+                return """
+                        Dear Customer, a reversal of %s has been processed into your account %s on %s.
+                        Reversal Reference: %s.
+                        If this seems incorrect, please contact customer care.
+                        Regards, BMS Bank
+                        """.formatted(amount, account, date, ref);
+
+            case EXTERNAL_TRANSFER:
+                return """
+                        Dear Customer, %s has been debited from your account %s for an external transfer to %s on %s.
+                        Service Provider: %s.
+                        UPI/Transaction Ref: %s.
+                        If you did not authorize this transaction, please report it immediately.
+                        Regards, BMS Bank
+                        """.formatted(amount, account, dest, date, provider, ref);
+
+            case FEE:
+                return """
+                        Dear Customer, a service fee of %s has been charged on your account %s on %s.
+                        Reason: %s.
+                        Reference: %s.
+                        Regards, BMS Bank
+                        """.formatted(amount, account, date, tx.getDescription(), ref);
+
+            default:
+                return "Transaction notification for " + ref;
+        }
+    }
+
+    private String formatDate(LocalDateTime dateTime) {
+        if (dateTime == null) return "";
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("hh:mm a d MMM yyyy");
+        return dateTime.format(formatter);
     }
 }

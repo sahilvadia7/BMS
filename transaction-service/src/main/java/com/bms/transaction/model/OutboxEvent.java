@@ -19,16 +19,23 @@ import java.util.UUID;
 public class OutboxEvent {
 
 	@Id
-	@GeneratedValue(strategy = GenerationType.UUID)
+	@Column(nullable = false, updatable = false)
 	private UUID id;
 
 	private String aggregateId;
+
+	private String aggregateType;
+
 	private String eventType;
+
+	@Lob
+	@Basic(fetch = FetchType.EAGER)
 	private String payload;
-	private LocalDateTime createdAt;
 
 	@Enumerated(EnumType.STRING)
 	private OutboxStatus status;
 
 	private int retryCount;
+
+	private LocalDateTime createdAt;
 }

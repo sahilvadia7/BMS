@@ -3,8 +3,7 @@ package com.bms.customer.controller;
 import com.bms.customer.dtos.request.*;
 import com.bms.customer.dtos.response.AuthResponseDTO;
 import com.bms.customer.dtos.response.CustomerRegistrationResponseDTO;
-import com.bms.customer.dtos.response.CustomerResponseDTO;
-import com.bms.customer.entities.Customer;
+import com.bms.customer.dtos.response.CustomerDetailsResponseDTO;
 import com.bms.customer.security.JwtService;
 import com.bms.customer.services.CustomerService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,6 +13,7 @@ import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -33,10 +33,10 @@ public class CustomerController {
         this.jwtService = jwtService;
     }
 
-    @GetMapping("/greet")
+    @GetMapping("/health")
     public String greet() {
-        log.info("greet called it here in customer service");
-        return "Greetings from Spring Boot!";
+        log.info("customer service up and running");
+        return "customer service up and running";
     }
 
     @Operation(summary = "Register a new customer", description = "Access: Public")
@@ -70,13 +70,13 @@ public class CustomerController {
 
     @Operation(summary = "Get customer by ID", description = "Access: Admin, Customer")
     @GetMapping("/{id}")
-    public ResponseEntity<CustomerResponseDTO> getById(@PathVariable Long id) {
+    public ResponseEntity<CustomerDetailsResponseDTO> getById(@PathVariable Long id) {
         return ResponseEntity.ok(customerService.getCustomerById(id));
     }
 
     @Operation(summary = "Get customer by CIF number", description = "Access: Admin, Customer")
     @GetMapping("/cif/{cifNumber}")
-    public ResponseEntity<CustomerResponseDTO> getByCif(@PathVariable String cifNumber) {
+    public ResponseEntity<CustomerDetailsResponseDTO> getByCif(@PathVariable String cifNumber) {
         return ResponseEntity.ok(customerService.getCustomerByCifNumber(cifNumber));
     }
 
@@ -88,7 +88,8 @@ public class CustomerController {
 
     @Operation(summary = "Get all customers", description = "Access: Admin")
     @GetMapping
-    public ResponseEntity<List<CustomerResponseDTO>> getAll() {
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<CustomerDetailsResponseDTO>> getAll() {
         return ResponseEntity.ok(customerService.getAllCustomers());
     }
 

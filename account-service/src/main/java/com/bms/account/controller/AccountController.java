@@ -10,9 +10,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -31,11 +33,12 @@ public class AccountController {
 
     // Create Savings Account
     @Operation(summary = "Create a new Savings Account", description = "Access: Customer")
-    @PostMapping("/savings")
+    @PostMapping(value = "/savings",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<AccountResponseDTO> createSavingsAccount(
-            @Valid @RequestBody SavingsAccountRequestDTO requestDTO) {
+            @Valid @RequestPart("request") SavingsAccountRequestDTO requestDTO,
+            @RequestPart("file") MultipartFile file) {
 
-        AccountResponseDTO response = accountService.createSavingsAccount(requestDTO);
+        AccountResponseDTO response = accountService.createSavingsAccount(requestDTO,file);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
@@ -51,11 +54,13 @@ public class AccountController {
 
     // Create Current Account
     @Operation(summary = "Create a new Current Account", description = "Access: Customer")
-    @PostMapping("/current")
+    @PostMapping(value  = "/current",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<AccountResponseDTO> createCurrentAccount(
-            @Valid @RequestBody CurrentAccountRequestDTO requestDTO) {
+            @Valid @RequestPart("request") CurrentAccountRequestDTO requestDTO,
+            @RequestPart("file") MultipartFile file
+            ) {
 
-        AccountResponseDTO response = accountService.createCurrentAccount(requestDTO);
+        AccountResponseDTO response = accountService.createCurrentAccount(requestDTO,file);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 

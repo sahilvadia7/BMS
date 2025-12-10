@@ -10,15 +10,20 @@ import com.bms.transaction.enums.Currency;
 import com.bms.transaction.exception.InvalidPinException;
 import com.bms.transaction.exception.ResourceNotFoundException;
 import com.bms.transaction.feing.AccountClient;
-import com.bms.transaction.feing.PaymentClient;
+import com.bms.transaction.feing.CustomerClient;
+import com.bms.transaction.feing.NotificationClient;
 import com.bms.transaction.model.OutboxEvent;
 import com.bms.transaction.model.Transaction;
+import com.bms.transaction.producer.LedgerEventProducer;
 import com.bms.transaction.repository.OutboxRepository;
 import com.bms.transaction.repository.TransactionRepository;
+import com.bms.transaction.service.InternalTransactionService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -28,36 +33,32 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import static org.springframework.http.codec.ServerSentEvent.builder;
-
-/**
- * NOTE:
- * - This implementation persists an OutboxEvent instead of calling the payment gateway directly.
- * - Create a separate OutboxEvent entity + OutboxRepository (JPA) to back this.
- *
- * OutboxEvent fields expected (example):
- *  - id (String/UUID)
- *  - aggregateId (transactionId)
- *  - eventType (e.g. EXTERNAL_TRANSFER_INITIATED)
- *  - payloadJson (text)
- *  - status (PENDING, SENT, FAILED)
- *  - attempts (int)
- *  - nextAttemptAt (LocalDateTime)
- *  - createdAt (LocalDateTime)
- *
- * A scheduler should poll OutboxRepository for PENDING/RETRY events and call payment service.
- */
 @Service
 @Slf4j
-@AllArgsConstructor
-public class InternalTransactionServiceImpl implements com.bms.transaction.service.InternalTransactionService {
+public class InternalTransactionServiceImpl implements InternalTransactionService {
 
-	private final TransactionRepository transactionRepository;
-	private final AccountClient accountClient;
-	private final PaymentClient paymentClient;
-	private final OutboxRepository outboxRepository;
+	@Autowired
+	private TransactionRepository transactionRepository;
+
+	@Autowired
+	private AccountClient accountClient;
+
+	@Autowired
+	private OutboxRepository outboxRepository;
+
+	@Autowired
+	private LedgerEventProducer ledgerEventProducer;
+
+	@Autowired
+	private NotificationClient notificationClient;
+
+	@Autowired
+	private CustomerClient customerClient;
+
+	@Value("${bank.account.number}")
+	private String BANK_ACC_NUMBER;
+
+	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	private static final Map<TransactionType, BigDecimal> WEEKLY_LIMITS = Map.of(
 			TransactionType.DEPOSIT, new BigDecimal("50000"),
@@ -70,57 +71,247 @@ public class InternalTransactionServiceImpl implements com.bms.transaction.servi
 			TransactionType.CASH_WITHDRAWAL, new BigDecimal("200000")
 	);
 
-	private final ObjectMapper objectMapper = new ObjectMapper();
-
-	/**
-	 * Creates transaction. For EXTERNAL_TRANSFER this method will:
-	 *  - persist txn (PENDING)
-	 *  - persist outbox event (PENDING)
-	 *  - return an immediate Processing response
-	 *
-	 * Payment gateway call is delegated to Outbox Scheduler (separate component).
-	 */
 	@Override
 	@Transactional
 	public Object createTransaction(TransactionRequest request) {
-
 		validateRequest(request);
 		checkIdempotency(request);
 		validateAccount(request.getAccountNumber());
+		checkSufficientBalance(request.getAccountNumber(), request.getAmount());
 
 		if (requiresDestinationAccount(request.getTransactionType())) {
-			validateDestinationAccount(request.getDestinationAccountNumber());
+			validateAccount(request.getDestinationAccountNumber());
 		}
 
-		// Verify PIN if needed (debit operations)
 		if (isDebitType(request.getTransactionType())) {
-			verifyAccountPin(request.getAccountNumber(), Integer.parseInt(Optional.ofNullable(request.getPin()).orElse("0")));
+			verifyAccountPin(request.getAccountNumber(),
+					Integer.parseInt(Optional.ofNullable(request.getPin()).orElse("0")));
 		}
 
 		BigDecimal fee = calculateFee(request);
 		Transaction txn = createPendingTransaction(request, fee);
 
-		// INTERNAL TRANSACTION: handle synchronously (ACID within local DB and reliance on account-service atomic ops)
 		if (!request.getTransactionType().equals(TransactionType.EXTERNAL_TRANSFER)) {
-			processInternalOperation(txn);
+			processInternalTransaction(txn);
 			txn.setStatus(TransactionStatus.COMPLETED);
 			txn.setCompletedAt(LocalDateTime.now());
 			transactionRepository.save(txn);
+
+			ledgerEventProducer.transactionCompleted(
+					txn.getTransactionId(),
+					txn.getAmount(),
+					"Internal transaction completed Successfully"
+			);
+
 			return buildInternalResponse(txn);
 		}
 
-		// EXTERNAL TRANSACTION: create outbox event (do not call external service here)
+		return initiateExternalTransfer(txn, request);
+	}
+
+	private Transaction createPendingTransaction(TransactionRequest request, BigDecimal fee) {
+		String requestHash = generateRequestHash(request);
+
+		Transaction txn = Transaction.builder()
+				.transactionId(UUID.randomUUID().toString())
+				.accountNumber(request.getAccountNumber())
+				.destinationAccountNumber(requiresDestinationAccount(request.getTransactionType()) ? request.getDestinationAccountNumber() : null)
+				.transactionType(request.getTransactionType())
+				.destinationBankCode(request.getDestinationBankCode())
+				.branchCode(request.getBranchCode() != null ? request.getBranchCode() : "BMS0001")
+				.gatewayProvider(request.getGatewayProvider())
+				.amount(request.getAmount())
+				.currency(request.getCurrency())
+				.fee(fee)
+				.chargeable(fee.signum() > 0)
+				.status(TransactionStatus.PENDING)
+				.description(request.getDescription())
+				.initiatedBy(request.getInitiatedBy())
+				.idempotencyKey(request.getIdempotencyKey())
+				.channelReferenceId(request.getChannelReferenceId())
+				.pinVerified(true)
+				.requestHash(requestHash)
+				.transactionDate(LocalDateTime.now())
+				.build();
+
+		Transaction savedTxn = transactionRepository.save(txn);
+
+		registerInitialLedgerEvents(savedTxn);
+
+		return savedTxn;
+	}
+
+	private void registerInitialLedgerEvents(Transaction txn) {
+		Set<LedgerType> publishedTypes = new HashSet<>();
+
+		switch (txn.getTransactionType()) {
+			case DEPOSIT, CASH_DEPOSIT:
+				publishLedgerOnce(txn.getAccountNumber(), txn.getAmount(), LedgerType.CREDIT_REQUESTED,
+						txn.getTransactionId(), "Credit requested", publishedTypes);
+				break;
+
+			case WITHDRAWAL, CASH_WITHDRAWAL, EMI_DEDUCTION, PENALTY, TRANSFER:
+				publishLedgerOnce(txn.getAccountNumber(), txn.getAmount(), LedgerType.DEBIT_REQUESTED,
+						txn.getTransactionId(), "Debit requested", publishedTypes);
+
+				if (txn.getTransactionType() == TransactionType.TRANSFER && txn.getDestinationAccountNumber() != null) {
+					publishLedgerOnce(txn.getDestinationAccountNumber(), txn.getAmount(), LedgerType.CREDIT_REQUESTED,
+							txn.getTransactionId(), "Credit requested", publishedTypes);
+				}
+				break;
+
+			case LOAN_DISBURSEMENT, REFUND:
+				publishLedgerOnce(txn.getDestinationAccountNumber(), txn.getAmount(), LedgerType.CREDIT_REQUESTED,
+						txn.getTransactionId(), "Credit requested", publishedTypes);
+				break;
+
+			case FEE:
+				publishLedgerOnce(txn.getAccountNumber(), txn.getAmount(), LedgerType.DEBIT_REQUESTED,
+						txn.getTransactionId(), "Fee debit requested", publishedTypes);
+				publishLedgerOnce(BANK_ACC_NUMBER, txn.getAmount(), LedgerType.CREDIT_REQUESTED,
+						txn.getTransactionId(), "Fee credit requested", publishedTypes);
+				break;
+
+			case EXTERNAL_TRANSFER:
+				// Only DEBIT_REQUESTED at creation, rest handled by Outbox scheduler when gateway responds
+				publishLedgerOnce(txn.getAccountNumber(), txn.getAmount(), LedgerType.DEBIT_REQUESTED,
+						txn.getTransactionId(), "External transfer debit requested", publishedTypes);
+				break;
+
+			case REVERSAL:
+				handleReversalLedger(txn, publishedTypes);
+				break;
+		}
+	}
+
+	private void handleReversalLedger(Transaction txn, Set<LedgerType> publishedTypes) {
+		Transaction original = transactionRepository
+				.findByTransactionId(txn.getLinkedTransactionId())
+				.orElseThrow(() -> new IllegalStateException("Original transaction not found"));
+
+		publishLedgerOnce(original.getAccountNumber(), original.getAmount(), LedgerType.COMPENSATION_DEBIT,
+				txn.getTransactionId(), "Reversal debit requested", publishedTypes);
+
+		if (original.getDestinationAccountNumber() != null) {
+			publishLedgerOnce(original.getDestinationAccountNumber(), original.getAmount(), LedgerType.COMPENSATION_CREDIT,
+					txn.getTransactionId(), "Reversal credit requested", publishedTypes);
+		}
+
+		if (original.getFee() != null && original.getFee().signum() > 0) {
+			publishLedgerOnce(original.getAccountNumber(), original.getFee(), LedgerType.COMPENSATION_CREDIT,
+					txn.getTransactionId(), "Fee refund credit requested", publishedTypes);
+			publishLedgerOnce(BANK_ACC_NUMBER, original.getFee(), LedgerType.COMPENSATION_DEBIT,
+					txn.getTransactionId(), "Fee refund debit requested", publishedTypes);
+		}
+	}
+
+	private void publishLedgerOnce(String account, BigDecimal amount, LedgerType type,
+								   String txnId, String description, Set<LedgerType> publishedTypes) {
+		if (amount == null || amount.signum() <= 0 || account == null || account.isEmpty()) return;
+
+		if (!publishedTypes.contains(type)) {
+			publishLedgerEntry(account, amount, type, txnId, description);
+			publishedTypes.add(type);
+		}
+	}
+
+	private void publishLedgerEntry(String account, BigDecimal amount, LedgerType type, String txnId, String description) {
+		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+			@Override
+			public void afterCommit() {
+				try {
+					switch (type) {
+						case DEBIT_REQUESTED ->
+								ledgerEventProducer.debitRequested(txnId, account, amount, description);
+						case DEBIT_SUCCESS ->
+								ledgerEventProducer.debitSuccess(txnId, account, amount, description);
+						case DEBIT_FAILED ->
+								ledgerEventProducer.debitFailed(txnId, account, amount, description, "Insufficient balance or system error");
+						case CREDIT_REQUESTED ->
+								ledgerEventProducer.creditRequested(txnId, account, amount, description);
+						case CREDIT_SUCCESS ->
+								ledgerEventProducer.creditSuccess(txnId, account, amount, description);
+						case CREDIT_FAILED ->
+								ledgerEventProducer.creditFailed(txnId, account, amount, description, "System error during credit");
+						case COMPENSATION_DEBIT ->
+								ledgerEventProducer.compensationDebit(txnId, account, amount, description, true, null);
+						case COMPENSATION_CREDIT ->
+								ledgerEventProducer.compensationCredit(txnId, account, amount, description, true, null);
+						default -> log.warn("LedgerType {} not handled for txn {}", type, txnId);
+					}
+				} catch (Exception e) {
+					log.error("Failed to publish ledger entry for txn {}: {}", txnId, e.getMessage());
+				}
+				log.info("Published LEDGER_ENTRY: txnId={}, account={}, type={}, amount={}", txnId, account, type, amount);
+			}
+		});
+	}
+
+	public void publishCompensationLedger(Transaction txn) {
+		if (txn == null) return;
+		publishCompensationLedger(txn.getAccountNumber(), txn.getAmount(), txn.getTransactionId());
+	}
+
+	public void publishCompensationLedger(String accountNumber, BigDecimal amount, String txnId) {
+		if (accountNumber == null || amount == null || amount.signum() <= 0) {
+			log.warn("Skipping compensation: invalid data account={}, amount={}", accountNumber, amount);
+			return;
+		}
+
+		// 1) credit back sender (compensation credit)
+		publishLedgerEntry(accountNumber, amount, LedgerType.COMPENSATION_CREDIT, txnId,
+				"Compensation: refund to sender because external transfer failed");
+
+		// 2) optional: create a receiver compensation/debit informational entry
+		// (this doesn't change balances but records that receiver credit never happened)
+		// If you want to record as COMPENSATION_DEBIT for receiver, ensure ledger consumer treats it as informational.
+		// Only publish if destination exists in txn record (caller can pass receiver account if desired).
+		// Here we do not touch destination unless caller provides it (use publishCompensationLedger(txn) for that).
+	}
+
+	private void processInternalTransaction(Transaction txn) {
+
+		switch (txn.getTransactionType()) {
+			case DEPOSIT, CASH_DEPOSIT ->
+					creditAccount(txn.getAccountNumber(), txn.getAmount(), txn.getTransactionId());
+
+			case WITHDRAWAL, CASH_WITHDRAWAL, EMI_DEDUCTION, PENALTY ->
+					debitAccount(txn.getAccountNumber(), txn.getAmount(), txn.getTransactionId());
+
+			case TRANSFER -> {
+				debitAccount(txn.getAccountNumber(), txn.getAmount(), txn.getTransactionId());
+				if (txn.getDestinationAccountNumber() != null) {
+					creditAccount(txn.getDestinationAccountNumber(), txn.getAmount(), txn.getTransactionId());
+				}
+			}
+
+			case LOAN_DISBURSEMENT, REFUND ->
+					creditAccount(txn.getDestinationAccountNumber(), txn.getAmount(), txn.getTransactionId());
+
+			case FEE ->
+					applyFeeIfAny(txn);
+
+			default ->
+					log.warn("Internal transaction processing not defined for type {}", txn.getTransactionType());
+		}
+
+		applyFeeIfAny(txn);
+
+		ledgerEventProducer.transactionCompleted(
+				txn.getTransactionId(),
+				txn.getAmount(),
+				"Internal transaction completed successfully"
+		);
+	}
+
+	private Object initiateExternalTransfer(Transaction txn, TransactionRequest request) {
 		try {
-			PaymentRequest paymentRequest = mapToPaymentRequest(request, txn.getTransactionId());
-
-			// create outbox event payload (serialized)
-			String payloadJson = objectMapper.writeValueAsString(paymentRequest);
-
 			OutboxEvent outbox = OutboxEvent.builder()
 					.id(UUID.randomUUID())
 					.aggregateId(txn.getTransactionId())
-					.eventType("EXTERNAL_TRANSFER_INITIATED")
-					.payload(payloadJson)
+					.aggregateType("Transaction")
+					.eventType("EXTERNAL_TRANSFER")
+					.payload(objectMapper.writeValueAsString(mapToPaymentRequest(request, txn.getTransactionId())))
 					.status(OutboxStatus.PENDING)
 					.retryCount(0)
 					.createdAt(LocalDateTime.now())
@@ -128,280 +319,98 @@ public class InternalTransactionServiceImpl implements com.bms.transaction.servi
 
 			outboxRepository.save(outbox);
 
-			txn.setStatus(TransactionStatus.PROCESSING);
-			txn.setGatewayProvider(request.getGatewayProvider());
-			txn.setTransactionDate(LocalDateTime.now());
-			transactionRepository.save(txn);
-
-			TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-				@Override
-				public void afterCommit() {
-					log.info("Outbox created after commit: outboxId={} txnId={}", outbox.getId(), txn.getTransactionId());
-				}
-			});
-
-			PaymentResponse processing = PaymentResponse.builder()
-					.transactionId(txn.getTransactionId())
-					.externalReferenceId(null)
-					.status(TransactionStatus.PROCESSING)
-					.amount(txn.getAmount())
-					.destinationBankCode(request.getDestinationBankCode())
-					.initiatedAt(LocalDateTime.now())
-					.completedAt(null)
-					.failureReason(null)
-					.build();
-
-			return processing;
+			log.info("External transfer transaction saved to outbox: txnId={}", txn.getTransactionId());
 
 		} catch (Exception e) {
-			log.error("Failed creating outbox for external transfer: {}", e.getMessage(), e);
-			txn.setStatus(TransactionStatus.FAILED);
-			txn.setFailureReason(e.getMessage());
-			transactionRepository.save(txn);
+			log.error("Failed to save external transfer to outbox: {}", e.getMessage());
+			throw new IllegalStateException("External transfer initiation failed", e);
+		}
 
-			return PaymentResponse.failed(txn);
+		return buildInternalResponse(txn);
+	}
+
+	public void debitAccount(String account, BigDecimal amount, String txnId) {
+
+		publishLedgerEntry(account, amount, LedgerType.DEBIT_REQUESTED, txnId, "Debit requested");
+
+		try {
+			accountClient.updateBalance(account, amount, "WITHDRAW");
+
+			publishLedgerEntry(account, amount, LedgerType.DEBIT_SUCCESS, txnId, "Debit successful");
+
+			Transaction txn = transactionRepository.findByTransactionId(txnId).orElse(null);
+			if (txn != null) sendTransactionAlert(txn);
+
+		} catch (Exception e) {
+			publishLedgerEntry(account, amount, LedgerType.DEBIT_FAILED, txnId, "Debit failed: " + e.getMessage());
+
+			ledgerEventProducer.transactionFailed(
+					txnId,
+					"Debit operation failed",
+					e.getMessage()
+			);
+
+			throw new IllegalStateException("Debit failed for account " + account, e);
 		}
 	}
 
+	public void creditAccount(String account, BigDecimal amount, String txnId) 	{
+		publishLedgerEntry(account, amount, LedgerType.CREDIT_REQUESTED, txnId, "Credit requested");
 
-	private Transaction createPendingTransaction(TransactionRequest request, BigDecimal fee) {
-		String requestHash = generateRequestHash(request);
+		try {
+			accountClient.updateBalance(account, amount, "DEPOSIT");
 
-		String destinationAcc = switch (request.getTransactionType()) {
-			case TRANSFER -> request.getDestinationAccountNumber();
-			case EMI_DEDUCTION -> null;
-			case WITHDRAWAL, DEPOSIT, LOAN_DISBURSEMENT, REFUND -> null;
-			case CASH_DEPOSIT -> null;
-			case CASH_WITHDRAWAL -> null;
-			case PENALTY -> null;
-			case REVERSAL -> null;
-			case EXTERNAL_TRANSFER -> request.getDestinationAccountNumber();
-			case FEE -> "BANK_ACCOUNT";
-		};
+			publishLedgerEntry(account, amount, LedgerType.CREDIT_SUCCESS, txnId, "Credit successful");
 
-		Transaction txn = Transaction.builder()
-				.transactionId(UUID.randomUUID().toString())
-				.accountNumber(request.getAccountNumber())
-				.destinationAccountNumber(destinationAcc)
-				.transactionType(request.getTransactionType())
-				.amount(request.getAmount())
-				.currency(request.getCurrency())
-				.fee(fee)
-				.chargeable(fee.compareTo(BigDecimal.ZERO) > 0)
-				.status(TransactionStatus.PENDING)
-				.description(request.getDescription())
-				.initiatedBy(request.getInitiatedBy())
-				.idempotencyKey(request.getIdempotencyKey())
-				.channelReferenceId(request.getChannelReferenceId())
-				.branchCode(request.getBranchCode())
-				.pinVerified(true)
-				.requestHash(requestHash)
-				.transactionDate(LocalDateTime.now())
-				.build();
+			Transaction txn = transactionRepository.findByTransactionId(txnId).orElse(null);
+			if (txn != null) sendTransactionAlert(txn);
 
-		return transactionRepository.save(txn);
-	}
+		} catch (Exception e) {
+			publishLedgerEntry(account, amount, LedgerType.CREDIT_FAILED, txnId, "Credit failed: " + e.getMessage());
 
-	private void processInternalOperation(Transaction txn) {
-		BigDecimal total = txn.getAmount().add(Optional.ofNullable(txn.getFee()).orElse(BigDecimal.ZERO));
-		String source = txn.getAccountNumber();
-		String dest = txn.getDestinationAccountNumber();
+			ledgerEventProducer.transactionFailed(
+					txnId,
+					"Credit operation failed",
+					e.getMessage()
+			);
 
-		switch (txn.getTransactionType()) {
-			case WITHDRAWAL -> {
-				checkSufficientBalance(source, total);
-				debitAccount(source, total, txn.getTransactionId());
-				if (txn.getFee().signum() > 0) applyFee(source, txn);
-			}
-			case CASH_WITHDRAWAL -> {
-				checkSufficientBalance(source, total);
-				debitAccount(source, total, txn.getTransactionId());
-				moveToVault(txn);
-				if (txn.getFee().signum() > 0) applyFee(source, txn);
-			}
-			case CASH_DEPOSIT -> {
-				moveFromVault(txn);
-				creditAccount(source, txn.getAmount(), txn.getTransactionId());
-			}
-			case TRANSFER -> {
-				validateAccount(dest);
-				checkSufficientBalance(source, total);
-				debitAccount(source, total, txn.getTransactionId());
-				creditAccount(dest, txn.getAmount(), txn.getTransactionId());
-				if (txn.getFee().signum() > 0) applyFee(source, txn);
-			}
-			case DEPOSIT -> {
-				creditAccount(source, txn.getAmount(), txn.getTransactionId());
-			}
-			case LOAN_DISBURSEMENT, REFUND -> {
-				validateAccount(dest);
-				creditAccount(dest, txn.getAmount(), txn.getTransactionId());
-			}
-			case EMI_DEDUCTION -> {
-				checkSufficientBalance(source, total);
-				debitAccount(source, total, txn.getTransactionId());
-				postToLoanModule(txn);
-				if (txn.getFee().signum() > 0) applyFee(source, txn);
-			}
-			case PENALTY -> {
-				checkSufficientBalance(source, txn.getAmount());
-				debitAccount(source, txn.getAmount(), txn.getTransactionId());
-				postToPenaltyWallet(txn);
-			}
-			case REVERSAL -> reverseTransaction(txn);
-			default -> throw new IllegalStateException("Unsupported internal operation: " + txn.getTransactionType());
+			throw new IllegalStateException("Credit failed for account " + account, e);
 		}
 	}
 
-	private void debitAccount(String acc, BigDecimal amount, String ref) {
-		accountClient.updateBalance(acc, amount, "WITHDRAW");
-		log.info("Debited {} from {} (Ref: {})", amount, acc, ref);
-	}
+	private void applyFeeIfAny(Transaction txn) {
+		if (txn.getFee() != null && txn.getFee().signum() > 0) {
+			Transaction feeTxn = Transaction.builder()
+					.transactionId(UUID.randomUUID().toString())
+					.accountNumber(txn.getAccountNumber())
+					.destinationAccountNumber(BANK_ACC_NUMBER)
+					.transactionType(TransactionType.FEE)
+					.amount(txn.getFee())
+					.currency(txn.getCurrency())
+					.status(TransactionStatus.PENDING)
+					.linkedTransactionId(txn.getTransactionId())
+					.description("Fee applied")
+					.transactionDate(LocalDateTime.now())
+					.build();
+			transactionRepository.save(feeTxn);
 
-	private void creditAccount(String acc, BigDecimal amount, String ref) {
-		accountClient.updateBalance(acc, amount, "DEPOSIT");
-		log.info("Credited {} to {} (Ref: {})", amount, acc, ref);
-	}
+			debitAccount(txn.getAccountNumber(), txn.getFee(), feeTxn.getTransactionId());
+			creditAccount(BANK_ACC_NUMBER, txn.getFee(), feeTxn.getTransactionId());
 
-	private void moveToVault(Transaction txn) { log.info("Moving {} to bank vault", txn.getAmount()); }
-
-	private void moveFromVault(Transaction txn) { log.info("Cash deposit moved from vault"); }
-
-	private void postToLoanModule(Transaction txn) { log.info("EMI applied for txn {}", txn.getTransactionId()); }
-
-	private void reverseTransaction(Transaction reversalTxn) {
-		Transaction original = transactionRepository
-				.findByTransactionId(reversalTxn.getLinkedTransactionId())
-				.orElseThrow(() -> new IllegalStateException("Original txn not found"));
-
-		if (original.getStatus() != TransactionStatus.COMPLETED)
-			throw new IllegalStateException("Only completed txns can be reversed");
-
-		if (transactionRepository.existsByLinkedTransactionId(original.getTransactionId()))
-			throw new IllegalStateException("This txn is already reversed");
-
-		String source = original.getAccountNumber();
-		String dest = original.getDestinationAccountNumber();
-		BigDecimal amount = original.getAmount();
-
-		log.info("Starting reversal for txn {} -> original {}", reversalTxn.getTransactionId(), original.getTransactionId());
-
-		switch (original.getTransactionType()) {
-
-			case DEPOSIT -> {
-				checkSufficientBalance(source, amount);
-				debitAccount(source, amount, reversalTxn.getTransactionId());
-			}
-
-			case WITHDRAWAL -> {
-				creditAccount(source, amount, reversalTxn.getTransactionId());
-			}
-
-			case TRANSFER -> {
-				creditAccount(source, amount, reversalTxn.getTransactionId());
-				checkSufficientBalance(dest, amount);
-				debitAccount(dest, amount, reversalTxn.getTransactionId());
-			}
-
-			case CASH_DEPOSIT -> {
-				checkSufficientBalance(source, amount);
-				debitAccount(source, amount, reversalTxn.getTransactionId());
-			}
-
-			case CASH_WITHDRAWAL -> {
-				creditAccount(source, amount, reversalTxn.getTransactionId());
-			}
-
-			case EMI_DEDUCTION -> {
-				creditAccount(source, amount, reversalTxn.getTransactionId());
-			}
-
-			case PENALTY -> {
-				creditAccount(source, amount, reversalTxn.getTransactionId());
-
-				String penaltyAcc = "AC_PENALTY_WALLET";
-				BigDecimal walletBal = accountClient.getBalance(penaltyAcc).getBody();
-				if (walletBal.compareTo(amount) < 0)
-					throw new IllegalStateException("Penalty wallet insufficient to reverse");
-
-				debitAccount(penaltyAcc, amount, reversalTxn.getTransactionId());
-			}
-
-			case LOAN_DISBURSEMENT -> {
-				checkSufficientBalance(dest, amount);
-				debitAccount(dest, amount, reversalTxn.getTransactionId());
-			}
-
-			case REFUND -> {
-				checkSufficientBalance(dest, amount);
-				debitAccount(dest, amount, reversalTxn.getTransactionId());
-			}
-
-			default -> throw new IllegalStateException("Reversal not supported for: " + original.getTransactionType());
+			feeTxn.setStatus(TransactionStatus.COMPLETED);
+			transactionRepository.save(feeTxn);
 		}
-
-		if (original.getFee() != null && original.getFee().signum() > 0) {
-			reverseFee(original, reversalTxn);
-		}
-
-		log.info("Reversal completed for txn {}", reversalTxn.getTransactionId());
 	}
 
-	private void reverseFee(Transaction original, Transaction reversalTxn) {
-
-		String feeAcc = "AC_SYS_FEE";
-		BigDecimal fee = original.getFee();
-
-		BigDecimal bal = accountClient.getBalance(feeAcc).getBody();
-		if (bal.compareTo(fee) < 0)
-			throw new IllegalStateException("System fee account cannot cover fee reversal");
-
-		debitAccount(feeAcc, fee, reversalTxn.getTransactionId());
-		creditAccount(original.getAccountNumber(), fee, reversalTxn.getTransactionId());
-
-		Transaction feeRev = Transaction.builder()
-				.transactionId(UUID.randomUUID().toString())
-				.accountNumber(feeAcc)
-				.destinationAccountNumber(original.getAccountNumber())
-				.transactionType(TransactionType.FEE)
-				.amount(fee)
-				.currency(Currency.INR)
-				.linkedTransactionId(original.getTransactionId())
-				.description("Reversal Fee Refund")
-				.transactionDate(LocalDateTime.now())
-				.status(TransactionStatus.COMPLETED)
-				.build();
-
-		transactionRepository.save(feeRev);
+	private void checkSufficientBalance(String account, BigDecimal amount) {
+		BigDecimal balance = Optional.ofNullable(accountClient.getBalance(account)).orElse(BigDecimal.ZERO);
+		if (balance.compareTo(amount) < 0)
+			throw new IllegalStateException("Insufficient balance for account: " + account);
 	}
 
-	private void applyFee(String source, Transaction parentTxn) {
-		Transaction feeTxn = Transaction.builder()
-				.transactionId(UUID.randomUUID().toString())
-				.accountNumber(source)
-				.destinationAccountNumber("AC_SYS_FEE")
-				.transactionType(TransactionType.FEE)
-				.amount(parentTxn.getFee())
-				.currency(Currency.INR)
-				.status(TransactionStatus.COMPLETED)
-				.linkedTransactionId(parentTxn.getTransactionId())
-				.description("Fee...")
-				.transactionDate(LocalDateTime.now())
-				.build();
-
-		transactionRepository.save(feeTxn);
-		accountClient.updateBalance("AC_SYS_FEE", parentTxn.getFee(), "DEPOSIT");
-	}
-
-	private void checkSufficientBalance(String account, BigDecimal amt) {
-		BigDecimal bal = accountClient.getBalance(account).getBody();
-		if (bal.compareTo(amt) < 0)
-			throw new IllegalStateException("Insufficient balance");
-	}
-
-	private boolean isDebitType(TransactionType t) {
-		return List.of(TransactionType.WITHDRAWAL, TransactionType.CASH_WITHDRAWAL,
-				TransactionType.TRANSFER, TransactionType.EMI_DEDUCTION, TransactionType.PENALTY).contains(t);
+	private boolean isDebitType(TransactionType type) {
+		return Set.of(TransactionType.WITHDRAWAL, TransactionType.CASH_WITHDRAWAL,
+				TransactionType.TRANSFER, TransactionType.EMI_DEDUCTION, TransactionType.PENALTY).contains(type);
 	}
 
 	private void validateRequest(TransactionRequest req) {
@@ -414,49 +423,23 @@ public class InternalTransactionServiceImpl implements com.bms.transaction.servi
 	}
 
 	private void checkIdempotency(TransactionRequest req) {
-		Optional<Transaction> existing = transactionRepository.findByIdempotencyKey(req.getIdempotencyKey());
-		if (existing.isPresent()) {
-			String hash = generateRequestHash(req);
-			if (!existing.get().getRequestHash().equals(hash))
+		transactionRepository.findByIdempotencyKey(req.getIdempotencyKey()).ifPresent(existing -> {
+			if (!existing.getRequestHash().equals(generateRequestHash(req)))
 				throw new IllegalStateException("Idempotency key reused with different payload");
 			throw new IllegalStateException("Duplicate transaction");
-		}
+		});
 	}
 
-	private void postToPenaltyWallet(Transaction txn) { log.info("Penalty posted for txn {}", txn.getTransactionId()); }
-
 	private void validateAccount(String accountNumber) {
-		if (Boolean.FALSE.equals(accountClient.accountExists(accountNumber).getBody())) {
+		if (!Optional.ofNullable(accountClient.accountExists(accountNumber)).orElse(false)) {
 			throw new ResourceNotFoundException("Account not found: " + accountNumber);
 		}
 	}
 
-	private boolean requiresDestinationAccount(TransactionType type) {
-		return type == TransactionType.TRANSFER ||
-				type == TransactionType.EXTERNAL_TRANSFER ||
-				type == TransactionType.REFUND ||
-				type == TransactionType.LOAN_DISBURSEMENT ||
-				type == TransactionType.REVERSAL;
-	}
-
-	private void validateDestinationAccount(String destinationAccountNumber) {
-		if (destinationAccountNumber == null || destinationAccountNumber.isEmpty()) {
-			throw new IllegalArgumentException("Destination account number is missing");
+	private void verifyAccountPin(String account, int pin) {
+		if (!Optional.ofNullable(accountClient.verifyAccountPin(account, pin)).orElse(false)) {
+			throw new InvalidPinException("Invalid PIN");
 		}
-
-		AccountResponseDTO account = accountClient
-				.getAccountByNumber(destinationAccountNumber)
-				.getBody();
-
-		if (account == null) {
-			throw new ResourceNotFoundException(
-					"Destination account not found: " + destinationAccountNumber);
-		}
-	}
-
-	private void verifyAccountPin(String acc, int pin) {
-		ResponseEntity<Boolean> res = accountClient.verifyAccountPin(acc, pin);
-		if (!Boolean.TRUE.equals(res.getBody())) throw new InvalidPinException("Invalid PIN");
 	}
 
 	private BigDecimal calculateFee(TransactionRequest req) {
@@ -476,13 +459,42 @@ public class InternalTransactionServiceImpl implements com.bms.transaction.servi
 		);
 	}
 
-	private PaymentRequest mapToPaymentRequest(TransactionRequest request, String txnId) {
+	private boolean requiresDestinationAccount(TransactionType type) {
+		return Set.of(TransactionType.TRANSFER, TransactionType.EXTERNAL_TRANSFER,
+				TransactionType.REFUND, TransactionType.LOAN_DISBURSEMENT, TransactionType.REVERSAL).contains(type);
+	}
 
-		if (!request.getTransactionType().equals(TransactionType.EXTERNAL_TRANSFER)) {
-			throw new IllegalArgumentException("Invalid mapping call for non-external transaction");
+	private void moveFromVault(Transaction txn) {
+		log.info("Cash moved from vault for txn {}", txn.getTransactionId());
+	}
+
+	private void postToLoanModule(Transaction txn) {
+		log.info("Posting EMI deduction for txn {}", txn.getTransactionId());
+	}
+
+	private void postToPenaltyWallet(Transaction txn) {
+		log.info("Posting penalty for txn {}", txn.getTransactionId());
+	}
+
+	public void sendTransactionAlert(Transaction txn) {
+		try {
+			AccountResponseDTO accountResponse = accountClient.getAccountByNumber(txn.getAccountNumber());
+
+			Map<String, Object> customer = customerClient.getLimitedInfoByCif(accountResponse.getCifNumber());
+			notificationClient.sendTransactionAlert(txn, (String) customer.get("email"));
+
+
+			notificationClient.sendTransactionAlert(txn, (String) customer.get("email"));
+			log.info("Transaction alert sent successfully for txnId={}, response={}", txn.getTransactionId());
+		} catch (Exception e) {
+			log.error("Failed to send transaction alert for txnId={}: {}", txn.getTransactionId(), e.getMessage());
 		}
+	}
 
-
+	private PaymentRequest mapToPaymentRequest(TransactionRequest request, String txnId) {
+		if (!request.getTransactionType().equals(TransactionType.EXTERNAL_TRANSFER)) {
+			throw new IllegalArgumentException("Invalid mapping for non-external transaction");
+		}
 		return PaymentRequest.builder()
 				.sourceAccount(request.getAccountNumber())
 				.destinationAccount(request.getDestinationAccountNumber())
@@ -496,6 +508,8 @@ public class InternalTransactionServiceImpl implements com.bms.transaction.servi
 
 	private TransactionResponseDto buildInternalResponse(Transaction txn) {
 		return new TransactionResponseDto(
+				txn.getTransactionId(),
+				"",
 				txn.getAccountNumber(),
 				txn.getDestinationAccountNumber(),
 				txn.getTransactionType().name(),

@@ -36,6 +36,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 
@@ -57,16 +58,21 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
 
-    public List<TransactionResponseDto> getTransactionsForMonth(String accountNumber, int year, int month) {
-        LocalDateTime startDate = LocalDate.of(year, month, 1).atStartOfDay();
-        LocalDateTime endDate = startDate.plusMonths(1).minusNanos(1);
+    public List<TransactionResponseDto> getLatestMonthTransactions(String accountNumber) {
+        LocalDateTime endDate = LocalDateTime.now();
+        LocalDateTime startDate = endDate.minusMonths(1);
 
-        List<Transaction> transactions = transactionRepository.findByAccountNumberAndTransactionDateBetween(accountNumber, startDate, endDate);
+        List<Transaction> transactions = transactionRepository
+                .findByAccountNumberAndTransactionDateBetween(accountNumber, startDate, endDate);
 
         return transactions.stream()
+                .sorted(Comparator.comparing(Transaction::getTransactionDate).reversed())
                 .map(this::mapToResponseDto)
                 .toList();
     }
+
+
+
 
 
     public List<TransactionResponseDto> searchTransactions(SearchTransactionsRequest request) {
@@ -129,17 +135,9 @@ public class TransactionServiceImpl implements TransactionService {
 
         StatementResult result = generateStatement(accountNumber);
 
-        AccountResponseDTO account = accountClient.getAccountByNumber(accountNumber).getBody();
+        AccountResponseDTO account = accountClient.getAccountByNumber(accountNumber);
         if (account == null) {
             throw new RuntimeException("Account not found: " + accountNumber);
-        }
-
-        Map<String, Object> customer = customerClient
-                .getLimitedInfoByCif(account.getCifNumber())
-                .getBody();
-
-        if (customer == null) {
-            throw new RuntimeException("Customer not found for CIF: " + account.getCifNumber());
         }
 
 
@@ -163,15 +161,14 @@ public class TransactionServiceImpl implements TransactionService {
     public StatementResult generateStatement(String accountNumber) throws Exception {
 
         AccountResponseDTO account = accountClient
-                .getAccountByNumber(accountNumber)
-                .getBody();
+                .getAccountByNumber(accountNumber);
 
         if (account == null) {
             throw new RuntimeException("Account not found for number: " + accountNumber);
         }
 
         Map<String, Object> customer =
-                customerClient.getLimitedInfoByCif(account.getCifNumber()).getBody();
+                customerClient.getLimitedInfoByCif(account.getCifNumber());
 
         if (customer == null) {
             throw new RuntimeException("Customer not found for CIF: " + account.getCifNumber());
@@ -281,7 +278,7 @@ public class TransactionServiceImpl implements TransactionService {
 
 
     private void validateAccount(String accountNumber) {
-        if (Boolean.FALSE.equals(accountClient.accountExists(accountNumber).getBody())) {
+        if (Boolean.FALSE.equals(accountClient.accountExists(accountNumber))) {
             throw new ResourceNotFoundException("Account not found with Number: " + accountNumber);
         }
     }
@@ -289,6 +286,8 @@ public class TransactionServiceImpl implements TransactionService {
 
     private TransactionResponseDto mapToResponseDto(Transaction transaction) {
         return new TransactionResponseDto(
+                transaction.getTransactionId(),
+                "",
                 transaction.getAccountNumber(),
                 transaction.getDestinationAccountNumber(),
                 transaction.getTransactionType().name(),

@@ -73,6 +73,7 @@ public class Transaction {
 	private String description;
 
 	private LocalDateTime transactionDate;
+
 	private LocalDateTime completedAt;
 
 
@@ -86,8 +87,10 @@ public class Transaction {
 
 	private boolean gatewayRetryRequired;
 
-
 	private LocalDateTime initiatedAt;
+
+	private LocalDateTime CompensatedAt;
+
 	private LocalDateTime gatewayAcknowledgedAt;
 
 	@PrePersist

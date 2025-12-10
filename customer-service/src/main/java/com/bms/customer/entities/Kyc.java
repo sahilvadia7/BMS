@@ -6,15 +6,15 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(
-        name = "kyc_documents",
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "uk_kyc_doc_type_number",
-                        columnNames = {"documentType", "documentNumber"}
-                )
-        }
-)
+//@Table(
+//        name = "kyc_documents",
+//        uniqueConstraints = {
+//                @UniqueConstraint(
+//                        name = "uk_kyc_doc_type_number",
+//                        columnNames = {"documentType", "documentNumber"}
+//                )
+//        }
+//)
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Kyc {
 
@@ -27,6 +27,11 @@ public class Kyc {
 
     @Column(nullable = false)
     private String documentNumber;
+
+    @Column(name = "document_url",nullable = false)
+    private String documentUrl;    // <-- New
+
+    private String documentFileName; // <-- New
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
