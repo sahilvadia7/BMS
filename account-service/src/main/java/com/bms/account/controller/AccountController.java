@@ -1,6 +1,7 @@
 package com.bms.account.controller;
 
 import com.bms.account.dtos.AccountResponseDTO;
+import com.bms.account.dtos.accountPin.BalanceRequestDTO;
 import com.bms.account.dtos.accountPin.ChangePinRequest;
 import com.bms.account.dtos.accountType.CurrentAccountRequestDTO;
 import com.bms.account.dtos.accountType.SavingsAccountRequestDTO;
@@ -9,6 +10,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -34,6 +37,7 @@ public class AccountController {
     // Create Savings Account
     @Operation(summary = "Create a new Savings Account", description = "Access: Customer")
     @PostMapping(value = "/savings",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+//    @CachePut(cacheNames = "createAccount",key = "#result.cifNumber")
     public ResponseEntity<AccountResponseDTO> createSavingsAccount(
             @Valid @RequestPart("request") SavingsAccountRequestDTO requestDTO,
             @RequestPart("file") MultipartFile file) {
@@ -43,12 +47,10 @@ public class AccountController {
     }
 
     @Operation(summary = "Get account balance using Account Number and 4-digit PIN", description = "Access: Customer")
-    @GetMapping("/{accountNumber}/pin/{accountPin}/balance")
-    public ResponseEntity<BigDecimal> getBalanceByPin(
-            @PathVariable String accountNumber,
-            @PathVariable String accountPin) {
+    @PostMapping("/checkBalance")
+    public ResponseEntity<BigDecimal> getBalanceByPin(@RequestBody BalanceRequestDTO request) {
 
-        BigDecimal balance = accountService.getBalanceByPin(accountNumber, accountPin);
+        BigDecimal balance = accountService.getBalanceByPin(request);
         return ResponseEntity.ok(balance);
     }
 
@@ -131,6 +133,7 @@ public class AccountController {
 
     @Operation(summary = "Get all accounts by CIF number", description = "Access: Admin, Customer")
     @GetMapping("/cif/{cifNumber}")
+//    @Cacheable(value = "getAllAccounts",key = "#cifNumber")
     public ResponseEntity<List<AccountResponseDTO>> getAccountsByCif(@PathVariable String cifNumber) {
         return ResponseEntity.ok(accountService.getAccountsByCif(cifNumber));
     }

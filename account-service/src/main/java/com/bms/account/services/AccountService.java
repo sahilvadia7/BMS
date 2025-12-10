@@ -1,6 +1,7 @@
 package com.bms.account.services;
 
 import com.bms.account.dtos.AccountResponseDTO;
+import com.bms.account.dtos.accountPin.BalanceRequestDTO;
 import com.bms.account.dtos.accountPin.ChangePinRequest;
 import com.bms.account.dtos.accountType.CurrentAccountRequestDTO;
 import com.bms.account.dtos.accountType.SavingsAccountRequestDTO;
@@ -29,7 +30,7 @@ public interface AccountService {
 
     List<AccountResponseDTO> getAccountsByCif(String cifNumber);
 
-    BigDecimal getBalanceByPin(String accountNumber, String enteredPin);
+    BigDecimal getBalanceByPin(BalanceRequestDTO request);
 
     String activateAccountsByCif(String cifNumber);
 

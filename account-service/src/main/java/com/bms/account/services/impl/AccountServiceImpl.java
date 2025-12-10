@@ -3,6 +3,7 @@ package com.bms.account.services.impl;
 import com.bms.account.constant.AccountStatus;
 import com.bms.account.constant.AccountTypeEnum;
 import com.bms.account.dtos.*;
+import com.bms.account.dtos.accountPin.BalanceRequestDTO;
 import com.bms.account.dtos.accountPin.ChangePinRequest;
 import com.bms.account.dtos.accountType.CurrentAccountDetailsDTO;
 import com.bms.account.dtos.accountType.CurrentAccountRequestDTO;
@@ -20,19 +21,14 @@ import com.bms.account.repositories.AccountTypeRepository;
 import com.bms.account.repositories.accountType.CurrentAccountRepository;
 import com.bms.account.repositories.accountType.SavingsAccountRepository;
 import com.bms.account.services.AccountService;
-import com.bms.account.utility.DocumentValidationService;
-import com.bms.account.utility.KycFileUtil;
-import com.bms.account.utility.OcrService;
-import com.bms.account.utility.PinEncoder;
+import com.bms.account.utility.*;
 
 import lombok.extern.slf4j.Slf4j;
-import net.sourceforge.tess4j.TesseractException;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.naming.directory.InvalidAttributesException;
-import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -53,15 +49,20 @@ public class AccountServiceImpl implements AccountService {
     private final PinEncoder pinEncoder;
     private final KycFileUtil kycFileUtil;
     private final DocumentValidationService documentValidationService;
-    private final OcrService ocrService;
-
+//    private final OcrService ocrService;
+//    private final PinAttemptService pinAttemptService;
+//
     public AccountServiceImpl(AccountRepository accountRepository,
                               AccountTypeRepository accountTypeRepository,
                               SavingsAccountRepository savingsAccountRepository,
                               CurrentAccountRepository currentAccountRepository,
                               CustomerClient customerClient,
-                              NotificationClient notificationClient,
-                              PinEncoder pinEncoder, KycFileUtil kycFileUtil, DocumentValidationService documentValidationService, OcrService ocrService) {
+                              NotificationClient notificationClient, PinEncoder pinEncoder,
+                              KycFileUtil kycFileUtil,
+                              DocumentValidationService documentValidationService
+//                              OcrService ocrService
+//                              PinAttemptService pinAttemptService
+    ) {
         this.accountRepository = accountRepository;
         this.accountTypeRepository = accountTypeRepository;
         this.savingsAccountRepository = savingsAccountRepository;
@@ -71,7 +72,8 @@ public class AccountServiceImpl implements AccountService {
         this.pinEncoder = pinEncoder;
         this.kycFileUtil = kycFileUtil;
         this.documentValidationService = documentValidationService;
-        this.ocrService = ocrService;
+//        this.ocrService = ocrService;
+//        this.pinAttemptService = pinAttemptService;
     }
 
     // Generate random 4-digit PIN as String
@@ -361,8 +363,6 @@ public class AccountServiceImpl implements AccountService {
             throw new IllegalArgumentException("Initial deposit must be at least ₹" + minimumDeposit);
         }
 
-//        Long kycId = customerClient.checkKycExists(customer.getCustomerId());
-//        if (kycId == 0) {
             // 5b️⃣ Extract text using OCR
             boolean validType;
             System.out.println("Name: "+file.getOriginalFilename());
@@ -395,13 +395,6 @@ public class AccountServiceImpl implements AccountService {
             System.out.println(uploadRequest);
             KycResponseDTO uploadedKyc = customerClient.uploadKyc(uploadRequest);
             Long kycId = uploadedKyc.getId();
-
-//            KycUploadRequest uploadRequest = new KycUploadRequest();
-//            uploadRequest.setCustomerId(customer.getCustomerId());
-//            uploadRequest.setKyc(dto.getKycDetails());
-//            KycResponseDTO uploadedKyc = customerClient.uploadKyc(uploadRequest);
-//            kycId = uploadedKyc.getId();
-//        }
 
         String rawPin = generateAccountPin();
         String encodedPin = pinEncoder.encode(rawPin);
@@ -447,6 +440,7 @@ public class AccountServiceImpl implements AccountService {
 
     // ---------------- OTHER METHODS ----------------
     @Override
+//    @Cacheable(value = "getAllAccounts",key = "#cifNumber")
     public List<AccountResponseDTO> getAccountsByCif(String cifNumber) {
         List<Account> accounts = accountRepository.findByCifNumber(cifNumber);
         if (accounts.isEmpty())
@@ -462,20 +456,67 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Override
-    public BigDecimal getBalanceByPin(String accountNumber, String enteredPin) {
-        Account account = accountRepository.findByAccountNumber(accountNumber)
+    public BigDecimal getBalanceByPin(BalanceRequestDTO request) {
+        System.out.println("Account Number : "+request.getAccountNumber());
+        System.out.println("Account Number : "+request.getAccountPin());
+        Account account = accountRepository.findByAccountNumber(request.getAccountNumber())
                 .orElseThrow(
-                        () -> new ResourceNotFoundException("No account found with Account Number: " + accountNumber));
+                        () -> new ResourceNotFoundException("No account found with Account Number: " + request.getAccountNumber()));
 
         // verify hashed PIN
         BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
-        if (!encoder.matches(enteredPin, account.getAccountPin())) {
+        if (!encoder.matches(request.getAccountPin(), account.getAccountPin())) {
             // throw new InvalidPinException("Invalid PIN entered.");
             throw new InvalidPinException("Invalid PIN entered");
         }
 
         return account.getBalance();
     }
+//@Override
+//public BigDecimal getBalanceByPin(BalanceRequestDTO request) {
+//
+//    String accountNumber = request.getAccountNumber();
+//    String pin = request.getAccountPin();
+//
+//    //  Check lock before DB call
+//    if (pinAttemptService.isAccountLocked(accountNumber)) {
+//        throw new InvalidPinException(
+//                "Account locked due to failed PIN attempts!",
+//                pinAttemptService.getAttempts(accountNumber),
+//                0,
+//                true,
+//                pinAttemptService.getRemainingLockTime(accountNumber)
+//        );
+//    }
+//
+//    Account account = accountRepository.findByAccountNumber(accountNumber)
+//            .orElseThrow(() -> new ResourceNotFoundException("Invalid account number"));
+//
+//    BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+//
+//    if (!encoder.matches(pin, account.getAccountPin())) {
+//
+//        int attempts = pinAttemptService.recordFailedAttempt(accountNumber);
+//        int remaining = pinAttemptService.getMaxAttempts() - attempts;
+//        boolean locked = remaining <= 0;
+//
+//        throw new InvalidPinException(
+//                locked ? "Account locked due to too many wrong attempts!" : "Wrong PIN! Try again.",
+//                attempts,
+//                Math.max(remaining, 0),
+//                locked,
+//                locked ? pinAttemptService.getRemainingLockTime(accountNumber) : null
+//        );
+//    }
+//
+//    // 🟢 Success — Reset Attempts
+//    pinAttemptService.resetAttempts(accountNumber);
+//
+//    return account.getBalance();
+//}
+
+
+
 
     @Override
     public String changeAccountPin(String accountNumber, ChangePinRequest request) {
