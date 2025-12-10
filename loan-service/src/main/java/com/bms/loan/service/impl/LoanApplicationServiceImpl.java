@@ -36,6 +36,7 @@ import com.bms.loan.entity.loan.*;
 import com.bms.loan.enums.EmiStatus;
 import com.bms.loan.enums.LoanStatus;
 import com.bms.loan.enums.PrepaymentOption;
+import com.bms.loan.exception.AlreadyMultipleLoanException;
 import com.bms.loan.exception.InvalidLoanStatusException;
 import com.bms.loan.exception.ResourceNotFoundException;
 import com.bms.loan.feign.CustomerClient;
@@ -150,6 +151,18 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 // Other HTTP errors (500, etc.)
                 throw e;
             }
+        }
+
+        List<Loans> loansList = loansRepository.findByCifNumber(customer.getCifNumber());
+        long count =  loansList.stream().filter(i -> i.getStatus().equals(LoanStatus.DISBURSED)).count();
+        if (loansList.size() >= 2 ){
+//            throw new AlreadyMultipleLoanException("Multiple Loans Active Right now");
+            return LoanApplicationResponse.builder()
+                    .cifNumber(customer.getCifNumber())
+                    .loanType(String.valueOf(request.getLoanType()))
+                    .status(LoanStatus.REJECTED.name())
+                    .message("Already "+loansList.size() +" loan applied and "+count+" Active loan")
+                    .build();
         }
 
         // Create main loan record
