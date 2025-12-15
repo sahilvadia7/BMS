@@ -48,4 +48,9 @@ public interface AccountService {
     List<AccountResponseDTO> getPendingCloseRequests();
 
     void decideAccountClosure(String accountNumber, AccountClosureDecisionRequestDto request);
+    BigDecimal updateBalanceAndReturn(
+            String accountNumber,
+            BigDecimal amount,
+            String transactionType
+    );
 }

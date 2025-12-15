@@ -9,7 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
-@FeignClient(name = "notification-service",url = "http://localhost:8088/api/v1/notifications")
+@FeignClient(name = "notification-service",url = "http://localhost:8089/api/v1/notifications")
 public interface NotificationClient {
 
     @PostMapping("/send-sanction")

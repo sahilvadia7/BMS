@@ -133,6 +133,23 @@ public class AccountController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(
+            summary = "Update account balance and return updated value",
+            description = "Access: Internal (Transaction Service)"
+    )
+    @PostMapping("/{accountNumber}/balance/value")
+    public ResponseEntity<BigDecimal> updateBalanceAndReturn(
+            @PathVariable String accountNumber,
+            @RequestParam BigDecimal amount,
+            @RequestParam String transactionType) {
+
+        BigDecimal updatedBalance =
+                accountService.updateBalanceAndReturn(accountNumber, amount, transactionType);
+
+        return ResponseEntity.ok(updatedBalance);
+    }
+
+
     @Operation(summary = "Get all accounts by CIF number", description = "Access: Admin, Customer")
     @GetMapping("/cif/{cifNumber}")
 //    @Cacheable(value = "getAllAccounts",key = "#cifNumber")
