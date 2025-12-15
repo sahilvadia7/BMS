@@ -26,8 +26,8 @@ public class OutboxEvent {
 
 	private String eventType;
 
-	@Lob
-	@Basic(fetch = FetchType.EAGER)
+    @Column(columnDefinition = "TEXT")
+    @Basic(fetch = FetchType.EAGER)
 	private String payload;
 
 	@Enumerated(EnumType.STRING)

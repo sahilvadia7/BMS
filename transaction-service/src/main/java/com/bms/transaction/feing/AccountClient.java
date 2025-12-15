@@ -18,7 +18,7 @@ public interface AccountClient {
     @GetMapping("/{accountNumber}/balance")
     BigDecimal getBalance(@PathVariable String accountNumber);
 
-    @PostMapping("/{accountNumber}/balance")
+    @PostMapping("/{accountNumber}/balance/value")
     BigDecimal updateBalance(
             @PathVariable String accountNumber,
             @RequestParam("amount") BigDecimal amount,

@@ -154,24 +154,25 @@ public class InternalTransactionServiceImpl implements InternalTransactionServic
 		};
 
 		Transaction txn = Transaction.builder()
-				.transactionId(UUID.randomUUID().toString())
-				.accountNumber(request.getAccountNumber())
-				.destinationAccountNumber(destinationAcc)
-				.transactionType(request.getTransactionType())
-				.amount(request.getAmount())
-				.currency(request.getCurrency())
-				.fee(fee)
-				.chargeable(fee.compareTo(BigDecimal.ZERO) > 0)
-				.status(TransactionStatus.PENDING)
-				.description(request.getDescription())
-				.initiatedBy(request.getInitiatedBy())
-				.idempotencyKey(request.getIdempotencyKey())
-				.channelReferenceId(request.getChannelReferenceId())
-				.branchCode(request.getBranchCode())
-				.pinVerified(true)
-				.requestHash(requestHash)
-				.transactionDate(LocalDateTime.now())
-				.build();
+                .transactionId(UUID.randomUUID().toString())
+                .accountNumber(request.getAccountNumber())
+                .destinationAccountNumber(destinationAcc)
+                .transactionType(request.getTransactionType())
+                .amount(request.getAmount())
+                .currency(request.getCurrency())
+                .fee(fee)
+                .chargeable(fee.compareTo(BigDecimal.ZERO) > 0)
+                .status(TransactionStatus.PENDING)
+                .description(request.getDescription())
+                .initiatedBy(request.getInitiatedBy())
+                .idempotencyKey(request.getIdempotencyKey())
+                .channelReferenceId(request.getChannelReferenceId())
+                .branchCode(request.getBranchCode())
+                .pinVerified(true)
+                .requestHash(requestHash)
+                .transactionDate(LocalDateTime.now())
+                .gatewayRetryRequired(false)
+                .build();
 
 		Transaction savedTxn = transactionRepository.save(txn);
 
@@ -358,34 +359,40 @@ public class InternalTransactionServiceImpl implements InternalTransactionServic
 		creditAccount(original.getAccountNumber(), fee, reversalTxn.getTransactionId());
 
 		Transaction feeRev = Transaction.builder()
-				.transactionId(UUID.randomUUID().toString())
-				.accountNumber(feeAcc)
-				.destinationAccountNumber(original.getAccountNumber())
-				.transactionType(TransactionType.FEE)
-				.amount(fee)
-				.currency(Currency.INR)
-				.linkedTransactionId(original.getTransactionId())
-				.description("Reversal Fee Refund")
-				.transactionDate(LocalDateTime.now())
-				.status(TransactionStatus.COMPLETED)
-				.build();
+                .transactionId(UUID.randomUUID().toString())
+                .accountNumber(feeAcc)
+                .destinationAccountNumber(original.getAccountNumber())
+                .transactionType(TransactionType.FEE)
+                .amount(fee)
+                .currency(Currency.INR)
+                .linkedTransactionId(original.getTransactionId())
+                .description("Reversal Fee Refund")
+                .transactionDate(LocalDateTime.now())
+                .status(TransactionStatus.COMPLETED)
+                .chargeable(false)
+                .pinVerified(false)
+                .gatewayRetryRequired(false)
+                .build();
 
 		transactionRepository.save(feeRev);
 	}
 
 	private void applyFee(String source, Transaction parentTxn) {
 		Transaction feeTxn = Transaction.builder()
-				.transactionId(UUID.randomUUID().toString())
-				.accountNumber(source)
-				.destinationAccountNumber(BANK_ACC_NUMBER)
-				.transactionType(TransactionType.FEE)
-				.amount(parentTxn.getFee())
-				.currency(Currency.INR)
-				.status(TransactionStatus.COMPLETED)
-				.linkedTransactionId(parentTxn.getTransactionId())
-				.description("Fee applied")
-				.transactionDate(LocalDateTime.now())
-				.build();
+                .transactionId(UUID.randomUUID().toString())
+                .accountNumber(source)
+                .destinationAccountNumber(BANK_ACC_NUMBER)
+                .transactionType(TransactionType.FEE)
+                .amount(parentTxn.getFee())
+                .currency(Currency.INR)
+                .status(TransactionStatus.COMPLETED)
+                .linkedTransactionId(parentTxn.getTransactionId())
+                .description("Fee applied")
+                .transactionDate(LocalDateTime.now())
+                .pinVerified(false)
+                .gatewayRetryRequired(false)
+                .chargeable(false)
+                .build();
 
 		transactionRepository.save(feeTxn);
 		accountClient.updateBalance(BANK_ACC_NUMBER, parentTxn.getFee(), "DEPOSIT");
