@@ -2,7 +2,10 @@ package com.bms.notification.controller;
 
 import com.bms.notification.dto.OtpEmailDTO;
 import com.bms.notification.dto.Transaction;
+import com.bms.notification.dto.request.account.AccountCloseRequestNotification;
+import com.bms.notification.dto.request.account.AccountClosureDecisionNotification;
 import com.bms.notification.dto.request.account.AccountCreationNotificationRequest;
+import com.bms.notification.dto.request.account.AccountStatusChangeNotificationRequest;
 import com.bms.notification.dto.request.account.pin.OtpEmailRequest;
 import com.bms.notification.dto.request.loan.ApplyLoanEmailDTO;
 import com.bms.notification.dto.request.loan.DisbursementEmailDTO;
@@ -109,5 +112,28 @@ public class NotificationController {
     public void sendTransactionAlert(@RequestBody Transaction request,
                                                        @RequestParam String email ) {
         emailService.sendTransactionAlert(request,email);
+    }
+
+    @Operation(
+            summary = "Send account status change notification",
+            description = "Access: Internal"
+    )
+    @PostMapping("/account-status-changed")
+    public void sendAccountStatusChangedEmail(
+            @RequestBody AccountStatusChangeNotificationRequest request) {
+
+        emailService.sendAccountStatusChangedEmail(request);
+    }
+
+    @PostMapping("/account-close-requested")
+    public void sendAccountCloseRequestEmail(
+            @RequestBody AccountCloseRequestNotification request) {
+
+        emailService.sendAccountCloseRequestEmail(request);
+    }
+    @PostMapping("/account-closure-decision")
+    public void sendAccountClosureDecisionEmail(
+            @RequestBody AccountClosureDecisionNotification request) {
+        emailService.sendAccountClosureDecisionEmail(request);
     }
 }

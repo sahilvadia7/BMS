@@ -1,5 +1,6 @@
 package com.bms.account.repositories;
 
+import com.bms.account.constant.AccountStatus;
 import com.bms.account.entities.Account;
 import feign.Param;
 import jakarta.persistence.LockModeType;
@@ -22,4 +23,6 @@ public interface AccountRepository extends JpaRepository<Account,Long> {
     Optional<Account> findByCifNumberAndAccountType_Type(String cifNumber, String type);
 
 	boolean existsByAccountNumber(String accountNumber);
+
+    List<Account> findByStatus(AccountStatus accountStatus);
 }
