@@ -1,5 +1,6 @@
 package com.bms.account.services.impl;
 
+import com.bms.account.constant.AccountClosureDecision;
 import com.bms.account.constant.AccountStatus;
 import com.bms.account.constant.AccountTypeEnum;
 import com.bms.account.dtos.*;
@@ -23,8 +24,8 @@ import com.bms.account.repositories.accountType.SavingsAccountRepository;
 import com.bms.account.services.AccountService;
 import com.bms.account.utility.*;
 
+import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -546,6 +547,173 @@ public class AccountServiceImpl implements AccountService {
                 .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
         return pinEncoder.matches(String.valueOf(accountPin), account.getAccountPin());
     }
+
+    @Override
+    @Transactional
+    public String updateAccountStatus(String accountNumber, AccountStatusRequestDTO request) {
+
+        Account account = accountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Account not found: " + accountNumber));
+
+        CustomerResponseDTO customer = customerClient.getByCif(account.getCifNumber());
+        //  Closed accounts cannot be changed
+        if (account.getStatus() == AccountStatus.CLOSED) {
+            throw new AccountStateException("Closed account cannot be modified");
+        }
+
+        //  No unnecessary update
+        if (account.getStatus().name().equals(request.getStatus())) {
+            throw new AccountStateException(
+                    "Account is already " + request.getStatus()
+            );
+        }
+
+        account.setStatus(AccountStatus.valueOf(request.getStatus()));
+
+        // Optional: save audit log
+        log.info("Account {} status changed to {} | Reason: {}",
+                accountNumber,
+                request.getStatus(),
+                request.getReason());
+
+        accountRepository.save(account);
+        //  SEND EMAIL VIA NOTIFICATION SERVICE
+        AccountStatusChangeNotificationRequest accountStatusChangeNotificationRequest =
+                new AccountStatusChangeNotificationRequest();
+
+        accountStatusChangeNotificationRequest.setCustomerName(customer.getFirstName()+" "+customer.getLastName());
+        accountStatusChangeNotificationRequest.setEmail(customer.getEmail());
+        accountStatusChangeNotificationRequest.setAccountNumber(account.getAccountNumber());
+        accountStatusChangeNotificationRequest.setNewStatus(request.getStatus());
+        accountStatusChangeNotificationRequest.setReason(request.getReason());
+
+        notificationClient.sendAccountStatusChangedEmail(accountStatusChangeNotificationRequest);
+
+        return "Account " + request.getStatus() + " successfully";
+    }
+
+    @Override
+    public String closeAccount(String accountNumber) {
+        Account account = accountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Account not found: " + accountNumber));
+        CustomerResponseDTO customer = customerClient.getByCif(account.getCifNumber());
+        //  Already closed
+        if (account.getStatus() == AccountStatus.CLOSED) {
+            throw new AccountStateException("Account is already closed");
+        }
+
+        //  Already requested
+        if (account.getStatus() == AccountStatus.CLOSE_REQUESTED) {
+            throw new AccountStateException("Account closure already requested");
+        }
+
+        //  Balance must be zero
+        if (account.getBalance().compareTo(BigDecimal.ZERO) > 0) {
+            throw new AccountStateException(
+                    "Account balance must be zero before closing"
+            );
+        }
+
+        //  Soft close
+        account.setStatus(AccountStatus.CLOSE_REQUESTED);
+        accountRepository.save(account);
+
+        //  Send notification
+        AccountCloseRequestNotification notification =
+                new AccountCloseRequestNotification();
+
+        notification.setCustomerName(customer.getFirstName()+" "+customer.getLastName());
+        notification.setEmail(customer.getEmail());
+        notification.setAccountNumber(account.getAccountNumber());
+//        notification.setReason(request.getReason());
+
+        notificationClient.sendAccountCloseRequestEmail(notification);
+
+        return "Account closure request submitted successfully";
+    }
+
+    @Override
+    public List<AccountResponseDTO> getPendingCloseRequests() {
+
+        List<Account> accounts =
+                accountRepository.findByStatus(AccountStatus.CLOSE_REQUESTED);
+
+        if (accounts.isEmpty()) {
+            throw new ResourceNotFoundException("No pending close requests found");
+        }
+
+        return accounts.stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public void decideAccountClosure(
+            String accountNumber,
+            AccountClosureDecisionRequestDto request) {
+
+        Account account = accountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Account not found"));
+
+        if (account.getStatus() != AccountStatus.CLOSE_REQUESTED) {
+            throw new AccountStateException(
+                    "Account closure not requested"
+            );
+        }
+
+        CustomerResponseDTO customer =
+                customerClient.getByCif(account.getCifNumber());
+
+        AccountClosureDecision decision = request.getDecision();
+
+        if (decision == AccountClosureDecision.APPROVED) {
+
+            account.setStatus(AccountStatus.CLOSED);
+            accountRepository.save(account);
+
+            //  APPROVAL EMAIL
+            notificationClient.sendAccountClosureDecisionEmail(
+                    new AccountClosureDecisionNotification(
+                            customer.getEmail(),
+                            customer.getFirstName() + " " + customer.getLastName(),
+                            account.getAccountNumber(),
+                            request.getDecision().name(),
+                            null
+                    )
+            );
+
+        } else if (decision == AccountClosureDecision.REJECTED) {
+
+            if (request.getReason() == null || request.getReason().isBlank()) {
+                throw new AccountStateException(
+                        "Rejection reason is mandatory"
+                );
+            }
+
+            account.setStatus(AccountStatus.ACTIVE);
+            accountRepository.save(account);
+
+            //  REJECTION EMAIL
+
+            notificationClient.sendAccountClosureDecisionEmail(
+                    new AccountClosureDecisionNotification(
+                            customer.getEmail(),
+                            customer.getFirstName() + " " + customer.getLastName(),
+                            account.getAccountNumber(),
+                            request.getDecision().name(),
+                            request.getReason()
+                    )
+            );
+
+        } else {
+            throw new AccountStateException("Invalid closure decision");
+        }
+    }
+
 
     @Override
     public BigDecimal getBalance(String accountNumber) {

@@ -114,10 +114,20 @@ public class GlobalExceptionHandler {
     }
 
     // Handle invalid input/logic errors (400)
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ErrorResponseDTO> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
-        log.warn("Bad Request: {}", ex.getMessage());
-        return buildErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST, request.getRequestURI());
+    @ExceptionHandler(AccountStateException.class)
+    public ResponseEntity<ErrorResponseDTO> handleAccountState(
+            AccountStateException ex,
+            HttpServletRequest request) {
+
+        ErrorResponseDTO error = new ErrorResponseDTO(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }
 
     // Handle validation errors (DTO field validation)

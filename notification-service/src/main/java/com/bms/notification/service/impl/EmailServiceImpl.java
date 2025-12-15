@@ -2,7 +2,10 @@ package com.bms.notification.service.impl;
 
 import com.bms.notification.dto.OtpEmailDTO;
 import com.bms.notification.dto.Transaction;
+import com.bms.notification.dto.request.account.AccountCloseRequestNotification;
+import com.bms.notification.dto.request.account.AccountClosureDecisionNotification;
 import com.bms.notification.dto.request.account.AccountCreationNotificationRequest;
+import com.bms.notification.dto.request.account.AccountStatusChangeNotificationRequest;
 import com.bms.notification.dto.request.account.pin.OtpEmailRequest;
 import com.bms.notification.dto.request.loan.ApplyLoanEmailDTO;
 import com.bms.notification.dto.request.loan.DisbursementEmailDTO;
@@ -124,7 +127,7 @@ public class EmailServiceImpl implements EmailService {
                     <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
                         <h2>Dear %s,</h2>
                         <p>We are pleased to inform you that your <b>%s Loan</b> has been sanctioned successfully.</p>
-
+                    
                         <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 10px 0;">
                             <table style="width:100%%; border-collapse: collapse;">
                                 <tr><td><b>Sanctioned Amount:</b></td><td>₹ %s</td></tr>
@@ -134,13 +137,13 @@ public class EmailServiceImpl implements EmailService {
                                 <tr><td><b>Sanction Date:</b></td><td>%s</td></tr>
                             </table>
                         </div>
-
+                    
                         <p>Next Steps:</p>
                         <ul>
                             <li>Review the details above carefully.</li>
                             <li>Please complete the <b>e-Sign</b> process to proceed with disbursement.</li>
                         </ul>
-
+                    
                         <p>If you have any questions, contact your relationship manager or visit the nearest BMS branch.</p>
                         <br/>
                         <p>Regards,<br/><b>BMS Loan Department</b></p>
@@ -178,14 +181,14 @@ public class EmailServiceImpl implements EmailService {
             StringBuilder emiTable = new StringBuilder();
             for (EmiSummary emi : dto.getFirstFewEmis()) {
                 emiTable.append(String.format("""
-                            <tr>
-                                <td>%d</td>
-                                <td>%s</td>
-                                <td>₹%.2f</td>
-                                <td>₹%.2f</td>
-                                <td>₹%.2f</td>
-                            </tr>
-                        """, emi.getInstallmentNumber(), emi.getDueDate(),
+                                    <tr>
+                                        <td>%d</td>
+                                        <td>%s</td>
+                                        <td>₹%.2f</td>
+                                        <td>₹%.2f</td>
+                                        <td>₹%.2f</td>
+                                    </tr>
+                                """, emi.getInstallmentNumber(), emi.getDueDate(),
                         emi.getEmiAmount(), emi.getPrincipalComponent(), emi.getInterestComponent()));
             }
 
@@ -194,7 +197,7 @@ public class EmailServiceImpl implements EmailService {
                         <body style="font-family: Arial, sans-serif; color: #333;">
                             <h2>Dear %s,</h2>
                             <p>Congratulations! Your <b>%s Loan</b> has been successfully disbursed.</p>
-
+                    
                             <h3>📄 Loan Summary:</h3>
                             <ul>
                                 <li><b>Sanctioned Amount:</b> ₹%.2f</li>
@@ -203,7 +206,7 @@ public class EmailServiceImpl implements EmailService {
                                 <li><b>EMI Amount:</b> ₹%.2f</li>
                                 <li><b>First EMI Date:</b> %s</li>
                             </ul>
-
+                    
                             <h3>🗓️ Upcoming EMI Schedule (First Few):</h3>
                             <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse;">
                                 <tr style="background-color:#f2f2f2;">
@@ -211,7 +214,7 @@ public class EmailServiceImpl implements EmailService {
                                 </tr>
                                 %s
                             </table>
-
+                    
                             <p style="margin-top: 15px;">You can view your complete EMI schedule in the BMS customer portal.</p>
                             <p>Regards,<br/><b>BMS Loan Department</b></p>
                         </body>
@@ -278,19 +281,19 @@ public class EmailServiceImpl implements EmailService {
         message.setSubject("Your New " + request.getAccountType() + " Account Has Been Created");
 
         message.setText(String.format("""
-                Dear %s,
-
-                Your %s account has been successfully created.
-
-                CIF Number: %s
-                Account Number: %s
-                Account PIN: %s
-
-                Please keep your PIN confidential and do not share it with anyone.
-
-                Regards,
-                Bank Management System
-                """,
+                        Dear %s,
+                        
+                        Your %s account has been successfully created.
+                        
+                        CIF Number: %s
+                        Account Number: %s
+                        Account PIN: %s
+                        
+                        Please keep your PIN confidential and do not share it with anyone.
+                        
+                        Regards,
+                        Bank Management System
+                        """,
                 request.getCustomerName(),
                 request.getAccountType(),
                 request.getCifNumber(),
@@ -352,7 +355,7 @@ public class EmailServiceImpl implements EmailService {
     }
 
     @Override
-    public void sendTransactionAlert(Transaction txn,String email) {
+    public void sendTransactionAlert(Transaction txn, String email) {
         try {
             String text = buildMessage(txn);
 
@@ -370,6 +373,119 @@ public class EmailServiceImpl implements EmailService {
             System.err.println("Notification send failed: " + e.getMessage());
         }
     }
+
+    @Override
+    public void sendAccountStatusChangedEmail(AccountStatusChangeNotificationRequest request) {
+
+        SimpleMailMessage message = new SimpleMailMessage();
+
+        message.setTo(request.getEmail());
+        message.setSubject("BMS Alert: Account Status Changed");
+
+        message.setText(String.format("""
+                        Dear %s,
+                        
+                        This is to inform you that your bank account status has been updated.
+                        
+                        Account Number : %s
+                        New Status     : %s
+                        Reason         : %s
+                        
+                        If you did not request this change, please contact BMS support immediately.
+                        
+                        Regards,
+                        BMS Bank
+                        """,
+                request.getCustomerName(),
+                request.getAccountNumber(),
+                request.getNewStatus(),
+                request.getReason()
+        ));
+
+        mailSender.send(message);
+    }
+
+    @Override
+    public void sendAccountCloseRequestEmail(
+            AccountCloseRequestNotification request) {
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(request.getEmail());
+        message.setSubject("BMS – Account Closure Request Received");
+
+        message.setText("""
+                Dear %s,
+                
+                We have received your request to close the following account:
+                
+                Account Number: %s
+                
+                Your request is currently under review.
+                You will be notified once the account is permanently closed.
+                
+                Regards,
+                BMS Bank
+                """.formatted(
+                request.getCustomerName(),
+                request.getAccountNumber()
+        ));
+
+        mailSender.send(message);
+    }
+
+    @Override
+    public void sendAccountClosureDecisionEmail(AccountClosureDecisionNotification request) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(request.getEmail());
+
+        if ("APPROVED".equals(request.getDecision())){
+
+            message.setSubject("BMS – Account Closure Approved");
+
+            message.setText("""
+                Dear %s,
+                
+                Your request to close the following account has been APPROVED.
+                
+                Account Number: %s
+                
+                The account will be permanently closed as per bank policy.
+                
+                Thank you for banking with BMS.
+                
+                Regards,
+                BMS Bank
+                """.formatted(
+                    request.getCustomerName(),
+                    request.getAccountNumber()
+            ));
+
+        } else {
+
+            message.setSubject("BMS – Account Closure Rejected");
+
+            message.setText("""
+                Dear %s,
+                
+                Your request to close the following account has been REJECTED.
+                
+                Account Number: %s
+                Reason: %s
+                
+                If you need further clarification, please contact our support team.
+                
+                Regards,
+                BMS Bank
+                """.formatted(
+                    request.getCustomerName(),
+                    request.getAccountNumber(),
+                    request.getReason() != null ? request.getReason() : "Not specified"
+            ));
+        }
+
+        mailSender.send(message);
+    }
+
 
     public String buildMessage(Transaction tx) {
 

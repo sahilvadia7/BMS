@@ -4,5 +4,6 @@ public enum AccountStatus {
     ACTIVE,
     CLOSED,
     PENDING,
-    FROZEN
+    FROZEN,
+    CLOSE_REQUESTED,
 }

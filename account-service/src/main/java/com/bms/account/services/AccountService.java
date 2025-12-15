@@ -1,10 +1,13 @@
 package com.bms.account.services;
 
+import com.bms.account.dtos.AccountClosureDecisionRequestDto;
 import com.bms.account.dtos.AccountResponseDTO;
+import com.bms.account.dtos.AccountStatusRequestDTO;
 import com.bms.account.dtos.accountPin.BalanceRequestDTO;
 import com.bms.account.dtos.accountPin.ChangePinRequest;
 import com.bms.account.dtos.accountType.CurrentAccountRequestDTO;
 import com.bms.account.dtos.accountType.SavingsAccountRequestDTO;
+import jakarta.validation.Valid;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
@@ -38,6 +41,13 @@ public interface AccountService {
 
     boolean verifyAccountPin(String accountNumber, int accountPin);
 
+    String updateAccountStatus(String accountNumber, @Valid AccountStatusRequestDTO request);
+
+    String closeAccount(String accountNumber);
+
+    List<AccountResponseDTO> getPendingCloseRequests();
+
+    void decideAccountClosure(String accountNumber, AccountClosureDecisionRequestDto request);
     BigDecimal updateBalanceAndReturn(
             String accountNumber,
             BigDecimal amount,
