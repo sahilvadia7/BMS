@@ -1,6 +1,8 @@
 package com.bms.account.controller;
 
+import com.bms.account.dtos.AccountClosureDecisionRequestDto;
 import com.bms.account.dtos.AccountResponseDTO;
+import com.bms.account.dtos.AccountStatusRequestDTO;
 import com.bms.account.dtos.accountPin.BalanceRequestDTO;
 import com.bms.account.dtos.accountPin.ChangePinRequest;
 import com.bms.account.dtos.accountType.CurrentAccountRequestDTO;
@@ -162,4 +164,38 @@ public class AccountController {
         boolean isValid = accountService.verifyAccountPin(accountNumber, accountPin);
         return ResponseEntity.ok(isValid);
     }
+    @Operation(
+            summary = "Freeze or Unfreeze account",
+            description = "Access: Admin / Risk System"
+    )
+    @PutMapping("/{accountNumber}/status")
+    public ResponseEntity<String> updateAccountStatus(
+            @PathVariable String accountNumber,
+            @Valid @RequestBody AccountStatusRequestDTO request) {
+
+        String message = accountService.updateAccountStatus(accountNumber, request);
+        return ResponseEntity.ok(message);
+    }
+
+    @PutMapping("/{accountNumber}/close")
+    public ResponseEntity<String> closeAccount(@PathVariable String accountNumber) {
+        return ResponseEntity.ok(accountService.closeAccount(accountNumber));
+    }
+
+    @GetMapping("/admin/close-requests")
+    public ResponseEntity<List<AccountResponseDTO>> getCloseRequests() {
+        return ResponseEntity.ok(
+                accountService.getPendingCloseRequests()
+        );
+    }
+
+    @PutMapping("/{accountNumber}/close/decision")
+    public ResponseEntity<String> decideAccountClosure(
+            @PathVariable String accountNumber,
+            @RequestBody AccountClosureDecisionRequestDto request) {
+
+        accountService.decideAccountClosure(accountNumber, request);
+        return ResponseEntity.ok("Account closure decision processed");
+    }
+
 }

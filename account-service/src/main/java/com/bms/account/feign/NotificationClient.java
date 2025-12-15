@@ -1,6 +1,9 @@
 package com.bms.account.feign;
 
+import com.bms.account.dtos.AccountCloseRequestNotification;
+import com.bms.account.dtos.AccountClosureDecisionNotification;
 import com.bms.account.dtos.AccountCreationNotificationRequest;
+import com.bms.account.dtos.AccountStatusChangeNotificationRequest;
 import com.bms.account.dtos.accountPin.OtpEmailRequest;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,4 +18,16 @@ public interface NotificationClient {
 
     @PostMapping("/send-pin-otp")
     void sendOtpEmailPin(@RequestBody OtpEmailRequest request);
+
+    @PostMapping("/account-status-changed")
+    void sendAccountStatusChangedEmail(
+            @RequestBody AccountStatusChangeNotificationRequest request);
+
+    @PostMapping("/account-close-requested")
+    void sendAccountCloseRequestEmail(
+            @RequestBody AccountCloseRequestNotification request
+    );
+    @PostMapping("/account-closure-decision")
+    public void sendAccountClosureDecisionEmail(
+            @RequestBody AccountClosureDecisionNotification request);
 }
