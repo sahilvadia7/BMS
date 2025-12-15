@@ -8,6 +8,7 @@ import com.bms.loan.entity.car.CarLoanDetails;
 import com.bms.loan.entity.car.CarVerificationReport;
 import com.bms.loan.entity.loan.Loans;
 import com.bms.loan.enums.LoanStatus;
+import com.bms.loan.enums.RiskBand;
 import com.bms.loan.exception.InvalidLoanStatusException;
 import com.bms.loan.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
@@ -36,92 +37,102 @@ public class CarLoanEvaluator {
         if (loan.getStatus() != LoanStatus.VERIFIED) {
             throw new InvalidLoanStatusException("Loan must be Verified before Evaluating the Car Loan");
         }
-        // Common checks
+        // 1: Common borrower checks
         if (!commonChecks(loan.getCustomerId() , loan)) {
             return new LoanEvaluationResult(false, loan.getRemarks(), LoanStatus.REJECTED);
         }
 
 
-
         // Car-specific checks
         CarLoanDetails car = carLoanRepository.findByLoans_LoanId(loanId)
-                .orElseThrow(() -> new RuntimeException("Car loan not found"));
+                .orElseThrow(() -> new RuntimeException("Car loan details not found"));
         CarVerificationReport carVerificationReport = carVerificationReportRepository.findByLoans_LoanId(loanId)
                 .orElseThrow(() -> new RuntimeException("Car verification report not found"));
 
+        // 2: HARD REJECTIONS
+        if (!carVerificationReport.isInsuranceValid()
+                || car.getCarAgeYears() > 8
+                || carVerificationReport.getCarConditionScore() < 5
+                || carVerificationReport.getEmploymentStabilityYears() < 1
+                || !carVerificationReport.isEmploymentVerified()
+                || !carVerificationReport.isCarDocumentsVerified()
+                || !carVerificationReport.isPhysicalCarInspectionDone()) {
 
-        if (car == null) {
             loan.setStatus(LoanStatus.REJECTED);
-            loan.setRemarks("Car loan details missing");
+            loan.setRemarks("Car loan rejected due to verification failure");
             loansRepository.save(loan);
             return new LoanEvaluationResult(false, loan.getRemarks(), LoanStatus.REJECTED);
         }
 
-        // Car Age Check
-        if (car.getCarAgeYears() > 8) {
-            loan.setStatus(LoanStatus.REJECTED);
-            loan.setRemarks("Car too old for loan (max 8 years)");
-            loansRepository.save(loan);
-            return new LoanEvaluationResult(false, loan.getRemarks(), LoanStatus.REJECTED);
+        // 3: RISK SCORING
+        int score = 0;
+
+        //  Vehicle Risk (35)
+        if (car.getCarAgeYears() <= 3) score += 15;
+        else if (car.getCarAgeYears() <= 5) score += 10;
+
+        score += Math.min(carVerificationReport.getCarConditionScore(), 10); // max 10
+
+        // Borrower Risk (30)
+        int creditScore = loan.getExternalCreditScore();
+        if (creditScore >= 750) score += 15;
+        else if (creditScore >= 700) score += 10;
+
+
+        if (carVerificationReport.getEmploymentStabilityYears() >= 3) {
+            score += 10;
+        } else {
+            score += 5; // guaranteed >= 1 here
         }
 
-        // Condition check
-        if (carVerificationReport.getCarConditionScore() < 5) {
-            loan.setStatus(LoanStatus.REJECTED);
-            loan.setRemarks("Car condition below acceptable level");
-            loansRepository.save(loan);
-            return new LoanEvaluationResult(false, loan.getRemarks(), LoanStatus.REJECTED);
-        }
 
-        // Down payment ratio check (min 10%)
-        BigDecimal minDownPayment = car.getCarValue().multiply(BigDecimal.valueOf(0.1));
-        if (car.getDownPayment().compareTo(minDownPayment) < 0) {
-            loan.setStatus(LoanStatus.REJECTED);
-            loan.setRemarks("Insufficient down payment (<10%)");
-            loansRepository.save(loan);
-            return new LoanEvaluationResult(false, loan.getRemarks(), LoanStatus.REJECTED);
-        }
 
-        // Loan-to-Value (LTV)
+        // Financial Risk (25)
         BigDecimal ltv = loan.getRequestedAmount()
                 .divide(car.getCarValue(), 2, RoundingMode.HALF_UP);
-        if (ltv.compareTo(BigDecimal.valueOf(0.85)) > 0) {
-            loan.setStatus(LoanStatus.REJECTED);
-            loan.setRemarks("LTV exceeds 85%");
-            loansRepository.save(loan);
-            return new LoanEvaluationResult(false, loan.getRemarks(), LoanStatus.REJECTED);
+
+        if (ltv.compareTo(BigDecimal.valueOf(0.7)) <= 0) score += 15;
+        else if (ltv.compareTo(BigDecimal.valueOf(0.85)) <= 0) score += 10;
+
+        if (loan.getRequestedTenureMonths() <= 48) score += 10;
+        else if (loan.getRequestedTenureMonths() <= 60) score += 5;
+
+        //  Stability Risk (10)
+        if (carVerificationReport.getNeighbourhoodStabilityScore() >= 7) score += 10;
+        else if (carVerificationReport.getNeighbourhoodStabilityScore() >= 5) score += 5;
+
+        // 4: DECISION
+        RiskBand band;
+        BigDecimal approvedAmount = loan.getRequestedAmount();
+
+        if (score >= 75) {
+            band = RiskBand.LOW;
+        } else if (score >= 60) {
+            band = RiskBand.MEDIUM;
+        } else if (score >= 50) {
+            band = RiskBand.HIGH;
+            approvedAmount = approvedAmount.multiply(BigDecimal.valueOf(0.8)); // haircut
+        } else {
+            band = RiskBand.VERY_HIGH;
         }
 
-        // Employment Stability Check
-        if (carVerificationReport.getEmploymentStabilityYears() < 1) {
+        if (band == RiskBand.VERY_HIGH) {
             loan.setStatus(LoanStatus.REJECTED);
-            loan.setRemarks("Employment too short (<1 year)");
-            loansRepository.save(loan);
-            return new LoanEvaluationResult(false, loan.getRemarks(), LoanStatus.REJECTED);
+            loan.setRemarks("Rejected due to high risk score: " + score);
+        } else {
+            loan.setStatus(LoanStatus.EVALUATED);
+            loan.setApprovedAmount(approvedAmount);
+            loan.setRemarks("Approved under " + band + " risk (" + score + ")");
         }
 
-        // Insurance validity
-        if (!carVerificationReport.isInsuranceValid()) {
-            loan.setStatus(LoanStatus.REJECTED);
-            loan.setRemarks("Insurance not valid or expired");
-            loansRepository.save(loan);
-            return new LoanEvaluationResult(false, loan.getRemarks(), LoanStatus.REJECTED);
-        }
-
-        // Tenure check
-        if (loan.getRequestedTenureMonths() > 60) {
-            loan.setStatus(LoanStatus.REJECTED);
-            loan.setRemarks("Tenure exceeds max allowed for car loan (60 months)");
-            loansRepository.save(loan);
-            return new LoanEvaluationResult(false, loan.getRemarks(), LoanStatus.REJECTED);
-        }
-
-        // All checks passed → approve
-        loan.setStatus(LoanStatus.EVALUATED);
-        loan.setRemarks("Car loan approved for evaluation");
-        loan.setApprovedAmount(loan.getRequestedAmount());
         loansRepository.save(loan);
-        return new LoanEvaluationResult(true, loan.getRemarks(), LoanStatus.EVALUATED);
+
+        return new LoanEvaluationResult(
+                band != RiskBand.VERY_HIGH,
+                loan.getRemarks(),
+                loan.getStatus()
+        );
+
     }
 
     private boolean commonChecks(Long customerId, Loans loan) {

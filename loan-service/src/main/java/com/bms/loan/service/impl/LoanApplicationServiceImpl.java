@@ -19,6 +19,7 @@ import com.bms.loan.dto.request.home.HomeLoanVerificationRequestDTO;
 import com.bms.loan.dto.request.loan.LoanApplicationRequest;
 import com.bms.loan.dto.request.loan.LoanHistory.LoanHistoryDetailsDto;
 import com.bms.loan.dto.request.loan.LoanPrepaymentRequest;
+import com.bms.loan.dto.request.transaction.TransactionRequest;
 import com.bms.loan.dto.response.*;
 import com.bms.loan.dto.response.emi.CustomerTimelyPaidEmiResponseDTO;
 import com.bms.loan.dto.response.emi.EmiSummary;
@@ -33,6 +34,7 @@ import com.bms.loan.entity.education.EducationVerificationReport;
 import com.bms.loan.entity.home.HomeLoanDetails;
 import com.bms.loan.entity.home.HomeVerificationReport;
 import com.bms.loan.entity.loan.*;
+import com.bms.loan.enums.Currency;
 import com.bms.loan.enums.EmiStatus;
 import com.bms.loan.enums.LoanStatus;
 import com.bms.loan.enums.PrepaymentOption;
@@ -41,6 +43,7 @@ import com.bms.loan.exception.InvalidLoanStatusException;
 import com.bms.loan.exception.ResourceNotFoundException;
 import com.bms.loan.feign.CustomerClient;
 import com.bms.loan.feign.NotificationClient;
+import com.bms.loan.feign.TransactionClient;
 import com.bms.loan.service.EducationLoanService;
 import com.bms.loan.service.LoanEvolutionAndSanctionService;
 import com.bms.loan.service.LoanApplicationService;
@@ -81,6 +84,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     private final CarLoanEvaluator carLoanEvaluator;
     private final CustomerClient customerClient;
     private final NotificationClient notificationClient;
+    private final TransactionClient transactionClient;
     private final Mapper mapper;
 
     public LoanApplicationServiceImpl(LoanRepository loansRepository,
@@ -98,7 +102,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                                       EducationLoanService educationLoanService,
                                       CarLoanEvaluator carLoanEvaluator,
                                       CustomerClient customerClient,
-                                      NotificationClient notificationClient,
+                                      NotificationClient notificationClient, TransactionClient transactionClient,
                                       Mapper mapper) {
         this.loansRepository = loansRepository;
         this.carLoanRepo = carLoanRepo;
@@ -116,6 +120,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         this.carLoanEvaluator = carLoanEvaluator;
         this.customerClient = customerClient;
         this.notificationClient = notificationClient;
+        this.transactionClient = transactionClient;
         this.mapper = mapper;
     }
 
@@ -507,6 +512,23 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
         loansRepository.save(loan);
 
+        // From account number, pin, idempotencyKey
+
+        TransactionRequest request = TransactionRequest.builder()
+                .initiatedBy("BANK")
+                .accountNumber("")
+                .destinationAccountNumber(loan.getBankAccount())
+                .amount(loan.getApprovedAmount())
+                .currency(Currency.INR)
+                .transactionType("LOAN DISBURSEMENT")
+                .description("Bank Transfer Loan Amount To customer Account")
+                .pin("")
+                .idempotencyKey("")
+                .build();
+
+        transactionClient.createTransaction(request);
+
+
         // Calculate EMI
         BigDecimal emi = calculateEmi(
                 loan.getApprovedAmount(),
@@ -586,6 +608,8 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 .build();
 
         notificationClient.sendDisbursementEmail(emailDTO);
+
+
 
         return LoanDisbursementResponse.builder()
                 .loanId(loan.getLoanId())
