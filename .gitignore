@@ -10,6 +10,7 @@
 *.iws
 out/
 *.ipr
+*.md
 
 # VS Code
 .vscode/

@@ -352,7 +352,7 @@ public class CreditScoreServiceImpl implements CreditScoreService {
     }
 
     /**
-     * Scale base score (0-100) to CIBIL range (300-900)
+     * CIBIL range (300-900)
      */
     private double scaleToRange(double baseScore) {
         // Linear scaling: 0 -> 300, 100 -> 900

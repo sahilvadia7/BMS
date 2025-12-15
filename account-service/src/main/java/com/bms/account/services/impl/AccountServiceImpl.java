@@ -575,6 +575,36 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Override
+    public BigDecimal updateBalanceAndReturn(
+            String accountNumber,
+            BigDecimal amount,
+            String transactionType) {
+
+        Account account = accountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Account not found with Account NO : " + accountNumber));
+
+        if ("DEPOSIT".equalsIgnoreCase(transactionType)) {
+            account.setBalance(account.getBalance().add(amount));
+        }
+        else if ("WITHDRAW".equalsIgnoreCase(transactionType)) {
+            BigDecimal newBalance = account.getBalance().subtract(amount);
+            if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
+                throw new IllegalArgumentException("Insufficient balance");
+            }
+            account.setBalance(newBalance);
+        }
+        else {
+            throw new IllegalArgumentException("Invalid transaction type");
+        }
+
+        accountRepository.save(account);
+        return account.getBalance();
+    }
+
+
+    @Override
     public String deleteAccount(Long id) {
         Account acc = accountRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Account not found with ID: " + id));

@@ -37,4 +37,10 @@ public interface AccountService {
     String changeAccountPin(String accountNumber, ChangePinRequest request);
 
     boolean verifyAccountPin(String accountNumber, int accountPin);
+
+    BigDecimal updateBalanceAndReturn(
+            String accountNumber,
+            BigDecimal amount,
+            String transactionType
+    );
 }
