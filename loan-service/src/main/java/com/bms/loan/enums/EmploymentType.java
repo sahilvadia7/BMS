@@ -5,5 +5,6 @@ public enum EmploymentType {
     SELF_EMPLOYED,
     GOVERNMENT,
     STUDENT,
-    BUSINESS
+    BUSINESS,
+    UNEMPLOYED
 }
