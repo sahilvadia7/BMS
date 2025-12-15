@@ -1,22 +1,25 @@
 package com.bms.loan.service.impl;
 
 import com.bms.loan.Repository.*;
+import com.bms.loan.Repository.car.CarLoanRepository;
+import com.bms.loan.Repository.car.CarVerificationReportRepository;
 import com.bms.loan.Repository.education.EducationLoanRepository;
 import com.bms.loan.Repository.education.EducationVerificationReportRepository;
 import com.bms.loan.Repository.home.HomeLoanRepository;
+import com.bms.loan.Repository.home.HomeVerificationReportRepository;
 import com.bms.loan.dto.email.ApplyLoanEmailDTO;
 import com.bms.loan.dto.email.DisbursementEmailDTO;
+import com.bms.loan.dto.request.VerifyLoanRequestDto;
 import com.bms.loan.dto.request.car.CarLoanDetailsDto;
-import com.bms.loan.dto.request.car.CarLoanEvaluationRequestDto;
+import com.bms.loan.dto.request.car.CarLoanVerificationRequestDto;
 import com.bms.loan.dto.request.education.EducationLoanDetailsDto;
 import com.bms.loan.dto.request.education.EducationVerificationRequestDto;
 import com.bms.loan.dto.request.home.HomeLoanDetailsDto;
+import com.bms.loan.dto.request.home.HomeLoanVerificationRequestDTO;
 import com.bms.loan.dto.request.loan.LoanApplicationRequest;
 import com.bms.loan.dto.request.loan.LoanHistory.LoanHistoryDetailsDto;
 import com.bms.loan.dto.request.loan.LoanPrepaymentRequest;
 import com.bms.loan.dto.response.*;
-import com.bms.loan.dto.response.car.CarLoanEvaluationByBankResponse;
-import com.bms.loan.dto.response.education.EducationEvaluationResponse;
 import com.bms.loan.dto.response.emi.CustomerTimelyPaidEmiResponseDTO;
 import com.bms.loan.dto.response.emi.EmiSummary;
 import com.bms.loan.dto.response.emi.LoanEmiScheduleResponse;
@@ -24,19 +27,22 @@ import com.bms.loan.dto.response.emi.LoanWiseEmiDetailsDTO;
 import com.bms.loan.dto.response.loan.*;
 import com.bms.loan.entity.*;
 import com.bms.loan.entity.car.CarLoanDetails;
+import com.bms.loan.entity.car.CarVerificationReport;
 import com.bms.loan.entity.education.EducationLoanDetails;
 import com.bms.loan.entity.education.EducationVerificationReport;
 import com.bms.loan.entity.home.HomeLoanDetails;
+import com.bms.loan.entity.home.HomeVerificationReport;
 import com.bms.loan.entity.loan.*;
 import com.bms.loan.enums.EmiStatus;
 import com.bms.loan.enums.LoanStatus;
 import com.bms.loan.enums.PrepaymentOption;
+import com.bms.loan.exception.AlreadyMultipleLoanException;
 import com.bms.loan.exception.InvalidLoanStatusException;
 import com.bms.loan.exception.ResourceNotFoundException;
 import com.bms.loan.feign.CustomerClient;
 import com.bms.loan.feign.NotificationClient;
 import com.bms.loan.service.EducationLoanService;
-import com.bms.loan.service.HomeLoanService;
+import com.bms.loan.service.LoanEvolutionAndSanctionService;
 import com.bms.loan.service.LoanApplicationService;
 import feign.FeignException;
 import jakarta.transaction.Transactional;
@@ -63,11 +69,14 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     private final EducationLoanRepository educationLoanRepo;
     private final LoanEmiScheduleRepository loanEmiScheduleRepository;
     private final InterestRateRepository interestRateRepository;
-    private final EducationVerificationReportRepository educationVerificationRepository;
+    private final EducationVerificationReportRepository educationVerificationRepo;
+    private final HomeVerificationReportRepository homeVerificationReportRepo;
+    private final CarVerificationReportRepository carVerificationReportRepo;
+
     private final LoanPrepaymentRepository loanPrepaymentRepo;
     private final LoanHistoryDetailsRepository loanHistoryDetailsRepo;
 
-    private final HomeLoanService homeLoanService;
+    private final LoanEvolutionAndSanctionService homeLoanService;
     private final EducationLoanService educationLoanService;
     private final CarLoanEvaluator carLoanEvaluator;
     private final CustomerClient customerClient;
@@ -75,27 +84,31 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     private final Mapper mapper;
 
     public LoanApplicationServiceImpl(LoanRepository loansRepository,
-            CarLoanRepository carLoanRepo,
-            HomeLoanRepository homeLoanRepo,
-            EducationLoanRepository educationLoanRepo,
-            LoanEmiScheduleRepository loanEmiScheduleRepository,
-            InterestRateRepository interestRateRepository,
-            EducationVerificationReportRepository educationVerificationRepository,
-            LoanPrepaymentRepository loanPrepaymentRepo,
-            LoanHistoryDetailsRepository loanHistoryDetailsRepo,
-            HomeLoanService homeLoanService,
-            EducationLoanService educationLoanService,
-            CarLoanEvaluator carLoanEvaluator,
-            CustomerClient customerClient,
-            NotificationClient notificationClient,
-            Mapper mapper) {
+                                      CarLoanRepository carLoanRepo,
+                                      HomeLoanRepository homeLoanRepo,
+                                      EducationLoanRepository educationLoanRepo,
+                                      LoanEmiScheduleRepository loanEmiScheduleRepository,
+                                      InterestRateRepository interestRateRepository,
+                                      EducationVerificationReportRepository educationVerificationRepo,
+                                      HomeVerificationReportRepository homeVerificationReportRepo,
+                                      CarVerificationReportRepository carVerificationReportRepo,
+                                      LoanPrepaymentRepository loanPrepaymentRepo,
+                                      LoanHistoryDetailsRepository loanHistoryDetailsRepo,
+                                      LoanEvolutionAndSanctionService homeLoanService,
+                                      EducationLoanService educationLoanService,
+                                      CarLoanEvaluator carLoanEvaluator,
+                                      CustomerClient customerClient,
+                                      NotificationClient notificationClient,
+                                      Mapper mapper) {
         this.loansRepository = loansRepository;
         this.carLoanRepo = carLoanRepo;
         this.homeLoanRepo = homeLoanRepo;
         this.educationLoanRepo = educationLoanRepo;
         this.loanEmiScheduleRepository = loanEmiScheduleRepository;
         this.interestRateRepository = interestRateRepository;
-        this.educationVerificationRepository = educationVerificationRepository;
+        this.educationVerificationRepo = educationVerificationRepo;
+        this.homeVerificationReportRepo = homeVerificationReportRepo;
+        this.carVerificationReportRepo = carVerificationReportRepo;
         this.loanPrepaymentRepo = loanPrepaymentRepo;
         this.loanHistoryDetailsRepo = loanHistoryDetailsRepo;
         this.homeLoanService = homeLoanService;
@@ -138,6 +151,18 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 // Other HTTP errors (500, etc.)
                 throw e;
             }
+        }
+
+        List<Loans> loansList = loansRepository.findByCifNumber(customer.getCifNumber());
+        long count =  loansList.stream().filter(i -> i.getStatus().equals(LoanStatus.DISBURSED)).count();
+        if (loansList.size() >= 2 ){
+//            throw new AlreadyMultipleLoanException("Multiple Loans Active Right now");
+            return LoanApplicationResponse.builder()
+                    .cifNumber(customer.getCifNumber())
+                    .loanType(String.valueOf(request.getLoanType()))
+                    .status(LoanStatus.REJECTED.name())
+                    .message("Already "+loansList.size() +" loan applied and "+count+" Active loan")
+                    .build();
         }
 
         // Create main loan record
@@ -230,9 +255,6 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                         .registrationNumber(cd.getRegistrationNumber())
                         .carAgeYears(currentYear - cd.getManufactureYear())
                         .downPayment(cd.getDownPayment())
-                        .carConditionScore(-1)
-                        .insuranceValid(false)
-                        .employmentStabilityYears(65)
                         .build());
             }
             case HOME -> {
@@ -304,97 +326,122 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     }
 
     @Override
-    public CarLoanEvaluationByBankResponse updateEvaluationData(Long loanId, CarLoanEvaluationRequestDto request) {
+    public VerificationResponseDto verifyLoan(Long loanId, VerifyLoanRequestDto verifyLoanRequestDto) {
 
+        // Fetch loan
         Loans loan = loansRepository.findById(loanId)
-                .orElseThrow(() -> new ResourceNotFoundException("Loan not found for ID: " + loanId));
+                .orElseThrow(() -> new ResourceNotFoundException("Loan not found on id " + loanId));
 
-        if (loan.getStatus() != LoanStatus.APPLIED) {
-            throw new InvalidLoanStatusException("Loan status is not verified");
+        String loanType = loan.getLoanType().name(); //HOME, CAR, EDUCATION
+
+        VerificationResponseDto response = new VerificationResponseDto();
+        response.setLoanType(loanType);
+
+        // Based on loan type → create verification record
+        switch (loanType) {
+
+            case "CAR":
+                CarVerificationReport report = saveCarVerification(loan, verifyLoanRequestDto.getCarLoanVerificationRequestDto());
+                report.setOfficerName(verifyLoanRequestDto.getOfficerName());
+                report.setOfficerRemarks(verifyLoanRequestDto.getOfficerRemarks());
+                report.setVisitDate(LocalDate.now());
+                report.setAddressVerified(verifyLoanRequestDto.isAddressVerified());
+                report.setIdentityVerified(verifyLoanRequestDto.isIdentityVerified());
+
+                CarVerificationReport carSavedReport = carVerificationReportRepo.save(report);
+                response.setCarReport(mapper.toCarVerificationResponse(carSavedReport));
+
+                break;
+
+            case "HOME":
+                HomeVerificationReport homeReport = saveHomeVerification(loan, verifyLoanRequestDto.getHomeLoanVerificationRequestDTO());
+                homeReport.setOfficerName(verifyLoanRequestDto.getOfficerName());
+                homeReport.setOfficerRemarks(verifyLoanRequestDto.getOfficerRemarks());
+                homeReport.setVisitDate(LocalDate.now());
+                homeReport.setAddressVerified(verifyLoanRequestDto.isAddressVerified());
+                homeReport.setIdentityVerified(verifyLoanRequestDto.isIdentityVerified());
+
+                HomeVerificationReport homeSavedReport = homeVerificationReportRepo.save(homeReport);
+                response.setHomeReport(mapper.toHomeVerificationResponse(homeSavedReport));
+
+                break;
+
+            case "EDUCATION":
+                EducationVerificationReport eduReport = saveEducationVerification(loan, verifyLoanRequestDto.getEducationVerificationRequestDto());
+                eduReport.setOfficerName(verifyLoanRequestDto.getOfficerName());
+                eduReport.setOfficerRemarks(verifyLoanRequestDto.getOfficerRemarks());
+                eduReport.setVisitDate(LocalDate.now());
+                eduReport.setAddressVerified(verifyLoanRequestDto.isAddressVerified());
+                eduReport.setIdentityVerified(verifyLoanRequestDto.isIdentityVerified());
+
+                EducationVerificationReport eduSavedRepost = educationVerificationRepo.save(eduReport);
+                response.setEducationReport(mapper.toEducationVerificationResponse(eduSavedRepost));
+
+                break;
+            default:
+                throw new RuntimeException("Unsupported loan type: " + loanType);
         }
 
-        CarLoanDetails carLoan = carLoanRepo.findByLoans_LoanId(loanId)
-                .orElseThrow(() -> new ResourceNotFoundException("Car loan not found for loanId: " + loanId));
-
-        if (request.getDownPayment() != null)
-            carLoan.setDownPayment(request.getDownPayment());
-
-        carLoan.setInsuranceValid(request.isInsuranceValid());
-        carLoan.setCarConditionScore(request.getCarConditionScore());
-        carLoan.setEmploymentStabilityYears(request.getEmploymentStabilityYears());
-
-        CarLoanDetails saved = carLoanRepo.save(carLoan);
-
-        // Make sure loans object is loaded
-        Long loanIdValue = saved.getLoans().getLoanId();
-
-        loan.setStatus(LoanStatus.VERIFIED);
-        loansRepository.save(loan);
-
-        return CarLoanEvaluationByBankResponse.builder()
-                .loanId(loanIdValue)
-                .carModel(saved.getCarModel())
-                .manufacturer(saved.getManufacturer())
-                .manufactureYear(saved.getManufactureYear())
-                .carValue(saved.getCarValue())
-                .registrationNumber(saved.getRegistrationNumber())
-                .carAgeYears(saved.getCarAgeYears())
-                .downPayment(saved.getDownPayment())
-                .insuranceValid(saved.isInsuranceValid())
-                .carConditionScore(saved.getCarConditionScore())
-                .employmentStabilityYears(saved.getEmploymentStabilityYears())
-                .build();
+        return response;
     }
 
-    @Override
-    public EducationEvaluationResponse verifyEducationBackground(Long loanId, EducationVerificationRequestDto request) {
-        Loans loan = loansRepository.findById(loanId)
-                .orElseThrow(() -> new ResourceNotFoundException("Loan not found for ID: " + loanId));
+    private CarVerificationReport saveCarVerification(Loans loan, CarLoanVerificationRequestDto dto) {
 
-        if (loan.getStatus() != LoanStatus.APPLIED) {
-            throw new InvalidLoanStatusException("Loan status is not verified");
-        }
+        CarVerificationReport report = CarVerificationReport.builder()
+                .loans(loan)
+                .insuranceValid(dto.isInsuranceValid())
+                .employmentVerified(dto.isEmploymentVerified())
+                .carDocumentsVerified(dto.isCarDocumentsVerified())
+                .physicalCarInspectionDone(dto.isPhysicalCarInspectionDone())
+                .carConditionScore(dto.getCarConditionScore())
+                .neighbourhoodStabilityScore(dto.getNeighbourhoodStabilityScore())
+                .employmentStabilityYears(dto.getEmploymentStabilityYears())
+                .verifiedSuccessfully(calculateCarVerificationStatus(dto))
+                .build();
+        return report;
+    }
+    private boolean calculateCarVerificationStatus(CarLoanVerificationRequestDto dto) {
+        return dto.isEmploymentVerified()
+                && dto.isCarDocumentsVerified()
+                && dto.getCarConditionScore() >= 5;
+    }
 
-        EducationVerificationReport report = educationVerificationRepository
-                .findByLoans_LoanId(loanId)
-                .orElse(EducationVerificationReport.builder().loans(loan).build());
+    private HomeVerificationReport saveHomeVerification(Loans loan, HomeLoanVerificationRequestDTO dto) {
 
-        report.setAdmissionVerified(request.isAdmissionVerified());
-        report.setCollegeRecognized(request.isCollegeRecognized());
-        report.setFeeStructureVerified(request.isFeeStructureVerified());
-        report.setOfficerName(request.getOfficerName());
-        report.setOfficerRemarks(request.getOfficerRemarks());
-        report.setVerificationDate(request.getVerificationDate());
-
-        boolean verified = request.isAdmissionVerified()
-                && request.isCollegeRecognized()
-                && request.isFeeStructureVerified();
-
-        report.setVerifiedSuccessfully(verified);
-        educationVerificationRepository.save(report);
-
-        // Update EducationLoanDetails (mark verified)
-        EducationLoanDetails details = educationLoanRepo.findByLoans_LoanId(loanId)
-                .orElseThrow(
-                        () -> new ResourceNotFoundException("EducationLoanDetails not found for Loan ID: " + loanId));
-        details.setVerified(true);
-        educationLoanRepo.save(details);
-
-        // Update Loan Status
-        loan.setStatus(verified ? LoanStatus.VERIFIED : LoanStatus.VERIFICATION_PENDING);
-        loansRepository.save(loan);
-
-        return EducationEvaluationResponse.builder()
-                .loanId(loan.getLoanId())
-                .verifiedSuccessfully(true)
-                .officerName(report.getOfficerName())
-                .remarks(report.getOfficerRemarks())
-                .verificationDate(report.getVerificationDate())
-                .status(loan.getStatus().name())
-                .message(verified ? "Education loan verification completed successfully."
-                        : "Verification incomplete. Some details need rechecking.")
+        return HomeVerificationReport.builder()
+                .loans(loan)
+                .ownershipVerified(dto.isOwnershipVerified())
+                .neighbourCheckDone(dto.isNeighbourCheckDone())
+                .propertyConditionOk(dto.isPropertyConditionOk())
+                .evaluatedValue(dto.getEvaluatedValue())
+                .propertyType(dto.getPropertyType())
+                .propertyArea(dto.getPropertyArea())
+                .verifiedSuccessfully(calculateHomeVerificationStatus(dto))
                 .build();
     }
+    private boolean calculateHomeVerificationStatus(HomeLoanVerificationRequestDTO dto) {
+        return dto.isOwnershipVerified() && dto.isPropertyConditionOk();
+    }
+
+    private EducationVerificationReport saveEducationVerification(Loans loan, EducationVerificationRequestDto dto) {
+
+        return EducationVerificationReport.builder()
+                .loans(loan)
+                .admissionVerified(dto.isAdmissionVerified())
+                .collegeRecognized(dto.isCollegeRecognized())
+                .feeStructureVerified(dto.isFeeStructureVerified())
+                .studentBackgroundClear(dto.isStudentBackgroundClear())
+                .coApplicantIncomeVerified(dto.isCoApplicantIncomeVerified())
+                .coApplicantIdentityValid(dto.isCoApplicantIdentityValid())
+                .verifiedSuccessfully(calculateEduVerificationStatus(dto))
+                .build();
+    }
+    private boolean calculateEduVerificationStatus(EducationVerificationRequestDto dto) {
+        return dto.isAdmissionVerified()
+                && dto.isCollegeRecognized()
+                && dto.isFeeStructureVerified();
+    }
+
 
     @Override
     public LoanEvaluationResponse evaluateLoan(Long loanId) {

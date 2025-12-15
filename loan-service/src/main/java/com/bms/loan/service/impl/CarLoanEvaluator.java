@@ -1,9 +1,11 @@
 package com.bms.loan.service.impl;
 
-import com.bms.loan.Repository.CarLoanRepository;
+import com.bms.loan.Repository.car.CarLoanRepository;
 import com.bms.loan.Repository.LoanRepository;
+import com.bms.loan.Repository.car.CarVerificationReportRepository;
 import com.bms.loan.dto.response.loan.LoanEvaluationResult;
 import com.bms.loan.entity.car.CarLoanDetails;
+import com.bms.loan.entity.car.CarVerificationReport;
 import com.bms.loan.entity.loan.Loans;
 import com.bms.loan.enums.LoanStatus;
 import com.bms.loan.exception.InvalidLoanStatusException;
@@ -18,15 +20,18 @@ public class CarLoanEvaluator {
 
     private final LoanRepository loansRepository;
     private final CarLoanRepository carLoanRepository;
+    private final CarVerificationReportRepository carVerificationReportRepository;
 
-    public CarLoanEvaluator(LoanRepository loansRepository, CarLoanRepository carLoanRepository) {
+    public CarLoanEvaluator(LoanRepository loansRepository, CarLoanRepository carLoanRepository, CarVerificationReportRepository carVerificationReportRepository) {
         this.loansRepository = loansRepository;
         this.carLoanRepository = carLoanRepository;
+        this.carVerificationReportRepository = carVerificationReportRepository;
     }
 
     public LoanEvaluationResult evaluateCarLoan(Long loanId) {
         Loans loan = loansRepository.findById(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
+
 
         if (loan.getStatus() != LoanStatus.VERIFIED) {
             throw new InvalidLoanStatusException("Loan must be Verified before Evaluating the Car Loan");
@@ -41,6 +46,10 @@ public class CarLoanEvaluator {
         // Car-specific checks
         CarLoanDetails car = carLoanRepository.findByLoans_LoanId(loanId)
                 .orElseThrow(() -> new RuntimeException("Car loan not found"));
+        CarVerificationReport carVerificationReport = carVerificationReportRepository.findByLoans_LoanId(loanId)
+                .orElseThrow(() -> new RuntimeException("Car verification report not found"));
+
+
         if (car == null) {
             loan.setStatus(LoanStatus.REJECTED);
             loan.setRemarks("Car loan details missing");
@@ -57,7 +66,7 @@ public class CarLoanEvaluator {
         }
 
         // Condition check
-        if (car.getCarConditionScore() < 5) {
+        if (carVerificationReport.getCarConditionScore() < 5) {
             loan.setStatus(LoanStatus.REJECTED);
             loan.setRemarks("Car condition below acceptable level");
             loansRepository.save(loan);
@@ -84,7 +93,7 @@ public class CarLoanEvaluator {
         }
 
         // Employment Stability Check
-        if (car.getEmploymentStabilityYears() < 1) {
+        if (carVerificationReport.getEmploymentStabilityYears() < 1) {
             loan.setStatus(LoanStatus.REJECTED);
             loan.setRemarks("Employment too short (<1 year)");
             loansRepository.save(loan);
@@ -92,7 +101,7 @@ public class CarLoanEvaluator {
         }
 
         // Insurance validity
-        if (!car.isInsuranceValid()) {
+        if (!carVerificationReport.isInsuranceValid()) {
             loan.setStatus(LoanStatus.REJECTED);
             loan.setRemarks("Insurance not valid or expired");
             loansRepository.save(loan);
@@ -126,7 +135,6 @@ public class CarLoanEvaluator {
         if (loan.getCustomerId() != null) {
 
             // here need to call account service api for getting this kind of data
-            // TODO: fetch internal customer data from your Customer repository
             creditScore = 750; // example, replace with actual
             blacklisted = false;
             monthlyIncome = BigDecimal.valueOf(50000);

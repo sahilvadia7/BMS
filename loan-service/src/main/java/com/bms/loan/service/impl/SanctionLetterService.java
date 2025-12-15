@@ -1,6 +1,6 @@
 package com.bms.loan.service.impl;
 
-import com.bms.loan.Repository.CarLoanRepository;
+import com.bms.loan.Repository.car.CarLoanRepository;
 import com.bms.loan.Repository.LoanRepository;
 import com.bms.loan.entity.car.CarLoanDetails;
 import com.bms.loan.entity.loan.Loans;

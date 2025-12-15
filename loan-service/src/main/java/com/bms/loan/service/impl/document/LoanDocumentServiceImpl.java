@@ -69,28 +69,21 @@ public class LoanDocumentServiceImpl implements LoanDocumentService {
                     .remarks(request.getRemarks())
                     .build();
 
-            document = loanDocumentRepository.save(document);
 
-            String docType = request.getDocumentType().toUpperCase();
-            String docNumber = request.getDocumentNumber();
-
-
-            if (documentValidationResponse.isNumberMatched()){
+            if (documentValidationResponse.isNumberMatched()  && documentValidationResponse.getDetectedType() != DocumentType.UNKNOWN) {
                 document.setKycStatus(KycStatus.PENDING);
                 document.setRemarks("Document match with declared type");
-//                if (docType.equals("AADHAAR")) {
-//                    boolean isValid = aadhaarVerificationService.verifyAadhaar(docNumber);
-//                    document.setKycStatus(isValid ? KycStatus.PENDING : KycStatus.INVALID);
-//                    document.setRemarks(isValid ? "Aadhaar verified successfully" : "Aadhaar verification failed");
-//                } else if (docType.equals("PAN")) {
-//                    boolean isValid = aadhaarVerificationService.verifyPan(docNumber);
-//                    document.setKycStatus(isValid ? KycStatus.PENDING : KycStatus.INVALID);
-//                    document.setRemarks(isValid ? "PAN verified successfully" : "PAN verification failed");
-//                }
+
+                loanDocumentRepository.save(document);
+
+                return mapper.toResponse(document);
             }else {
                 document.setKycStatus(KycStatus.INVALID);
                 document.setRemarks("Document number does not match with Document");
+                return mapper.toResponse(document);
             }
+
+            // this code for third party aadhaar verification
 
 //            if (docType.equals("AADHAAR") && docNumber != null) {
 //                boolean isValid = aadhaarVerificationService.verifyAadhaar(docNumber);
@@ -102,9 +95,6 @@ public class LoanDocumentServiceImpl implements LoanDocumentService {
 //                document.setRemarks(isValid ? "PAN verified successfully" : "PAN verification failed");
 //            }
 
-            loanDocumentRepository.save(document);
-
-            return mapper.toResponse(document);
         } catch (IOException e) {
             throw new RuntimeException("Failed to process file: " + e.getMessage());
         }

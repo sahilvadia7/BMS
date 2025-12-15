@@ -1,11 +1,10 @@
 package com.bms.loan.controller;
 
+import com.bms.loan.dto.request.VerifyLoanRequestDto;
 import com.bms.loan.dto.request.loan.LoanPrepaymentRequest;
-import com.bms.loan.dto.request.car.CarLoanEvaluationRequestDto;
 import com.bms.loan.dto.request.loan.LoanApplicationRequest;
 import com.bms.loan.dto.request.education.EducationVerificationRequestDto;
-import com.bms.loan.dto.response.car.CarLoanEvaluationByBankResponse;
-import com.bms.loan.dto.response.education.EducationEvaluationResponse;
+import com.bms.loan.dto.response.VerificationResponseDto;
 import com.bms.loan.dto.response.emi.CustomerTimelyPaidEmiResponseDTO;
 import com.bms.loan.dto.response.emi.EmiSummary;
 import com.bms.loan.dto.response.emi.LoanEmiScheduleResponse;
@@ -52,25 +51,16 @@ public class LoanApplicationController {
         return ResponseEntity.ok(loanService.evaluateLoan(loanId));
     }
 
-    // Update Car Loan Evaluation Data
-    @Operation(summary = "Update car loan evaluation", description = "Access: Internal (Loan Officer)")
-    @PutMapping("/{loanId}/car-evaluation")
-    public ResponseEntity<CarLoanEvaluationByBankResponse> updateCarLoanEvaluation(
+
+    @PutMapping("/{loanId}/verify")
+    public ResponseEntity<?> verifyLoan(
             @PathVariable Long loanId,
-            @RequestBody CarLoanEvaluationRequestDto request) {
-        CarLoanEvaluationByBankResponse updated = loanService.updateEvaluationData(loanId, request);
-        return ResponseEntity.ok(updated);
+            @RequestBody VerifyLoanRequestDto verifyLoanRequestDto)
+    {
+        VerificationResponseDto response = loanService.verifyLoan(loanId, verifyLoanRequestDto);
+        return ResponseEntity.ok(response);
     }
 
-    // Update Car Loan Evaluation Data
-    @Operation(summary = "Verify education background", description = "Access: Internal (Loan Officer)")
-    @PutMapping("/{loanId}/education-verify")
-    public ResponseEntity<EducationEvaluationResponse> verifyEducationBackground(
-            @PathVariable Long loanId,
-            @RequestBody EducationVerificationRequestDto request) {
-        EducationEvaluationResponse updated = loanService.verifyEducationBackground(loanId, request);
-        return ResponseEntity.ok(updated);
-    }
 
     @Operation(summary = "Disburse loan", description = "Access: Admin")
     @PostMapping("/{loanId}/disburse")

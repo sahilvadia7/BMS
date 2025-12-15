@@ -1,6 +1,7 @@
 package com.bms.notification.service;
 
 import com.bms.notification.dto.OtpEmailDTO;
+import com.bms.notification.dto.Transaction;
 import com.bms.notification.dto.request.account.AccountCreationNotificationRequest;
 import com.bms.notification.dto.request.account.pin.OtpEmailRequest;
 import com.bms.notification.dto.request.loan.ApplyLoanEmailDTO;
@@ -20,4 +21,5 @@ public interface EmailService {
     void sendOtpEmailPin(OtpEmailRequest request);
 
     void downloadTransactionStatement(String accountNumber,String name,String toEmail,byte[] file);
+    void sendTransactionAlert(Transaction tx, String email);
 }

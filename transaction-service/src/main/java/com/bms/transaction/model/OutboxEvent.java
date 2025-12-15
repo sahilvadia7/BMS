@@ -24,6 +24,8 @@ public class OutboxEvent {
 
 	private String aggregateId;
 
+	private String aggregateType;
+
 	private String eventType;
 
     @Column(columnDefinition = "TEXT")

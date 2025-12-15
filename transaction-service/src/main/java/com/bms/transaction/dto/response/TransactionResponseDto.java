@@ -10,6 +10,8 @@ import java.time.LocalDateTime;
 public record TransactionResponseDto(
 		String transactionId,
 		String redirectUrl,
+		String sourceAccountNumber,
+		String destinationAccountNumber,
         String transactionType,
         BigDecimal amount,
         LocalDateTime transactionDate,
@@ -23,6 +25,8 @@ public record TransactionResponseDto(
 		return TransactionResponseDto.builder()
 				.transactionId(txn.getTransactionId())
 				.redirectUrl(null)
+				.sourceAccountNumber(txn.getAccountNumber())
+				.destinationAccountNumber(txn.getDestinationAccountNumber())
 				.transactionType(txn.getTransactionType().name())
 				.amount(txn.getAmount())
 				.transactionDate(txn.getTransactionDate())

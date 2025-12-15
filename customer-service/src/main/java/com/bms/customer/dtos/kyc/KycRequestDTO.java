@@ -10,7 +10,12 @@ public record KycRequestDTO(
         String documentType,
 
         @NotBlank(message = "Document number is required")
-        String documentNumber
+        String documentNumber,
+
+        @NotBlank(message = "Document URL is required")
+        String documentUrl,
+
+        String documentFileName
 
 //        @NotNull(message = "Status is required for the request model")
 //        KycStatus status

@@ -2,7 +2,7 @@ package com.bms.loan.controller;
 
 import com.bms.loan.dto.request.home.LoanSanctionRequest;
 import com.bms.loan.dto.response.home.LoanSanctionResponseDTO;
-import com.bms.loan.service.HomeLoanService;
+import com.bms.loan.service.LoanEvolutionAndSanctionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
@@ -13,9 +13,9 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Loan Sanction Management", description = "Endpoints for sanctioning loans")
 public class LoanSanctionController {
 
-    private final HomeLoanService homeLoanService;
+    private final LoanEvolutionAndSanctionService homeLoanService;
 
-    public LoanSanctionController(HomeLoanService homeLoanService) {
+    public LoanSanctionController(LoanEvolutionAndSanctionService homeLoanService) {
         this.homeLoanService = homeLoanService;
     }
 

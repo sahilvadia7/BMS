@@ -12,7 +12,9 @@ public interface LedgerService {
 			String accountNumber,
 			BigDecimal amount,
 			LedgerType type,
+			String eventStep,
 			String description,
-			String transactionType
+			boolean isSuccess,
+			String failureReason
 	);
 }

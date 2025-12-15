@@ -87,8 +87,10 @@ public class Transaction {
 
 	private boolean gatewayRetryRequired;
 
-
 	private LocalDateTime initiatedAt;
+
+	private LocalDateTime CompensatedAt;
+
 	private LocalDateTime gatewayAcknowledgedAt;
 
 	@PrePersist

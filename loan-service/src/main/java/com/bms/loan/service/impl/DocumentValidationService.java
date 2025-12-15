@@ -29,10 +29,15 @@ public class DocumentValidationService {
 
             if (!detected.getDetectedType().name().equalsIgnoreCase(declaredType)) {
                 detected.setMessage("Declared type does not match detected type.");
-                    throw new InvalidDocumentTypeException("Uploaded document does not match the declared type: "
-                        + detected.getDetectedType());
+                return DocumentValidationResponse.builder()
+                        .detectedType(DocumentType.UNKNOWN)
+                        .numberMatched(detected.isNumberMatched())
+                        .message("Uploaded document does not match the declared type")
+                        .build();
             }
+
             return detected;
+
         }catch (Exception e) {
             return DocumentValidationResponse.builder()
                     .detectedType(DocumentType.UNKNOWN)

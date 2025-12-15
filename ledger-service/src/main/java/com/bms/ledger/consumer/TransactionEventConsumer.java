@@ -2,20 +2,13 @@ package com.bms.ledger.consumer;
 
 import com.bms.ledger.config.RabbitMQConfig;
 import com.bms.ledger.enums.LedgerType;
-import com.bms.ledger.events.AccountCreditEvent;
-import com.bms.ledger.events.AccountDebitEvent;
-import com.bms.ledger.events.LedgerEntryEvent;
-import com.bms.ledger.events.LedgerResultEvent;
-import com.bms.ledger.producer.LedgerResultProducer;
 import com.bms.ledger.service.LedgerService;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.bms.ledger.producer.LedgerResultProducer;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Service;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -34,81 +27,142 @@ public class TransactionEventConsumer {
 		log.info("Received event: {}", map);
 
 		String eventType = (String) map.get("eventType");
-
 		if (eventType == null) {
-			log.warn("Unknown event type: {}", map);
+			log.warn("Unknown event type in message: {}", map);
 			return;
 		}
 
-		switch (eventType) {
-			case "DEBIT":
-				handleDebit(map);
-				break;
+		try {
+			switch (eventType) {
 
-			case "CREDIT":
-				handleCredit(map);
-				break;
-
-			case "LEDGER_ENTRY":
-				handleLedgerEntry(map);
-				break;
-
-			default:
-				log.warn("Unrecognized event type {}", eventType);
+				case "DEBIT_REQUESTED":
+					handleStage(map, LedgerType.DEBIT_REQUESTED);
+					break;
+				case "DEBIT_SUCCESS":
+					handleStage(map, LedgerType.DEBIT_SUCCESS);
+					break;
+				case "DEBIT_FAILED":
+					handleStage(map, LedgerType.DEBIT_FAILED);
+					break;
+				case "CREDIT_REQUESTED":
+					handleStage(map, LedgerType.CREDIT_REQUESTED);
+					break;
+				case "CREDIT_SUCCESS":
+					handleStage(map, LedgerType.CREDIT_SUCCESS);
+					break;
+				case "CREDIT_FAILED":
+					handleStageFailure(map, LedgerType.CREDIT_FAILED);
+					break;
+				case "COMPENSATION_DEBIT":
+					handleStage(map, LedgerType.COMPENSATION_DEBIT);
+					break;
+				case "COMPENSATION_CREDIT":
+					handleStage(map, LedgerType.COMPENSATION_CREDIT);
+					break;
+				case "COMPLETED":
+					ledgerService.processLedgerEntry(
+							(String) map.get("transactionId"),
+							null,
+							map.get("amount") != null ? new BigDecimal(map.get("amount").toString()) : BigDecimal.ZERO,
+							LedgerType.COMPLETED,
+							"COMPLETED",
+							(String) map.get("message"),
+							true,
+							null
+					);
+					publishFinalSuccess(map);
+					break;
+				case "FAILED":
+					ledgerService.processLedgerEntry(
+							(String) map.get("transactionId"),
+							null,
+							BigDecimal.ZERO,
+							LedgerType.FAILED,
+							"FAILED",
+							(String) map.get("message"),
+							false,
+							(String) map.get("failureReason")
+					);
+					publishFinalFailure(
+							(String) map.get("transactionId"),
+							(String) map.get("failureReason"),
+							(String) map.get("message")
+					);
+					break;
+				default:
+					log.warn("Unrecognized event type {}", eventType);
+			}
+		} catch (Exception e) {
+			log.error("Ledger processing exception for txn={}", map.get("transactionId"), e);
+			publishFinalFailure(
+					(String) map.get("transactionId"),
+					"Ledger crashed: " + e.getMessage(),
+					(String) map.get("message")
+			);
 		}
 	}
 
-	private void handleDebit(HashMap<String, Object> map) {
-		log.info("Handling Debit event: {}", map);
+	private void handleStage(HashMap<String, Object> map, LedgerType type) {
+		boolean success = map.get("success") == null || (boolean) map.get("success");
+		String failureReason = (String) map.get("failureReason");
 
 		ledgerService.processLedgerEntry(
 				(String) map.get("transactionId"),
 				(String) map.get("accountNumber"),
 				new BigDecimal(map.get("amount").toString()),
-				LedgerType.DEBIT,
+				type,
+				type.name(),
 				(String) map.get("description"),
-				"DEBIT"
+				success,
+				failureReason
 		);
 
-		publishSuccess((String) map.get("transactionId"));
-	}
-
-	private void handleCredit(HashMap<String, Object> map) {
-		log.info("Handling Credit event: {}", map);
-
-		ledgerService.processLedgerEntry(
+		publishStageAck(
 				(String) map.get("transactionId"),
-				(String) map.get("accountNumber"),
-				new BigDecimal(map.get("amount").toString()),
-				LedgerType.CREDIT,
-				(String) map.get("description"),
-				"CREDIT"
+				type,
+				success,
+				failureReason
 		);
-
-		publishSuccess((String) map.get("transactionId"));
 	}
 
-	private void handleLedgerEntry(HashMap<String, Object> map) {
-		log.info("Handling Ledger Entry event: {}", map);
-
-		ledgerService.processLedgerEntry(
+	private void handleStageFailure(HashMap<String, Object> map, LedgerType type) {
+		handleStage(map, type);
+		publishFinalFailure(
 				(String) map.get("transactionId"),
-				(String) map.get("accountNumber"),
-				new BigDecimal(map.get("amount").toString()),
-				LedgerType.valueOf((String) map.get("ledgerType")),
-				(String) map.get("description"),
-				"LEDGER_ENTRY"
+				(String) map.get("failureReason"),
+				(String) map.get("message")
 		);
-
-		publishSuccess((String) map.get("transactionId"));
 	}
 
-	private void publishSuccess(String txnId) {
+	private void publishStageAck(String txnId, LedgerType stage, boolean success, String failureReason) {
 		HashMap<String, Object> result = new HashMap<>();
-		result.put("eventType", "LEDGER_RESULT");
+		result.put("eventType", "LEDGER_STAGE_ACK");
 		result.put("transactionId", txnId);
+		result.put("stage", stage.name());
+		result.put("success", success);
+		result.put("failureReason", failureReason);
+
+		resultProducer.publishLedgerResult(result);
+	}
+
+	private void publishFinalSuccess(HashMap<String, Object> map) {
+		HashMap<String, Object> result = new HashMap<>();
+		result.put("eventType", "TRANSACTION_SUCCESS");
+		result.put("transactionId", map.get("transactionId"));
+		result.put("amount", map.get("amount"));
 		result.put("success", true);
-		result.put("message", "Ledger processed successfully");
+		result.put("message", map.get("message"));
+
+		resultProducer.publishLedgerResult(result);
+	}
+
+	private void publishFinalFailure(String txnId, String failureReason, String message) {
+		HashMap<String, Object> result = new HashMap<>();
+		result.put("eventType", "TRANSACTION_FAILURE");
+		result.put("transactionId", txnId);
+		result.put("success", false);
+		result.put("failureReason", failureReason);
+		result.put("message", message);
 
 		resultProducer.publishLedgerResult(result);
 	}

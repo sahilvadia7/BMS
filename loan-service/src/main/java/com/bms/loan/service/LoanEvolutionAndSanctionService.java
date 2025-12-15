@@ -1,0 +1,15 @@
+package com.bms.loan.service;
+
+import com.bms.loan.dto.request.home.LoanSanctionRequest;
+import com.bms.loan.dto.response.home.LoanSanctionResponseDTO;
+import com.bms.loan.dto.response.loan.LoanEvaluationResponse;
+
+public interface LoanEvolutionAndSanctionService {
+
+    // Evaluate home loan eligibility based on property, income, etc.
+    LoanEvaluationResponse evaluateLoan(Long loanId);
+
+    LoanSanctionResponseDTO sanctionHomeLoan(Long loanId, LoanSanctionRequest request);
+
+    void eSignSanctionLatter(Long loanId);
+}

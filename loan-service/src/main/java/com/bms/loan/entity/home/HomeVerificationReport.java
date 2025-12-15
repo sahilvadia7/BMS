@@ -1,8 +1,11 @@
 package com.bms.loan.entity.home;
 
+import com.bms.loan.entity.BaseVerificationReport;
 import com.bms.loan.entity.loan.Loans;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -10,8 +13,8 @@ import java.time.LocalDate;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class HomeVerificationReport {
+@SuperBuilder
+public class HomeVerificationReport extends BaseVerificationReport {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -21,13 +24,12 @@ public class HomeVerificationReport {
     @JoinColumn(name = "loan_id", nullable = false)
     private Loans loans;
 
-    private boolean addressVerified;
     private boolean ownershipVerified;
+    private boolean neighbourCheckDone;      // background check
     private boolean propertyConditionOk;
-
     private BigDecimal evaluatedValue; // as per field inspection
-    private String officerName;
-    private String officerRemarks;
-    private LocalDate visitDate;
+
+    private String propertyType;
+    private BigDecimal propertyArea;
 
 }

@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
-@FeignClient(name = "notification-service",url = "http://localhost:8088/api/v1/notifications")
+@FeignClient(name = "notification-service",url = "http://localhost:8089/api/v1/notifications")
 public interface NotificationClient {
 
     @PostMapping("/account-created")
